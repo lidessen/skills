@@ -1,6 +1,16 @@
-# Anti-Patterns: Common Mistakes to Avoid
+# Understanding Anti-Patterns
 
-This document lists common mistakes when creating skills and how to fix them.
+Rather than memorizing a list of "don't do this" rules, understand *why* certain patterns fail. Each anti-pattern violates one or more of the three core principles: Progressive Disclosure, Respect Intelligence, or Enable Discovery.
+
+When you understand the underlying reasons, you can make good decisions in novel situations.
+
+## How to Use This Guide
+
+For each anti-pattern, we explain:
+1. **Why it's problematic** - The underlying issue
+2. **Which principle it violates** - Connection to core concepts
+3. **Real impact** - Concrete consequences
+4. **The fix** - How the correct approach embodies the principles
 
 ## Table of Contents
 1. [Windows-Style Paths](#1-windows-style-paths)
@@ -24,16 +34,26 @@ This document lists common mistakes when creating skills and how to fix them.
 
 ## 1. Windows-Style Paths
 
-**Bad**: `reference\guide.md`, `scripts\helper.py`  
-**Good**: `reference/guide.md`, `scripts/helper.py`  
-**Rule**: Always use forward slashes.
+**Bad**: `reference\guide.md`, `scripts\helper.py`
+**Good**: `reference/guide.md`, `scripts/helper.py`
+
+### Why It's Problematic
+When you use backslashes, Claude's file reading logic must handle both slash styles. This creates ambiguity: Is `scripts\helper.py` a Windows path or an escape sequence? The parser must make assumptions, adding mental overhead.
+
+### Violates: Respect Intelligence
+Forces Claude to spend cognitive effort on path interpretation instead of actual work. It's a small tax, but unnecessary friction multiplied across many files.
+
+### Real Impact
+- Increased parsing complexity
+- Potential file reading errors on Unix systems
+- Inconsistency across team members using different OSes
+
+### The Fix
+Always use forward slashes. They work on all platforms (including Windows), eliminating ambiguity entirely.
 
 ---
 
 ## 2. Deeply Nested References
-
-### Problem
-Claude may partially read nested reference files, missing content.
 
 **Bad - Too Deep**:
 ```markdown
@@ -57,9 +77,20 @@ Here's the actual information you need...
 **Examples**: See [examples.md](examples.md)
 ```
 
-**Why**: Nested references may trigger `head -100` previews instead of full reads, resulting in incomplete information.
+### Why It's Problematic
+When Claude encounters a reference file that itself contains references, it may use `head -100` to preview the file's structure before deciding whether to read it fully. With nested references, the preview shows only navigation links—not the actual content. Claude must then make another read, potentially partial again, creating a game of "follow the breadcrumbs" that wastes API calls and may still miss information.
 
-**Rule**: All reference files should link directly from SKILL.md.
+### Violates: Progressive Disclosure
+The goal of progressive disclosure is to load information *when needed*, not to create a maze. Nesting defeats the purpose by requiring multiple hops to reach actual content.
+
+### Real Impact
+- Claude sees "See implementation.md for details" in preview, makes another partial read
+- Multiple API round-trips to find information
+- Risk of incomplete information if preview limits kick in
+- Frustrating user experience as Claude says "I need to read more files"
+
+### The Fix
+All reference files should link directly from SKILL.md. If advanced.md contains implementation details, put those details IN advanced.md, not in yet another file. Think of SKILL.md as a table of contents—every chapter (reference file) should be one click away.
 
 ---
 
@@ -134,9 +165,6 @@ This endpoint is no longer supported.
 
 ## 8. SKILL.md Over 500 Lines
 
-### Problem
-Large SKILL.md files consume too much context.
-
 **Bad - Monolithic**:
 ```markdown
 ---
@@ -169,16 +197,25 @@ name: data-analysis
 - **Product**: See [reference/product.md](reference/product.md)
 ```
 
-**Why**: Claude loads SKILL.md when skill is triggered. Large files waste tokens on irrelevant context.
+### Why It's Problematic
+When this skill triggers, Claude loads all 6000+ lines into context immediately—whether the user asks about finance, sales, or product data. A finance query doesn't need sales schemas. A basic question doesn't need advanced edge cases. But with everything in one file, Claude has no choice.
 
-**Rule**: Keep SKILL.md under 500 lines. Use progressive disclosure for additional content.
+### Violates: Progressive Disclosure
+This is the canonical violation. The entire point of progressive disclosure is "load only what's needed." A monolithic SKILL.md forces loading of *everything*.
+
+### Real Impact
+- Finance query wastes ~4000 tokens on irrelevant sales/product data
+- Slower processing (more content to parse)
+- Higher costs (more tokens per request)
+- Less room for actual conversation history
+- Harder to maintain (one massive file vs. focused modules)
+
+### The Fix
+Keep SKILL.md as a lean navigation hub (~500 lines). Put detailed content in reference files. When Claude needs finance data, it reads SKILL.md (~100 lines) + finance.md (~500 lines) = 600 tokens instead of 6000. That's 10x more efficient.
 
 ---
 
 ## 9. Vague Descriptions Without Triggers
-
-### Problem
-Generic descriptions don't help Claude discover when to use the skill.
 
 **Bad - No Triggers**:
 ```yaml
@@ -190,17 +227,63 @@ description: Helps with documents and data processing
 description: Extract text from PDF and Word documents, convert between formats. Use when processing PDFs, .docx files, or document conversion.
 ```
 
-**Why**: Claude uses descriptions to match skills to tasks. Specific trigger terms improve discovery.
+### Why It's Problematic
+Claude has potentially 100+ skills available. When a user asks "Can you extract text from this PDF?", Claude scans all skill descriptions looking for matches. "Helps with documents" matches weakly—lots of skills could "help with documents." But "Extract text from PDF" with trigger terms "PDF, .docx, extraction" creates a strong, obvious match.
 
-**Rule**: Include specific file types, technology names, and activity phrases.
+### Violates: Enable Discovery
+A vague description makes your skill invisible. You've done the work to create it, but Claude can't find it when needed because the description doesn't contain the words users actually say.
+
+### Real Impact
+- Skill doesn't trigger when it should
+- User gets worse results (Claude tries to solve without your skill)
+- Wasted effort creating a skill that's never used
+- Duplicate effort (someone creates the same skill again with better description)
+
+### The Fix
+Include specific trigger terms: file types (.pdf, .docx), technology names (PostgreSQL, React), activity phrases ("code review", "commit message"), domain terms ("database schema", "API endpoint"). Think about what words users say when they need this skill, then put those words in the description.
 
 ---
 
 ## 10. Over-Explaining Basics
 
-**Bad**: "PDF stands for Portable Document Format. It's a file format developed by Adobe. PDFs can contain text, images..."  
-**Good**: Direct code/instructions only  
-**Rule**: Skip common knowledge (file formats, imports, package managers, etc.).
+**Bad**:
+```markdown
+## Working with PDFs
+
+PDF stands for Portable Document Format. It's a file format developed by
+Adobe in 1992. PDFs can contain text, images, and interactive elements.
+To work with PDFs in Python, you'll need to install a library. There are
+several options available...
+```
+
+**Good**:
+```markdown
+## Extract PDF Text
+
+Use pdfplumber:
+\```python
+import pdfplumber
+
+with pdfplumber.open("file.pdf") as pdf:
+    text = pdf.pages[0].extract_text()
+\```
+```
+
+### Why It's Problematic
+Claude already knows what PDFs are, how Python imports work, that packages need installation. Explaining these basics wastes precious context tokens on information that provides zero value. It's like explaining what a function is to an experienced programmer—patronizing and inefficient.
+
+### Violates: Respect Intelligence
+This is the canonical violation. You're assuming Claude doesn't know common concepts, wasting tokens that could be used for your domain-specific knowledge.
+
+### Real Impact
+- Wasted tokens (example above: ~150 tokens vs. ~30 tokens = 5x waste)
+- Slower processing (more content to parse)
+- Less room for actual useful content
+- Signal-to-noise ratio decreases (harder to find key information)
+- Accumulated waste (if every section over-explains, a 500-line skill becomes 2500 lines)
+
+### The Fix
+Assume Claude knows: file formats, programming concepts, standard tools, common patterns, industry terminology. Only explain: your specific schemas, your team's standards, your custom workflows, your business rules, your internal tools. Get straight to code, commands, and domain-specific facts.
 
 ---
 
@@ -260,26 +343,33 @@ description: Extract text from PDF and Word documents, convert between formats. 
 
 ---
 
-## Quick Reference Checklist
+## Quick Reference: Principle-Based Review
 
-Before finalizing a skill, check for these anti-patterns:
+Before finalizing a skill, ask these questions:
 
-- [ ] ✗ Windows-style paths (`\`)
-- [ ] ✗ Deeply nested references (>1 level)
-- [ ] ✗ Time-sensitive information (dates in conditions)
-- [ ] ✗ Inconsistent terminology
-- [ ] ✗ Too many options without default
-- [ ] ✗ Vague skill name
-- [ ] ✗ First or second person description
-- [ ] ✗ SKILL.md over 500 lines
-- [ ] ✗ Description without trigger terms
-- [ ] ✗ Over-explaining basic concepts
-- [ ] ✗ No examples for format-specific outputs
-- [ ] ✗ Missing error handling
-- [ ] ✗ Template too complex
-- [ ] ✗ Created in `~/.cursor/skills-cursor/`
-- [ ] ✗ Vague workflow steps
-- [ ] ✗ No verification before critical operations
-- [ ] ✗ Mixed naming patterns
+### Progressive Disclosure
+- [ ] Will this skill load only what's needed for common queries?
+- [ ] Is SKILL.md under 500 lines (navigation hub, not content dump)?
+- [ ] Are all references one level deep (no nested mazes)?
+- [ ] Have I moved detailed content to reference files?
 
-If you find any of these, fix them before using the skill.
+### Respect Intelligence
+- [ ] Am I explaining things Claude already knows?
+- [ ] Could I cut this by 50% without losing essential information?
+- [ ] Am I using code/commands instead of tutorials?
+- [ ] Is every sentence earning its token cost?
+
+### Enable Discovery
+- [ ] Does the description include specific trigger terms?
+- [ ] Is it third person (for system prompt injection)?
+- [ ] Would Claude pick this skill for the right tasks?
+- [ ] Does the name clearly indicate purpose?
+
+### Technical Constraints
+- [ ] Forward slashes in all paths? (cross-platform)
+- [ ] Name follows format? (lowercase-with-hyphens, max 64 chars)
+- [ ] Description under 1024 chars?
+- [ ] Consistent terminology throughout?
+- [ ] No time-sensitive information?
+
+If any answer is "no", revisit the relevant anti-pattern section to understand why it matters.

@@ -31,13 +31,17 @@ Reviews staged changes for common issues before generating commit message and co
 
 ### 📝 create-skill
 
-Guide for creating effective Agent Skills with progressive disclosure patterns and best practices.
+Guide for creating effective Agent Skills using a principle-based approach inspired by Claude's constitutional AI.
+
+**Philosophy:**
+- Understanding *why* patterns matter, not just *what* rules to follow
+- Three core principles: Progressive Disclosure, Respect Intelligence, Enable Discovery
+- Focus on judgment and trade-offs over mechanical compliance
 
 **Features:**
-- Step-by-step skill creation workflow
-- Best practices for skill design
+- Principle-based design framework
+- Deep understanding of anti-patterns
 - Progressive disclosure patterns
-- Quality checklists and anti-patterns
 - Comprehensive examples and templates
 
 **Use when:** You want to create a new skill, author a SKILL.md file, or ask about skill structure, naming conventions, descriptions, or how to organize skill content.
