@@ -409,7 +409,7 @@ Organized by status, clear lifecycle.
 - Never reuse numbers
 
 **Benefits:**
-- Easy to reference ("See RFC 42")
+- Easy to reference ("See RFC 0042")
 - Chronological order preserved
 - Unique identifier
 
@@ -521,7 +521,7 @@ rfcs/
 ### Example 1: Lightweight RFC (Small Team)
 
 ```markdown
-# RFC 003: Switch to PostgreSQL
+# RFC 0003: Switch to PostgreSQL
 
 **Status:** ACCEPTED
 **Author:** @alex

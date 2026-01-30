@@ -37,6 +37,8 @@ Manages living documentation systems for code repositories. Ensures documents ar
 
 ## Documentation Layers
 
+Projects typically organize documentation in three layers. The structure below shows one common pattern - adapt to fit your project (see [organization-strategies.md](reference/organization-strategies.md) for alternatives).
+
 ### Layer 1: Repository Root (Discovery & Navigation)
 Essential files that help both humans and agents understand the project:
 
@@ -159,7 +161,7 @@ Follow the same principles as the skills system:
 3. **Reference** - Detailed technical specs loaded on-demand
 4. **Code** - Ultimate source of truth, read when needed
 
-See [agent-docs.md](reference/agent-docs.md) for detailed guidelines.
+(see [agent-docs.md](reference/agent-docs.md) for detailed guidelines)
 
 ### Documentation Minimalism
 
@@ -265,6 +267,7 @@ See [agent-docs.md](reference/agent-docs.md) for detailed guidelines.
 ## Navigation
 
 ### Quick Reference
+- [Quick Reference Cheatsheet](reference/quick-reference.md) - Decision trees and common patterns
 - [Documentation Organization Strategies](reference/organization-strategies.md)
 - [Document Lifecycle Management](reference/lifecycle.md)
 - [Agent Documentation Guidelines](reference/agent-docs.md)
