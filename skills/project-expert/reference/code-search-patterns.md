@@ -1,740 +1,302 @@
 # Code Search Patterns Reference
 
-Comprehensive techniques for navigating and understanding codebases through strategic search patterns.
-
-## Table of Contents
-- [Search by Code Element](#search-by-code-element)
-- [Language-Specific Patterns](#language-specific-patterns)
-- [Tracing Code Flow](#tracing-code-flow)
-- [Finding Dependencies](#finding-dependencies)
-- [Test-Driven Discovery](#test-driven-discovery)
-- [Configuration Discovery](#configuration-discovery)
-- [Error and Validation Search](#error-and-validation-search)
-
-## Search by Code Element
-
-### Finding Type Definitions
-
-Type definitions reveal data structures and contracts.
-
-**TypeScript/JavaScript**:
-```bash
-# Interfaces
-grep -r "interface\s\+UserProfile" src/
-
-# Type aliases
-grep -r "type\s\+UserProfile" src/
-
-# Classes
-grep -r "class\s\+UserProfile" src/
-
-# Enums
-grep -r "enum\s\+UserStatus" src/
-```
-
-**Python**:
-```bash
-# Classes
-grep -r "^class UserProfile" src/
-
-# Type hints with dataclass
-grep -r "@dataclass" src/ -A 5
-
-# TypedDict
-grep -r "class.*TypedDict" src/
-```
-
-**Go**:
-```bash
-# Struct definitions
-grep -r "type.*struct" .
-
-# Interfaces
-grep -r "type.*interface" .
-
-# Specific type
-grep -r "type UserProfile struct" .
-```
-
-**Java**:
-```bash
-# Classes
-grep -r "public class UserProfile" src/
-
-# Interfaces
-grep -r "public interface" src/
-
-# Records (Java 14+)
-grep -r "public record" src/
-```
-
-### Finding Function/Method Definitions
-
-**TypeScript/JavaScript**:
-```bash
-# Function declarations
-grep -r "function getUserProfile" src/
-
-# Arrow functions (exported)
-grep -r "export const getUserProfile" src/
-
-# Class methods
-grep -r "getUserProfile\s*(" src/ | grep -v "^\s*//"
-
-# Async functions
-grep -r "async.*getUserProfile" src/
-```
-
-**Python**:
-```bash
-# Function definitions
-grep -r "^def get_user_profile" src/
-
-# Class methods
-grep -r "^\s\+def get_user_profile" src/
-
-# Async functions
-grep -r "async def get_user_profile" src/
-```
-
-**Go**:
-```bash
-# Function definitions
-grep -r "^func GetUserProfile" .
-
-# Methods (with receiver)
-grep -r "^func (.*) GetUserProfile" .
-```
-
-**Java**:
-```bash
-# Method definitions
-grep -r "public.*getUserProfile\s*(" src/
-
-# With return type
-grep -r "public UserProfile getUserProfile" src/
-```
-
-### Finding Constants and Configuration
-
-```bash
-# Constants
-grep -r "const\s\+MAX_RETRY" src/
-grep -r "final.*MAX_RETRY" src/  # Java
-grep -r "MAX_RETRY\s*=" src/      # Python
-
-# Environment variables
-grep -r "process\.env\." src/           # Node.js
-grep -r "os\.getenv\|os\.environ" src/  # Python
-grep -r "System\.getenv" src/           # Java
-
-# Config objects
-grep -r "config\.\|CONFIG\." src/
-```
-
-### Finding API Routes/Endpoints
-
-**Express.js**:
-```bash
-# Route definitions
-grep -r "router\.\(get\|post\|put\|delete\|patch\)" src/
-grep -r "app\.\(get\|post\|put\|delete\)" src/
-
-# Specific endpoint
-grep -r "\.get\s*\(\s*['\"]\/users" src/
-```
-
-**FastAPI/Flask**:
-```bash
-# Route decorators
-grep -r "@app\.\(get\|post\|put\|delete\)" src/
-grep -r "@router\.\(get\|post\|put\|delete\)" src/
-
-# Specific route
-grep -r "@.*\.get\(.*\/users" src/
-```
-
-**Spring Boot**:
-```bash
-# Request mappings
-grep -r "@GetMapping\|@PostMapping\|@PutMapping" src/
-grep -r "@RequestMapping" src/
-
-# Specific endpoint
-grep -r "@GetMapping.*\"/users\"" src/
-```
-
-### Finding Database Queries
-
-**SQL queries**:
-```bash
-# Direct SQL strings
-grep -r "SELECT.*FROM.*users" src/
-
-# Query builders
-grep -r "\.select\(.*users\|\.from\(.*users" src/
-
-# ORM queries
-grep -r "User\.find\|User\.query" src/
-```
-
-**Database models**:
-```bash
-# Mongoose (MongoDB)
-grep -r "mongoose\.model\|new Schema" src/
-
-# Sequelize
-grep -r "sequelize\.define\|DataTypes\." src/
-
-# TypeORM
-grep -r "@Entity\|@Column" src/
-
-# SQLAlchemy
-grep -r "class.*Base\|Column\(" src/
-```
-
-## Language-Specific Patterns
-
-### TypeScript/JavaScript
-
-**Finding imports/exports**:
-```bash
-# ES6 imports
-grep -r "import.*from.*['\"].*user" src/
-
-# Require statements
-grep -r "require\(['\"].*user" src/
-
-# Exports
-grep -r "export.*User\|export default" src/
-
-# Re-exports
-grep -r "export.*from" src/
-```
-
-**Finding React components**:
-```bash
-# Function components
-grep -r "function.*Component\|const.*Component.*=" src/ --include="*.tsx" --include="*.jsx"
-
-# Hooks usage
-grep -r "useState\|useEffect\|useContext" src/
-
-# Props interfaces
-grep -r "interface.*Props" src/ --include="*.tsx"
-```
-
-**Finding decorators** (if using):
-```bash
-grep -r "@Component\|@Injectable\|@Entity" src/
-```
-
-### Python
-
-**Finding class inheritance**:
-```bash
-# Classes inheriting from specific base
-grep -r "class.*\(.*BaseModel\)" src/
-
-# Multiple inheritance
-grep -r "class.*\(.*,.*\)" src/
-```
-
-**Finding decorators**:
-```bash
-# Common decorators
-grep -r "@property\|@staticmethod\|@classmethod" src/
-
-# Custom decorators
-grep -r "@login_required\|@cache" src/
-```
-
-**Finding async code**:
-```bash
-# Async functions
-grep -r "async def\|await " src/
-
-# Async context managers
-grep -r "async with" src/
-```
-
-### Go
-
-**Finding interfaces and implementations**:
-```bash
-# Interface definitions
-grep -r "type.*interface {" .
-
-# Struct methods (potential interface implementation)
-grep -r "func (.*\*.*) .*(" .
-```
-
-**Finding goroutines**:
-```bash
-# Go routine launches
-grep -r "go func\|go .*\(" .
-
-# Channels
-grep -r "make(chan\|<-.*chan\|chan.*<-" .
-```
-
-### Java
-
-**Finding annotations**:
-```bash
-# Spring annotations
-grep -r "@Service\|@Repository\|@Controller\|@Component" src/
-
-# JPA annotations
-grep -r "@Entity\|@Table\|@Column" src/
-
-# Testing annotations
-grep -r "@Test\|@Before\|@After" src/
-```
-
-**Finding inheritance**:
-```bash
-# Class extension
-grep -r "class.*extends" src/
-
-# Interface implementation
-grep -r "class.*implements" src/
-```
+Strategic approaches for navigating codebases to find implementation details.
+
+## Search Strategy by Question Type
+
+### "How does feature X work?"
+
+**Search sequence**:
+1. Find entry point (routes, handlers, main)
+2. Trace to business logic (services, controllers)
+3. Follow to data layer (models, repositories)
+4. Check tests for behavior validation
+
+**Key files to search**:
+- API routes/endpoints
+- Controllers/handlers
+- Service layer implementations
+- Data models and schemas
+- Test files
+
+### "Where is X implemented?"
+
+**Search sequence**:
+1. Search for type definitions first
+2. Find function/class definitions
+3. Locate usage/imports
+4. Check tests for examples
+
+**Patterns**:
+- Type definitions reveal structure
+- Tests reveal usage patterns
+- Imports map dependencies
+
+### "What causes error Y?"
+
+**Search sequence**:
+1. Find error definition (class/constant)
+2. Find where error is thrown
+3. Trace to calling code
+4. Check tests for error cases
+
+### "Why is X designed this way?"
+
+**Search sequence**:
+1. Check design docs and ADRs
+2. Review git history for rationale
+3. Examine related code patterns
+4. Look for comments explaining decisions
 
 ## Tracing Code Flow
 
-### Entry Point to Implementation
+### Entry Point → Implementation
 
-**Step 1: Find entry point**
-```bash
-# HTTP endpoints
-grep -r "router\.\|@.*Mapping\|@app\." src/
-
-# Main function
-grep -r "function main\|def main\|func main\|public static void main" .
-
-# Event handlers
-grep -r "addEventListener\|on\(.*,\|@EventListener" src/
+**For web apps**:
+```
+Route → Controller → Service → Repository → Database
 ```
 
-**Step 2: Trace function calls**
-```bash
-# Find where function is called
-grep -r "getUserProfile\(" src/
+**Search approach**:
+1. Find route definition
+2. Extract handler name
+3. Search for handler implementation
+4. Follow service calls
+5. Trace to data access
 
-# Find function definition
-grep -r "function getUserProfile\|const getUserProfile\|def get_user_profile" src/
-```
+### Reverse Tracing (Implementation → Usage)
 
-**Step 3: Follow imports**
-```bash
-# Find where module is imported
-grep -r "from.*userService\|import.*userService" src/
-```
+**When you have**: Function definition
+**Find**: Where it's called
 
-**Step 4: Map data flow**
-```bash
-# Track variable transformations
-# Read the implementation file to see how data flows
-```
+**Search approach**:
+1. Note function name
+2. Search for imports of the module
+3. Search for function calls (excluding definition)
+4. Analyze calling contexts
 
-### Reverse Tracing (From Implementation to Usage)
+## Finding Patterns
 
-**Step 1: Find function definition**
-```bash
-grep -r "function calculateTotal" src/
-```
+### Common Entry Points
 
-**Step 2: Find all usages**
-```bash
-grep -r "calculateTotal\(" src/ | grep -v "function calculateTotal"
-```
+**Web frameworks**:
+- Routes/endpoints definitions
+- Main application file
+- Server initialization
 
-**Step 3: Identify calling contexts**
-```bash
-# Read files that call the function to understand usage contexts
-```
+**CLIs**:
+- Main function
+- Command definitions
+- Argument parsers
 
-## Finding Dependencies
+**Libraries**:
+- Exported functions/classes
+- Public API surface
+- Index files
 
-### Direct Dependencies
+### Configuration Discovery
 
-**Package dependencies**:
-```bash
-# Node.js
-cat package.json | grep -A 20 "dependencies"
+**What to search**:
+1. Config files (*.config.*, config/)
+2. Environment variables (process.env, getenv)
+3. Constants files
+4. Settings modules
+5. .env.example for variable names
 
-# Python
-cat requirements.txt
-cat pyproject.toml
+**Purpose**: Understand configurable behavior, defaults, and requirements.
 
-# Go
-cat go.mod
+### Dependency Mapping
 
-# Java
-cat pom.xml | grep -A 5 "<dependencies>"
-```
+**Find what component depends on**:
+1. Check imports at file top
+2. Review package.json/requirements.txt
+3. Look for dependency injection
 
-### Import Dependencies
+**Find what depends on component**:
+1. Search for imports of the module
+2. Check for usages of exports
+3. Review test files
 
-**Find all imports from a module**:
-```bash
-# TypeScript/JavaScript
-grep -r "from ['\"].*module-name" src/
+## Language-Specific Notes
 
-# Python
-grep -r "from module_name import\|import module_name" src/
+### TypeScript/JavaScript
 
-# Go
-grep -r "\"module-name" .
+**Key searches**:
+- Type definitions in `*.types.ts`, `*.d.ts`
+- React components in `*.tsx`, `*.jsx`
+- Entry points: `index.ts`, `main.ts`, `app.ts`
 
-# Java
-grep -r "import.*module\.name" src/
-```
+### Python
 
-### Finding Internal Dependencies
+**Key searches**:
+- Class definitions with `^class `
+- Decorators (e.g., `@app.route`, `@dataclass`)
+- Entry points: `__main__.py`, `main.py`, `app.py`
 
-**Module dependency graph**:
-```bash
-# Find all files importing from specific module
-grep -rl "from.*['\"]@/services/user" src/
+### Go
 
-# Find what a module imports
-grep "^import\|^from" src/services/user.ts
-```
+**Key searches**:
+- Use `.` (project root) not `src/` for searches
+- Entry points: `main.go`, `cmd/`
+- Interfaces and structs
 
-### Finding Circular Dependencies
+### Java
 
-```bash
-# Find imports between two modules
-grep -r "from.*moduleA" src/moduleB/
-grep -r "from.*moduleB" src/moduleA/
-```
+**Key searches**:
+- Annotations (e.g., `@Service`, `@Entity`, `@RestController`)
+- Entry points: `*Application.java`, `main()` methods
+- Package structure in `src/main/java/`
 
-## Test-Driven Discovery
+## Advanced Techniques
 
-Tests reveal expected behavior and usage patterns.
-
-### Finding Test Files
-
-```bash
-# By naming convention
-Glob: "**/*.test.{ts,js,py}"
-Glob: "**/*.spec.{ts,js}"
-Glob: "**/test_*.py"
-
-# By directory
-Glob: "tests/**/*"
-Glob: "__tests__/**/*"
-```
-
-### Finding Tests for Specific Feature
-
-```bash
-# Test file for module
-find . -name "*user*test*" -o -name "*user*spec*"
-
-# Test cases mentioning feature
-grep -r "describe.*user\|test.*user\|it.*user" tests/
-
-# Python tests
-grep -r "def test_.*user\|class Test.*User" tests/
-```
-
-### Understanding Behavior from Tests
+### Finding Implicit Behavior
 
 **Look for**:
-1. Test setup - What's being initialized
-2. Test input - What parameters are used
-3. Assertions - What's the expected behavior
-4. Edge cases - Error conditions tested
+- Middleware (authentication, logging, validation)
+- Hooks/lifecycle methods
+- Event listeners
+- Decorators/annotations
 
-```bash
-# Find test assertions
-grep -r "expect\|assert" tests/user.test.ts
+**These often control behavior without explicit calls in code.**
 
-# Find error tests
-grep -r "toThrow\|raises\|assertRaises" tests/
+### Cross-Referencing
+
+**When findings conflict**:
+1. Check git history (what changed, when, why)
+2. Compare dev vs prod configs
+3. Look for feature flags
+4. Check environment-specific code
+
+### Pattern Recognition
+
+**After exploring**, note:
+- Project-specific naming conventions
+- Common utility locations
+- Standard file organization
+- Typical data flow patterns
+
+**Use these patterns to guide future searches in the same project.**
+
+## Multi-Step Search Examples
+
+### Example 1: API Endpoint Behavior
+
+**Goal**: Understand POST /users endpoint
+
+```
+Step 1: Find route
+  → Search: route.*post.*users
+
+Step 2: Find handler
+  → Found: createUserHandler in routes
+  → Search: function createUserHandler
+
+Step 3: Find service
+  → Handler calls: userService.create
+  → Search: userService.*create
+
+Step 4: Find data layer
+  → Service uses: UserRepository.save
+  → Search: class UserRepository
+
+Step 5: Check validation
+  → Search: validate.*user|user.*schema
+
+Step 6: Check tests
+  → Search: test.*create.*user
 ```
 
-## Configuration Discovery
+### Example 2: Configuration Value
 
-### Finding Config Files
+**Goal**: Find database connection timeout
 
-```bash
-# Common config locations
-ls config/*.{js,json,yaml,yml}
-ls *.config.{js,ts}
-ls .*.{json,yaml,yml}
+```
+Step 1: Search configs
+  → Search: timeout in config/
 
-# Environment configs
-ls .env*
-ls config/*.env*
+Step 2: Search env vars
+  → Search: process.env.*TIMEOUT
+
+Step 3: Search usage
+  → Search: connection.*timeout
+
+Step 4: Check defaults
+  → Look in config initialization code
+
+Step 5: Verify in tests
+  → Search tests for timeout scenarios
 ```
 
-### Finding Config Usage
+### Example 3: Error Handling
 
-```bash
-# Import/require of config
-grep -r "import.*config\|require.*config" src/
+**Goal**: How are payment errors handled?
 
-# Config object access
-grep -r "config\.\|CONFIG\.\|settings\." src/
+```
+Step 1: Find error definitions
+  → Search: PaymentError|payment.*error
 
-# Environment variable usage
-grep -r "process\.env\.\|os\.getenv\|System\.getenv" src/
+Step 2: Find throw sites
+  → Search: throw.*Payment
+
+Step 3: Find catch blocks
+  → Search: catch.*payment in payment module
+
+Step 4: Find error responses
+  → Check API response handling
+
+Step 5: Verify with tests
+  → Search: test.*payment.*error
 ```
 
-### Schema Discovery
+## Search Optimization Tips
 
-```bash
-# JSON Schema
-find . -name "*schema.json" -o -name "schema.json"
+### Start Specific, Expand Gradually
 
-# GraphQL Schema
-find . -name "schema.graphql" -o -name "*.graphql"
+1. Exact match first
+2. If not found, use partial match
+3. Then use case-insensitive
+4. Finally, related terms
 
-# Protocol Buffers
-find . -name "*.proto"
+### Use File Type Filters
 
-# OpenAPI/Swagger
-find . -name "openapi.yaml" -o -name "swagger.*"
-```
+Focus searches on relevant files:
+- `--include="*.ts"` for TypeScript
+- `--include="*.py"` for Python
+- `--exclude-dir="node_modules"` to skip dependencies
 
-## Error and Validation Search
+### Context is Key
 
-### Finding Error Definitions
+Use `-A`, `-B`, `-C` flags to see surrounding code when matches are found.
 
-```bash
-# Error classes
-grep -r "class.*Error extends\|class.*Exception" src/
+### Combine Tools
 
-# Error constants
-grep -r "ERROR_\|ERR_" src/ --include="*.ts" --include="*.js"
+- **Glob**: Find files by pattern
+- **Grep**: Search content within files
+- **Read**: Examine full file context
+- **Task**: For exploratory analysis across many files
 
-# Error enums
-grep -r "enum.*Error" src/
-```
+## Common Search Failures
 
-### Finding Error Throwing
+**Problem**: Can't find implementation
 
-```bash
-# Throw statements
-grep -r "throw new\|throw " src/
+**Solutions**:
+- Check for aliases/re-exports
+- Look in parent/child directories
+- Search for similar naming patterns
+- Check if dynamically generated
 
-# Specific error type
-grep -r "throw new ValidationError\|throw ValidationError" src/
+**Problem**: Too many results
 
-# Python raise
-grep -r "raise.*Error\|raise " src/
-```
+**Solutions**:
+- Add file type filters
+- Search in specific subdirectories
+- Use more specific terms
+- Exclude test/build directories
 
-### Finding Error Handling
+**Problem**: Outdated code found
 
-```bash
-# Try-catch blocks
-grep -r "try\s*{" src/ -A 10
-
-# Catch specific errors
-grep -r "catch.*Error\|except.*Error" src/
-
-# Error callbacks
-grep -r "\.catch\(.*=>\|\.on\(['\"]error" src/
-```
-
-### Finding Validation Logic
-
-```bash
-# Validation functions
-grep -r "function.*validate\|validate.*function" src/
-
-# Validation libraries
-grep -r "from.*validator\|import.*validation" src/
-
-# Schema validation
-grep -r "\.validate\(.*schema\|schema\.validate" src/
-
-# Type guards (TypeScript)
-grep -r "function is.*\(.*:.*is " src/
-```
-
-## Advanced Search Techniques
-
-### Using Glob for Pattern Matching
-
-```bash
-# All TypeScript files in feature directories
-Glob: "src/features/**/*.ts"
-
-# All test files
-Glob: "**/*.{test,spec}.{ts,js,py}"
-
-# All config files
-Glob: "**/*.config.{js,ts,json}"
-
-# Specific component types
-Glob: "src/components/**/*.component.tsx"
-```
-
-### Combining Grep Patterns
-
-```bash
-# Find class definitions with inheritance
-grep -rE "class \w+ extends|class \w+ implements" src/
-
-# Find async arrow functions
-grep -rE "const \w+ = async \(.*\) =>" src/
-
-# Find exported types
-grep -rE "export (type|interface|class)" src/
-```
-
-### Context-Aware Search
-
-```bash
-# Show function with 10 lines after (to see implementation start)
-grep -r "function processPayment" src/ -A 10
-
-# Show class with context
-grep -r "class UserService" src/ -A 30
-
-# Show imports and first function
-grep -r "^import\|^function\|^export function" src/file.ts
-```
-
-### Multi-Step Search Chains
-
-**Example: Find all API routes and their handlers**
-
-```bash
-# Step 1: Find route definitions
-grep -r "router\.get" src/routes/ -n
-
-# Step 2: For each route, find the handler
-# From: router.get('/users/:id', getUserHandler)
-grep -r "function getUserHandler\|const getUserHandler" src/
-
-# Step 3: Find handler implementation details
-# Read the handler file to understand logic
-```
-
-## Search Workflow Examples
-
-### Example 1: Understanding a Feature End-to-End
-
-**Goal**: Understand how "user registration" works
-
-```bash
-# 1. Find API endpoint
-grep -r "router.*post.*register\|@.*Post.*register" src/
-
-# 2. Find handler function
-grep -r "function.*register\|const.*register.*=.*async" src/
-
-# 3. Find service layer
-grep -r "class.*UserService\|export.*userService" src/
-
-# 4. Find data model
-grep -r "interface User\|type User\|class User" src/
-
-# 5. Find database operations
-grep -r "\.create\|\.insert.*user" src/
-
-# 6. Find validation
-grep -r "validate.*user\|user.*schema" src/
-
-# 7. Find tests
-grep -r "describe.*register\|test.*register" tests/
-```
-
-### Example 2: Finding All Usages of a Utility
-
-**Goal**: Find everywhere `formatDate` is used
-
-```bash
-# 1. Find definition
-grep -r "function formatDate\|const formatDate\|def format_date" src/
-
-# 2. Find all imports
-grep -r "import.*formatDate\|from.*format_date" src/
-
-# 3. Find all direct calls
-grep -r "formatDate\(" src/ | grep -v "function formatDate"
-
-# 4. Check if it's re-exported
-grep -r "export.*formatDate.*from" src/
-```
-
-### Example 3: Tracing Data Transformation
-
-**Goal**: Track how user data is transformed from request to database
-
-```bash
-# 1. Find request handler
-grep -r "router.post.*users" src/
-
-# 2. Find DTO/input type
-grep -r "interface.*UserInput\|CreateUserDto" src/
-
-# 3. Find transformation functions
-grep -r "transform.*user\|map.*user\|toEntity" src/
-
-# 4. Find entity/model type
-grep -r "class User.*Entity\|interface UserEntity" src/
-
-# 5. Find database save operation
-grep -r "\.save\(.*user\|\.insert.*user" src/
-
-# Read each file in sequence to understand transformation
-```
-
-## Tips for Effective Code Search
-
-### Do's
-- ✓ Start with type definitions (interfaces, schemas)
-- ✓ Check tests for usage examples
-- ✓ Follow imports to trace dependencies
-- ✓ Use appropriate context lines (-A, -B, -C flags)
-- ✓ Read entire files for critical code paths
-- ✓ Look for naming patterns and conventions
-- ✓ Search both definition and usage
-- ✓ Use language-specific search patterns
-
-### Don'ts
-- ✗ Search only by keyword without understanding patterns
-- ✗ Ignore test files
-- ✗ Skip type definitions
-- ✗ Search without file type filters (too much noise)
-- ✗ Stop at first match without verifying
-- ✗ Ignore code comments
-- ✗ Forget to check config files
-- ✗ Miss re-exports and aliases
-
-## Common Patterns by Language
-
-### TypeScript/JavaScript Common Locations
-- Types: `src/types/`, `src/models/`, `*.types.ts`
-- API: `src/routes/`, `src/controllers/`, `src/api/`
-- Business logic: `src/services/`, `src/lib/`
-- Utils: `src/utils/`, `src/helpers/`
-- Config: `src/config/`, `config/`
-
-### Python Common Locations
-- Models: `models/`, `src/models/`
-- Views/Routes: `views/`, `routes/`, `api/`
-- Business logic: `services/`, `lib/`
-- Utils: `utils/`, `helpers/`
-- Config: `config/`, `settings.py`
-
-### Go Common Locations
-- Main: `main.go`, `cmd/`
-- Handlers: `handlers/`, `http/`
-- Services: `services/`, `pkg/`
-- Models: `models/`, `entity/`
-- Config: `config/`, `internal/config/`
-
-### Java Common Locations
-- Models: `src/main/java/.../model/`, `entity/`
-- Controllers: `src/main/java/.../controller/`
-- Services: `src/main/java/.../service/`
-- Config: `src/main/resources/`, `application.properties`
+**Solutions**:
+- Check file timestamps
+- Review git history
+- Look for deprecation notices
+- Confirm with tests

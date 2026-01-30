@@ -1,478 +1,282 @@
 # Search Strategies Reference
 
-Comprehensive guide to finding information efficiently in project documentation and code.
-
-## Table of Contents
-- [Documentation Search Patterns](#documentation-search-patterns)
-- [Keyword Selection Strategy](#keyword-selection-strategy)
-- [Search Order Optimization](#search-order-optimization)
-- [Common Documentation Locations](#common-documentation-locations)
-- [Search Refinement Techniques](#search-refinement-techniques)
-
-## Documentation Search Patterns
-
-### Level 1: High-Level Overview
-
-Start with project overview documents:
-
-```bash
-# Primary entry points
-README.md
-ARCHITECTURE.md
-docs/README.md
-docs/index.md
-
-# Quick reference
-CONTRIBUTING.md
-DEVELOPMENT.md
-```
+Strategic approaches for finding information in project documentation.
 
-**What to look for**:
-- Project structure overview
-- Key concepts and terminology
-- Links to detailed documentation
-- Quick start guides
+## Documentation Search Order
 
-### Level 2: Domain-Specific Documentation
+### Level 1: Project Overview
 
-Search by topic domain:
+Start with high-level documents:
+- README.md, ARCHITECTURE.md
+- docs/README.md, docs/index.md
+- CONTRIBUTING.md, DEVELOPMENT.md
 
-```bash
-# API documentation
-docs/api/
-API.md
-openapi.yaml
-swagger.json
-**/*.proto
-graphql/schema.graphql
+**Purpose**: Understand project structure, key concepts, links to detailed docs.
 
-# Architecture and design
-docs/architecture/
-docs/design/
-ADR/  # Architecture Decision Records
-DESIGN.md
+### Level 2: Domain-Specific Docs
 
-# User guides
-docs/guides/
-docs/tutorials/
-docs/user/
+Search by topic:
+- API docs: docs/api/, API.md, openapi.yaml, swagger.json
+- Architecture: docs/architecture/, ADR/, DESIGN.md
+- User guides: docs/guides/, docs/tutorials/
+- Developer docs: docs/dev/, DEVELOPMENT.md
 
-# Developer documentation
-docs/dev/
-docs/development/
-DEVELOPMENT.md
-```
+### Level 3: Component Docs
 
-### Level 3: Component-Specific Documentation
+Documentation near code:
+- Component READMEs: src/**/README.md
+- Inline documentation: src/**/*.md
 
-Look for docs near code:
+## Search by Question Type
 
-```bash
-# Component READMEs
-src/**/README.md
-lib/**/README.md
-packages/**/README.md
+### Business Logic Questions
 
-# Inline documentation
-src/**/*.md
-```
+**Example**: "How does feature X work?"
 
-## Keyword Selection Strategy
+**Search sequence**:
+1. User-facing docs (docs/guides/, docs/user/)
+2. API documentation (docs/api/, API.md)
+3. Component READMEs
+4. Code comments
 
-### Primary Keywords
+### Technical Implementation Questions
 
-**For business logic questions**:
-- Feature name (exact or partial)
-- User action verbs (login, checkout, submit)
-- Business domain terms (order, payment, subscription)
+**Example**: "What technology is used for Y?"
 
-**For technical questions**:
-- Technology names (Redis, PostgreSQL, JWT)
-- Pattern names (factory, singleton, observer)
-- Technical terms (cache, queue, middleware)
+**Search sequence**:
+1. Architecture docs (ARCHITECTURE.md, docs/architecture/)
+2. Configuration files (config/, *.config.*)
+3. Dependency files (package.json, requirements.txt)
+4. Code imports
 
-### Secondary Keywords
+### Debugging Questions
 
-If primary search yields no results, try:
+**Example**: "What causes error X?"
 
-**Synonyms**:
-- auth/authentication/authorize
-- config/configuration/settings
-- db/database/storage
-- api/endpoint/route
+**Search sequence**:
+1. Error documentation (docs/errors/, docs/troubleshooting/)
+2. Code search for error messages
+3. Test files for error cases
+4. Git history for bug fixes
 
-**Related terms**:
-- Feature → implementation, handler, service
-- Error → exception, failure, validation
-- Data → model, schema, entity
+### Configuration Questions
 
-**Abbreviations and variations**:
-- JWT, JSON Web Token
-- HTTP, HTTPS, REST
-- DB, database
+**Example**: "How do I configure X?"
 
-### Keyword Expansion
-
-Start narrow, expand if needed:
-
-```bash
-# Start specific
-grep -r "userAuthentication" docs/
-
-# Expand to partial match
-grep -ri "authentication" docs/
-
-# Broaden to related concepts
-grep -ri "auth\|login\|session" docs/
-
-# Include code patterns
-grep -r "class.*Auth" src/
-```
-
-## Search Order Optimization
-
-### For Feature/Business Logic Questions
-
-1. **User-facing docs** → API docs → Implementation
-2. **Search pattern**:
-   ```bash
-   # Step 1: User guides
-   grep -ri "feature_name" docs/guides/ docs/user/
-
-   # Step 2: API documentation
-   grep -ri "feature_name" docs/api/ API.md
-
-   # Step 3: README files
-   find . -name "README.md" -exec grep -l "feature_name" {} \;
-
-   # Step 4: Code comments
-   grep -r "feature_name" src/ --include="*.ts" --include="*.js"
-   ```
-
-### For Technical Implementation Questions
-
-1. **Technical docs** → Configuration → Code → Tests
-2. **Search pattern**:
-   ```bash
-   # Step 1: Architecture/design docs
-   grep -ri "technology_name" docs/architecture/ docs/design/ ARCHITECTURE.md
-
-   # Step 2: Configuration files
-   grep -ri "technology_name" config/ *.config.* package.json
-
-   # Step 3: Implementation
-   grep -r "import.*technology_name\|require.*technology_name" src/
-
-   # Step 4: Tests (reveal usage patterns)
-   grep -ri "technology_name" tests/ **/*.test.* **/*.spec.*
-   ```
-
-### For Debugging/Error Questions
-
-1. **Error messages** → Validation code → Handlers → Tests
-2. **Search pattern**:
-   ```bash
-   # Step 1: Exact error message
-   grep -r "exact error message" .
-
-   # Step 2: Error code or type
-   grep -r "ErrorCode\|ErrorType" src/
-
-   # Step 3: Throw/raise statements
-   grep -r "throw.*Error\|raise.*Error" src/
-
-   # Step 4: Test expectations
-   grep -r "expect.*toThrow\|assert.*raises" tests/
-   ```
-
-## Common Documentation Locations
-
-### Standard Locations by Type
-
-**Getting Started**:
-```
-README.md
-docs/README.md
-docs/getting-started.md
-docs/quickstart.md
-QUICKSTART.md
-```
-
-**Architecture**:
-```
-ARCHITECTURE.md
-docs/architecture/
-docs/design/
-docs/adr/  # Architecture Decision Records
-```
-
-**API Reference**:
-```
-API.md
-docs/api/
-api/
-openapi.yaml
-swagger.json
-```
-
-**Development Guides**:
-```
-CONTRIBUTING.md
-DEVELOPMENT.md
-docs/development/
-docs/dev/
-docs/contributing/
-```
-
-**Configuration**:
-```
-CONFIG.md
-docs/configuration.md
-docs/config/
-.env.example
-config/README.md
-```
-
-**Deployment**:
-```
-DEPLOYMENT.md
-docs/deployment/
-docs/ops/
-docs/infrastructure/
-```
-
-### Technology-Specific Locations
-
-**JavaScript/TypeScript**:
-```
-package.json - Dependencies and scripts
-tsconfig.json - TypeScript configuration
-.eslintrc.* - Code style rules
-jsdoc comments - Inline documentation
-```
-
-**Python**:
-```
-requirements.txt, pyproject.toml - Dependencies
-setup.py - Package configuration
-docstrings - Inline documentation
-```
-
-**Go**:
-```
-go.mod - Dependencies
-README in each package
-godoc comments
-```
-
-**Java**:
-```
-pom.xml, build.gradle - Dependencies
-javadoc comments
-```
-
-## Search Refinement Techniques
-
-### Progressive Filtering
-
-Start broad, narrow down:
-
-```bash
-# 1. Find all docs mentioning topic
-grep -rl "authentication" docs/
-
-# 2. Filter by file type
-grep -rl "authentication" docs/ | grep "\.md$"
-
-# 3. Search within results for specific aspect
-grep -r "JWT" $(grep -rl "authentication" docs/)
-
-# 4. Show context around matches
-grep -r "JWT" docs/ -A 3 -B 3
-```
-
-### Context Expansion
-
-Get more context from matches:
-
-```bash
-# Show 5 lines before and after
-grep -r "search_term" docs/ -C 5
-
-# Show 10 lines after
-grep -r "search_term" docs/ -A 10
-
-# Show line numbers
-grep -rn "search_term" docs/
-```
-
-### Multi-Pattern Search
-
-Combine related terms:
-
-```bash
-# OR pattern
-grep -rE "auth|authentication|login" docs/
-
-# AND pattern (using multiple greps)
-grep -r "authentication" docs/ | grep "JWT"
-
-# NOT pattern
-grep -r "authentication" docs/ | grep -v "test"
-```
-
-### Case-Insensitive Search
-
-Don't miss variations:
-
-```bash
-# Case insensitive
-grep -ri "authentication" docs/
-
-# Word boundary matching
-grep -riw "auth" docs/  # Matches "auth" but not "author"
-```
-
-### File Type Filtering
-
-Focus on relevant files:
-
-```bash
-# Only markdown files
-grep -r "search_term" --include="*.md"
-
-# Multiple file types
-grep -r "search_term" --include="*.md" --include="*.txt"
-
-# Exclude certain types
-grep -r "search_term" --exclude="*.log"
-
-# Exclude directories
-grep -r "search_term" --exclude-dir="node_modules"
-```
+**Search sequence**:
+1. Configuration docs (docs/configuration/, CONFIG.md)
+2. .env.example files
+3. Config file comments
+4. Default values in code
 
 ## Search Workflow Examples
 
-### Example 1: Finding API Endpoint Documentation
+### Example 1: API Endpoint Documentation
 
-**Question**: "How does the /users/profile endpoint work?"
+**Goal**: Understand /users/profile endpoint
 
-**Search sequence**:
-```bash
-# 1. Check API docs
-grep -r "users/profile\|users/:id/profile" docs/api/ API.md
+```
+Step 1: Check API docs
+  → Search: users/profile in docs/api/, API.md
 
-# 2. Check OpenAPI/Swagger
-grep -r "/users.*profile" openapi.yaml swagger.json
+Step 2: Check OpenAPI/Swagger
+  → Search: /users.*profile in openapi.yaml
 
-# 3. If not found, search all docs
-grep -ri "profile.*endpoint\|user.*profile.*api" docs/
-
-# 4. Check route definitions in code
-grep -r "router.*get.*profile\|@Get.*profile" src/
+Step 3: If not in docs, search code
+  → Search: route.*profile in src/
 ```
 
-### Example 2: Understanding Configuration
+### Example 2: Environment Variables
 
-**Question**: "What environment variables are available?"
+**Goal**: Find available environment variables
 
-**Search sequence**:
-```bash
-# 1. Check environment example file
-cat .env.example
+```
+Step 1: Check .env.example
+  → List all variables
 
-# 2. Check config documentation
-grep -r "environment variable\|env var" docs/ README.md
+Step 2: Check config docs
+  → Search: environment.*variable in docs/
 
-# 3. Search config files
-grep -r "process.env\|os.getenv\|ENV" config/ src/config/
+Step 3: Check config files
+  → Search: process.env|getenv in config/
 
-# 4. Check deployment docs
-grep -r "environment\|configuration" docs/deployment/ DEPLOYMENT.md
+Step 4: Check deployment docs
+  → Search: environment in docs/deployment/
 ```
 
-### Example 3: Tracing Feature Implementation
+### Example 3: Architecture Decisions
 
-**Question**: "How is password reset implemented?"
+**Goal**: Why was technology X chosen?
 
-**Search sequence**:
-```bash
-# 1. User documentation
-grep -ri "password reset\|forgot password" docs/user/ docs/guides/
+```
+Step 1: Check ADRs
+  → Look in docs/adr/, docs/decisions/
 
-# 2. API documentation
-grep -ri "password.*reset\|reset.*password" docs/api/ API.md
+Step 2: Check ARCHITECTURE.md
+  → Search for technology name
 
-# 3. Feature documentation
-find docs/ -name "*password*" -o -name "*reset*"
+Step 3: Check design docs
+  → Search in docs/design/
 
-# 4. If limited docs, move to code search
-# (Continue with code-search-patterns.md strategies)
+Step 4: Check git history
+  → Review commits introducing the technology
 ```
 
-## Advanced Techniques
+## Progressive Search Strategy
 
-### Using Glob for File Discovery
+When initial searches fail:
 
-```bash
-# Find all markdown files
-Glob: "**/*.md"
+**1. Start specific** → Exact term
+**2. Broaden scope** → Partial match, case-insensitive
+**3. Use synonyms** → Related terms (auth/authentication/login)
+**4. Search code** → If not documented, check implementation
 
-# Find specific doc types
-Glob: "docs/**/*.{md,txt,rst}"
+## Technology-Specific Docs
 
-# Find README files
-Glob: "**/README*"
+### JavaScript/TypeScript
 
-# Find API specs
-Glob: "**/{openapi,swagger}.{yaml,json}"
+- package.json: Dependencies, scripts
+- tsconfig.json: TypeScript settings
+- JSDoc/TSDoc comments
+
+### Python
+
+- requirements.txt, pyproject.toml: Dependencies
+- setup.py: Package config
+- Docstrings in code
+
+### Go
+
+- go.mod: Dependencies
+- godoc comments
+- README in each package
+
+### Java
+
+- pom.xml, build.gradle: Dependencies
+- Javadoc comments
+- Spring configuration files
+
+## Document Types and Purpose
+
+### Getting Started Docs
+**Files**: README.md, QUICKSTART.md, docs/getting-started.md
+**Purpose**: Initial setup, basic usage, quick overview
+
+### API Reference
+**Files**: API.md, docs/api/, openapi.yaml, swagger.json
+**Purpose**: Endpoint specifications, request/response formats
+
+### Architecture Docs
+**Files**: ARCHITECTURE.md, docs/architecture/, docs/adr/
+**Purpose**: System design, component relationships, decisions
+
+### Development Guides
+**Files**: CONTRIBUTING.md, DEVELOPMENT.md, docs/dev/
+**Purpose**: Setup for development, coding standards, workflows
+
+### Deployment Docs
+**Files**: DEPLOYMENT.md, docs/deployment/, docs/ops/
+**Purpose**: Deployment procedures, infrastructure, operations
+
+### Configuration Docs
+**Files**: CONFIG.md, docs/configuration.md, .env.example
+**Purpose**: Available settings, defaults, environment setup
+
+## Search Optimization
+
+### When Documentation Search Succeeds
+
+Move to code for implementation details:
+1. Note the documented feature/API
+2. Search code for implementation
+3. Cross-reference with tests
+4. Verify current behavior
+
+### When Documentation Search Fails
+
+**Options**:
+1. Search code directly (see code-search-patterns.md)
+2. Check git history for removed/moved docs
+3. Look for inline comments
+4. Examine test files
+5. Review related component docs
+
+### Multiple Documentation Sources
+
+**Priority order**:
+1. Most recently updated docs
+2. Docs closest to code (component READMEs)
+3. User-facing docs over internal notes
+4. Official docs over comments
+
+## Common Documentation Patterns
+
+### Monorepo Structure
+
+```
+/
+├── README.md              # Overall project
+├── packages/
+│   ├── api/
+│   │   ├── README.md      # API package docs
+│   │   └── docs/          # Detailed API docs
+│   └── web/
+│       ├── README.md      # Web package docs
+│       └── docs/          # Detailed web docs
+└── docs/
+    └── architecture/      # Cross-cutting architecture
 ```
 
-### Combining Tools
+**Strategy**: Check package-specific docs before shared docs.
 
-```bash
-# 1. Find relevant files with Glob
-Glob: "docs/**/*auth*.md"
+### Docs-as-Code Structure
 
-# 2. Search within results with Grep
-Grep: "JWT" in docs/authentication.md
-
-# 3. Read full file with Read
-Read: docs/authentication.md
+```
+/
+├── docs/
+│   ├── api/
+│   │   └── *.md           # API documentation
+│   ├── guides/
+│   │   └── *.md           # User guides
+│   ├── architecture/
+│   │   └── *.md           # Architecture docs
+│   └── development/
+│       └── *.md           # Developer docs
 ```
 
-### Iterative Refinement
+**Strategy**: Navigate by doc type, then topic.
 
-1. **Initial search** - Broad keywords
-2. **Scan results** - Identify relevant files
-3. **Refine keywords** - Use terms from initial results
-4. **Targeted search** - Focus on promising files
-5. **Deep read** - Read full files for context
+## Tips for Effective Documentation Search
 
-### Tracking Search Progress
+### Do
 
-Maintain mental note of:
-- What's been searched: docs/ ✓, config/ ✓, src/ pending
-- What yielded results: API.md mentions feature
-- What's still unknown: Implementation details
-- Next steps: Search src/ for handlers
+- Start with README and overview docs
+- Follow links from high-level docs to detailed ones
+- Check file timestamps (prefer recent docs)
+- Look for table of contents
+- Search multiple locations for same topic
 
-## Common Pitfalls
+### Don't
 
-**Don't**:
-- ✗ Search only one location
-- ✗ Use overly specific keywords first
-- ✗ Ignore case variations
-- ✗ Skip reading README files
-- ✗ Forget to check examples/tutorials
-- ✗ Overlook inline code comments
-- ✗ Stop after first match
+- Stop after first match
+- Ignore recently updated docs
+- Skip checking examples/tutorials
+- Forget to verify with code
+- Assume docs are complete or current
 
-**Do**:
-- ✓ Start with documentation
-- ✓ Use progressive keyword expansion
-- ✓ Search multiple locations
-- ✓ Read surrounding context
-- ✓ Check multiple file types
-- ✓ Look for examples
-- ✓ Verify with multiple sources
+## Handling Documentation Gaps
+
+When documentation is insufficient:
+
+1. **Explicit statement**: "Documentation does not cover X"
+2. **Move to code**: "Checking implementation for details"
+3. **Note the gap**: "Found in code but not documented"
+4. **Cite both**: Use docs for intent, code for implementation
+
+**Example**:
+```
+Feature X is documented in docs/api/users.md:45 as "Creates a new user",
+but implementation details (validation rules, default values) found only
+in code at src/services/user.ts:89-120.
+```

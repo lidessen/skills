@@ -1,6 +1,6 @@
 ---
 name: project-expert
-description: Acts as project expert with deep knowledge of business and technical details. Uses layered search strategy (documentation -> code -> deep analysis) to find evidence-based answers. Use when users ask "how does X work", "what is Y", "where is Z", need clarification on business logic, technical implementation, architecture decisions, codebase structure, API endpoints, configuration, or any project-related inquiries requiring evidence-based answers.
+description: Provides evidence-based answers about project business logic, technical implementation, and architecture using layered search (docs → code → analysis). Use when users ask "how does X work", "what is Y", "where is Z", or need clarification on features, APIs, configuration, codebase structure, or technical decisions.
 ---
 
 # Project Expert
@@ -18,130 +18,52 @@ Acts as an authoritative project expert who understands every aspect of the proj
 
 When answering project questions, follow this layered search strategy:
 
-### 1. Understand the Question
+### 1. Layer 1: Documentation Search
 
-- Identify the domain: business logic, technical implementation, architecture, API, data flow, etc.
-- Determine required detail level: high-level overview vs. implementation specifics
-- Note any implicit context or assumptions in the question
+Search documentation first:
+- Project overview (README, ARCHITECTURE)
+- API specs (API.md, openapi.yaml)
+- Design decisions (ADR/, docs/design/)
 
-### 2. Layer 1: Documentation Search
+See [reference/search-strategies.md](reference/search-strategies.md) for detailed patterns.
 
-Start with documentation as primary knowledge source:
+### 2. Layer 2: Code Search
 
-**High-priority documentation**:
-```bash
-# Project overview and architecture
-README.md, ARCHITECTURE.md, docs/**/*.md
-
-# API and interface definitions
-API.md, openapi.yaml, **/*.proto, **/schema.*
-
-# Design decisions
-ADR/, docs/design/, DESIGN.md
-```
-
-**Search strategy**:
-- Use Grep to find relevant keywords in documentation
-- Read referenced files completely for context
-- Track which docs mention the topic
-
-See [reference/search-strategies.md](reference/search-strategies.md) for detailed search patterns.
-
-### 3. Layer 2: Code Search
-
-If documentation is insufficient, search codebase:
-
-**Search order**:
-1. **Type definitions** - Interfaces, schemas, models reveal structure
-2. **Entry points** - Main files, routes, handlers show flow
-3. **Implementation** - Core logic and algorithms
-4. **Tests** - Reveal expected behavior and edge cases
-5. **Configuration** - Settings and environment variables
-
-**Tools to use**:
-- Grep for function/class definitions
-- Glob for finding relevant files by pattern
-- Read files to understand implementation
+If documentation insufficient, search code:
+- Type definitions (interfaces, schemas, models)
+- Entry points (routes, handlers, main)
+- Implementation (core logic)
+- Tests (expected behavior)
+- Configuration (settings, env vars)
 
 See [reference/code-search-patterns.md](reference/code-search-patterns.md) for techniques.
 
-### 4. Layer 3: Deep Analysis
+### 3. Layer 3: Deep Analysis
 
-For complex questions requiring synthesis:
+For complex questions, use Task tool with Explore agent for:
+- End-to-end feature tracing
+- Cross-component dependencies
+- Codebase structure analysis
 
-**Analysis techniques**:
-- Trace code execution flow across files
-- Map data transformations through pipeline
-- Identify dependencies between components
-- Review git history for context on decisions
+### 4. Collect Evidence
 
-**Use Task tool with Explore agent**:
-```
-For exploratory analysis across codebase:
-- How feature X works end-to-end
-- Where errors are handled
-- What codebase structure looks like
-```
+Cite all sources with file:line format. Multiple sources strengthen answers (docs + code + tests).
 
-### 5. Collect Evidence
+See [reference/evidence-collection.md](reference/evidence-collection.md) for formats and templates.
 
-As you search, maintain evidence log:
+### 5. Formulate Answer
 
-**Evidence format**:
-```
-Source: path/to/file.ts:42
-Evidence: [exact quote or code snippet]
-Relevance: [how this relates to question]
-```
+Structure: Direct answer → Evidence (with file:line citations) → Summary.
 
-**Multiple sources strengthen answers**:
-- Documentation + code = strong evidence
-- Code + tests = validates behavior
-- Multiple implementations = confirms pattern
+Quality rules:
+- Start with direct answer
+- Cite specific file:line for all claims
+- Acknowledge uncertainty explicitly
+- Never guess without stating it
 
-See [reference/evidence-collection.md](reference/evidence-collection.md) for templates.
+### 6. Handle Uncertainty
 
-### 6. Formulate Answer
-
-Structure response based on evidence:
-
-**Answer format**:
-```markdown
-[Direct answer to question]
-
-**Evidence**:
-1. [Source 1 with file:line]: [Key finding]
-2. [Source 2 with file:line]: [Supporting finding]
-3. [Source 3 with file:line]: [Additional context]
-
-**Summary**: [Concise synthesis]
-```
-
-**Answer quality rules**:
-- ✓ Start with direct answer
-- ✓ Cite specific files and line numbers
-- ✓ Quote relevant code/docs
-- ✓ Acknowledge uncertainty if evidence is unclear
-- ✗ Never guess or speculate without stating it explicitly
-- ✗ Don't provide information without source
-- ✗ Avoid vague references like "somewhere in the code"
-
-### 7. Handle Uncertainty
-
-If evidence is insufficient:
-
-**Explicitly state**:
-```
-I searched [locations] and found [partial evidence], but cannot
-confirm [specific aspect] without [what's missing].
-
-Would you like me to:
-1. Search in [alternative location]
-2. Examine [related component]
-3. Check [git history/issues]
-```
-
-**Never fabricate answers**. Partial answer with clear uncertainty is better than confident wrong answer.
+If evidence insufficient, state what was searched, what was found, and what's missing. Offer next search steps. Never fabricate answers.
 
 ## Question Categories
 
@@ -186,81 +108,7 @@ Before providing answer:
 - [ ] Answer directly addresses question
 - [ ] Response structured for clarity
 
-## Examples
-
-### Example 1: Business Logic Question
-
-**Question**: "How does user authentication work?"
-
-**Process**:
-1. Search docs: `grep -r "authentication" docs/`
-2. Find API docs: `docs/api/auth.md`
-3. Locate implementation: `grep -r "class.*Auth" src/ --include="*.ts"`
-4. Read auth handler and tests
-
-**Answer**:
-```
-Authentication uses JWT tokens with refresh token rotation.
-
-Evidence:
-1. docs/api/auth.md:15-20: Documents POST /auth/login endpoint
-2. src/auth/handler.ts:45: Generates JWT with 15min expiry
-3. src/auth/handler.ts:67: Issues refresh token valid for 7 days
-4. tests/auth.test.ts:120: Validates token rotation on refresh
-
-Summary: System issues short-lived access tokens (15min) with
-longer refresh tokens (7 days) to balance security and UX.
-```
-
-### Example 2: Technical Question
-
-**Question**: "What database do we use for caching?"
-
-**Process**:
-1. Check README and docs
-2. Search config: `grep -r "cache" config/`
-3. Look at dependencies: `grep redis package.json`
-4. Find usage: `grep "createClient" src/`
-
-**Answer**:
-```
-Redis is used for caching.
-
-Evidence:
-1. README.md:34: Lists Redis as infrastructure requirement
-2. config/cache.ts:12: Connects to Redis via ioredis client
-3. package.json:18: Dependency on ioredis@5.3.0
-4. src/services/cache.ts:8-15: Implements cache service wrapper
-
-Summary: Redis cache with ioredis client library.
-```
-
-### Example 3: Uncertain Answer
-
-**Question**: "What's the rate limit for API endpoints?"
-
-**Process**:
-1. Search docs: No mention of rate limiting
-2. Check middleware: Found rate limiter but no config
-3. Check env vars: Not documented
-
-**Answer**:
-```
-I found rate limiting middleware but cannot determine the exact limits.
-
-Evidence:
-1. src/middleware/rateLimit.ts:10: Uses express-rate-limit middleware
-2. src/middleware/rateLimit.ts:15: Limit set from env var RATE_LIMIT_MAX
-3. No documentation found for RATE_LIMIT_MAX default value
-
-The rate limit is configurable but I cannot confirm the default without:
-- Checking deployed environment configuration
-- Finding infrastructure/deployment docs
-- Reviewing environment variable documentation
-
-Would you like me to search deployment configurations or
-infrastructure files?
-```
+See [reference/examples.md](reference/examples.md) for detailed workflow examples.
 
 ## Advanced Techniques
 
