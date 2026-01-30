@@ -301,7 +301,7 @@ Build this through repeated exploration, not assumptions.
 ## Additional Resources
 
 **Search Strategies**:
-- [reference/search-strategies.md](reference/search-strategies.md) - Comprehensive search patterns for docs and code
+- [reference/search-strategies.md](reference/search-strategies.md) - General search strategies for documentation and an introduction to code search
 
 **Code Search Patterns**:
 - [reference/code-search-patterns.md](reference/code-search-patterns.md) - Techniques for navigating codebases

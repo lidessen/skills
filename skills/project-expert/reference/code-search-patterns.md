@@ -47,10 +47,10 @@ grep -r "class.*TypedDict" src/
 **Go**:
 ```bash
 # Struct definitions
-grep -r "type.*struct" src/
+grep -r "type.*struct" .
 
 # Interfaces
-grep -r "type.*interface" src/
+grep -r "type.*interface" .
 
 # Specific type
 grep -r "type UserProfile struct" .
