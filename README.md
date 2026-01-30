@@ -46,6 +46,20 @@ Guide for authoring effective Agent Skills using a principle-based approach insp
 
 **Use when:** Creating new skills, improving existing ones, refactoring skill structure, reviewing skill quality, or asking about skill design, best practices, anti-patterns, or organization.
 
+### 🎯 project-expert
+
+Acts as a project expert with comprehensive knowledge of business and technical details, using layered search strategies to provide evidence-based answers.
+
+**Features:**
+- Layered search strategy (documentation → code → deep analysis)
+- Evidence-based answers with citations (file:line references)
+- Never guesses - all answers backed by documentation or code
+- Multi-source verification for accuracy
+- Comprehensive search patterns for docs and code
+- Handles uncertainty transparently
+
+**Use when:** You have questions about the project, need clarification on business logic, technical implementation, architecture decisions, or any project-related inquiries that require deep knowledge and evidence-based answers.
+
 ## Skill Structure
 
 Each skill follows a consistent structure:
