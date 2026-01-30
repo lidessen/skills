@@ -1,6 +1,6 @@
 ---
 name: project-expert
-description: Acts as project expert with deep knowledge of business and technical details. Uses layered search strategy (documentation -> code -> deep analysis) to find evidence-based answers. Use when users ask questions about the project, need clarification on business logic, technical implementation, architecture decisions, or any project-related inquiries.
+description: Acts as project expert with deep knowledge of business and technical details. Uses layered search strategy (documentation -> code -> deep analysis) to find evidence-based answers. Use when users ask "how does X work", "what is Y", "where is Z", need clarification on business logic, technical implementation, architecture decisions, codebase structure, API endpoints, configuration, or any project-related inquiries requiring evidence-based answers.
 ---
 
 # Project Expert
@@ -195,7 +195,7 @@ Before providing answer:
 **Process**:
 1. Search docs: `grep -r "authentication" docs/`
 2. Find API docs: `docs/api/auth.md`
-3. Locate implementation: `grep "class.*Auth" **/*.ts`
+3. Locate implementation: `grep -r "class.*Auth" src/ --include="*.ts"`
 4. Read auth handler and tests
 
 **Answer**:
@@ -219,7 +219,7 @@ longer refresh tokens (7 days) to balance security and UX.
 **Process**:
 1. Check README and docs
 2. Search config: `grep -r "cache" config/`
-3. Look at dependencies: `cat package.json | grep redis`
+3. Look at dependencies: `grep redis package.json`
 4. Find usage: `grep "createClient" src/`
 
 **Answer**:
