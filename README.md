@@ -29,9 +29,9 @@ Reviews staged changes for common issues before generating commit message and co
 
 **Use when:** You want to commit staged changes with pre-commit validation, or mention "commit", "staged", "review before commit".
 
-### 📝 create-skill
+### 📝 authoring-skills
 
-Guide for creating effective Agent Skills using a principle-based approach inspired by Claude's constitutional AI.
+Guide for authoring effective Agent Skills using a principle-based approach inspired by Claude's constitutional AI.
 
 **Philosophy:**
 - Understanding *why* patterns matter, not just *what* rules to follow
@@ -39,12 +39,12 @@ Guide for creating effective Agent Skills using a principle-based approach inspi
 - Focus on judgment and trade-offs over mechanical compliance
 
 **Features:**
-- Principle-based design framework
-- Deep understanding of anti-patterns
-- Progressive disclosure patterns
+- Principle-based design framework for creating and improving skills
+- Deep understanding of anti-patterns and their underlying causes
+- Progressive disclosure patterns and best practices
 - Comprehensive examples and templates
 
-**Use when:** You want to create a new skill, author a SKILL.md file, or ask about skill structure, naming conventions, descriptions, or how to organize skill content.
+**Use when:** Creating new skills, improving existing ones, refactoring skill structure, reviewing skill quality, or asking about skill design, best practices, anti-patterns, or organization.
 
 ## Skill Structure
 
@@ -62,15 +62,15 @@ skills/
 
 ## Creating Your Own Skills
 
-Want to create a new skill? Use the `create-skill` skill to guide you through the process:
+Want to create a new skill? Use the `authoring-skills` skill to guide you through the process:
 
-1. Define the skill's purpose and scope
-2. Write clear metadata (name and description)
-3. Design the workflow with progressive disclosure
-4. Add examples and reference documentation
-5. Validate against quality checklist
+1. Understand the goal and core principles
+2. Draft clear metadata (name and description with triggers)
+3. Design structure with progressive disclosure
+4. Write concisely (respect Claude's intelligence)
+5. Review against principle-based checklist
 
-See [`skills/create-skill/SKILL.md`](skills/create-skill/SKILL.md) for detailed guidance.
+See [`skills/authoring-skills/SKILL.md`](skills/authoring-skills/SKILL.md) for detailed guidance.
 
 ## Contributing
 

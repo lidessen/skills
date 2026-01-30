@@ -1,9 +1,9 @@
 ---
-name: create-skill
-description: Guide for creating effective Agent Skills with progressive disclosure patterns and best practices. Use when the user wants to create a new skill, author a SKILL.md file, or asks about skill structure, naming conventions, descriptions, or how to organize skill content.
+name: authoring-skills
+description: Guide for authoring effective Agent Skills using principle-based approach. Covers creating new skills, improving existing ones, refactoring skill structure, and reviewing skill quality. Based on three core principles (Progressive Disclosure, Respect Intelligence, Enable Discovery). Use when creating, editing, refactoring, or reviewing skills, or asking about skill design, best practices, anti-patterns, or structure.
 ---
 
-# Creating Agent Skills
+# Authoring Agent Skills
 
 ## The Goal: Efficient Context Usage
 
