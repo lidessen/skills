@@ -26,8 +26,8 @@ $ find . -name "*.md" -mtime +365 | wc -l  # Not modified in 1+ year
 README.md
 docs/ (87 files)
 wiki/ (git submodule, 34 files)
-各service目录/README.md (12 files)
-各service目录/docs/ (14 files scattered)
+services/*/README.md (12 files)
+services/*/docs/ (14 files scattered)
 ```
 
 **Issues identified:**
