@@ -1,5 +1,5 @@
 ---
-name: project-housekeeping
+name: housekeeping
 description: Manages project housekeeping including documentation organization (AGENTS.md, RFC processes, structure), dependency management (cleanup unused packages, update outdated deps), directory structure organization, code cleanup (remove dead code, consolidate duplicates), technical debt tracking, and infrastructure configuration. Use when organizing documentation, cleaning up dependencies (package.json, requirements.txt), reorganizing folders, removing dead code, addressing tech debt, or maintaining project structure and configuration.
 ---
 
