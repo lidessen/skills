@@ -1,6 +1,6 @@
 ---
 name: authoring-skills
-description: Guide for authoring effective Agent Skills using principle-based approach. Covers creating new skills, improving existing ones, refactoring skill structure, and reviewing skill quality. Based on three core principles (Progressive Disclosure, Respect Intelligence, Enable Discovery). Use when creating, editing, refactoring, or reviewing skills, or asking about skill design, best practices, anti-patterns, or structure.
+description: Guide for authoring effective Agent Skills using principle-based approach (Progressive Disclosure, Respect Intelligence, Enable Discovery). Covers creating, improving, refactoring, and reviewing skills. Use for skill authoring, design questions, best practices, anti-patterns, or structure decisions.
 ---
 
 # Authoring Agent Skills

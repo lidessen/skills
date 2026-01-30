@@ -2,6 +2,19 @@
 
 This document explains the *why* behind skill design principles. Understanding the underlying philosophy helps you make good decisions in novel situations, rather than mechanically following rules.
 
+## Table of Contents
+- [The Fundamental Challenge](#the-fundamental-challenge)
+- [The Three Principles](#the-three-principles)
+  - [1. Progressive Disclosure: Load Only What's Needed](#1-progressive-disclosure-load-only-whats-needed)
+  - [2. Respect Intelligence: Assume Claude Is Smart](#2-respect-intelligence-assume-claude-is-smart)
+  - [3. Enable Discovery: Make Skills Findable](#3-enable-discovery-make-skills-findable)
+- [The Meta-Principle: Understanding Over Rules](#the-meta-principle-understanding-over-rules)
+- [Making Trade-offs](#making-trade-offs)
+  - [Example 1: Inline Examples vs. Reference File](#example-1-inline-examples-vs-reference-file)
+  - [Example 2: Detailed Instructions vs. Trust Claude](#example-2-detailed-instructions-vs-trust-claude)
+  - [Example 3: Specific Triggers vs. Broad Applicability](#example-3-specific-triggers-vs-broad-applicability)
+- [Conclusion: Judgment Over Compliance](#conclusion-judgment-over-compliance)
+
 ## The Fundamental Challenge
 
 Agent skills exist to help Claude work better. But there's a tension:
