@@ -1,6 +1,6 @@
 ---
 name: engineering
-description: Guides technical decisions, system architecture, and implementation strategies. Covers technology selection, architecture design, API design, refactoring approaches, and performance optimization. Use when making technical choices, designing systems, planning implementations, asking "how should I build this", or needing guidance on architecture patterns, tech stack decisions, or refactoring strategies.
+description: Guides technical decisions, architecture, and implementation. Use for tech choices, system design, API design, refactoring, or "how should I build this" questions.
 ---
 
 # Engineering

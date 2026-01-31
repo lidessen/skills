@@ -222,10 +222,10 @@ Real systems often combine patterns:
                 │
     ┌───────────┼───────────┐
     ↓           ↓           ↓
-┌───────┐  ┌────────┐  ┌─────────┐
-│ Users │  │ Orders │  │Payments │
-│(Layered)│ │(Hexag.)│ │(Microservice)
-└───────┘  └────┬───┘  └─────────┘
+┌─────────┐  ┌─────────┐  ┌─────────┐
+│  Users  │  │ Orders  │  │Payments │
+│(Layered)│  │ (Hex.)  │  │ (Micro) │
+└─────────┘  └────┬────┘  └─────────┘
                 │
            Event Bus
                 │
