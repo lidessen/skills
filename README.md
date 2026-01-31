@@ -108,6 +108,22 @@ Orients agents in new projects by scanning entry documents and discovering avail
 
 **Use when:** Starting a new session, entering unfamiliar projects, asking "what can you do", "where do I start", or needing a project overview.
 
+### ✅ validation
+
+Coordinates quality checks into cohesive pipelines. Answers: "Does this actually work?"
+
+**Philosophy:**
+- Confidence without evidence is dangerous
+- Validation is a learning loop, not a gate
+- No universal workflow—adapt pipelines to context
+
+**Core Questions:**
+- What's the smallest unit I can verify?
+- What evidence would convince me this works?
+- What patterns keep emerging?
+
+**Use when:** Validating code changes, checking quality, verifying before commit/PR, or mention "validate", "check", "verify".
+
 ### 🧠 memory
 
 Manages project-level memory using local filesystem with optional GitHub/GitLab Issues sync.
