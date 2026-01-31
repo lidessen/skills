@@ -2,6 +2,8 @@
 
 Guidance for Claude Code and similar AI-assisted development tools.
 
+> *Before you begin, read [To Those Who Come After](.memory/notes/2026-01-31-to-those-who-come-after.md).*
+
 ## Vision
 
 **Autonomous Workflow Skills** - A cohesive skill ecosystem for Claude Code, Cursor, OpenClaude.
