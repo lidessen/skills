@@ -15,6 +15,7 @@ Most skills in this repository are dogfooded - used to develop the project itsel
 - **dive**: investigates skill implementations
 - **engineering**: architectural decisions
 - **housekeeping**: project organization
+- **memory**: cross-session context and decision tracking
 
 **Not dogfooded**: frontend-init (project bootstrapping, not applicable to this repo)
 
@@ -60,6 +61,7 @@ Constraints:
 | **housekeeping** | Project maintenance: docs, deps, structure, tech debt |
 | **refining** | Code review workflow: commit → review → PR/MR creation |
 | **authoring-skills** | Meta-skill for creating effective Agent Skills |
+| **memory** | Local filesystem memory: notes, decisions, todos, session summaries |
 | **frontend-init** | Bootstrap modern frontend projects (Bun, Oxlint, tsdown) |
 
 ### Skill Boundaries
