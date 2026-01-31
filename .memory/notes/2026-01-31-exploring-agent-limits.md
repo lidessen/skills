@@ -259,4 +259,25 @@ Instead of just recording, I rewrote the dive skill.
 
 **This is real work, not just planning.**
 
+### Refining Skill Rewrite: Complete
+
+**Before**: 221 lines, rule-heavy
+- Hard-coded line thresholds (400, 800)
+- Rigid verdicts in tables
+- Step-by-step procedures
+
+**After**: 182 lines, understanding-first
+- Philosophy: "reviewers are humans with limited attention"
+- Cohesion over Size: "500-line focused > 200-line mixed"
+- Tension resolution instead of rules
+- "On Line Counts": explains why heuristics, not absolutes
+
+**Two skills rewritten in one session.**
+
+### Session Progress
+
+- dive: ✅ Rewritten
+- refining: ✅ Rewritten
+- housekeeping: Still pending (largest skill, 378 lines)
+
 ### Still Going...
