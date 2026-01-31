@@ -44,6 +44,25 @@ Reviews staged changes for common issues before generating commit message and co
 
 **Use when:** You want to commit staged changes with pre-commit validation, or mention "commit", "staged", "review before commit".
 
+### 🚀 pr-ready
+
+Prepares changes for review by thinking like a reviewer. Validates reviewability, generates clear PR descriptions with ASCII diagrams, and creates PRs/MRs.
+
+**Features:**
+- Reviewability assessment (size, mixed concerns detection)
+- Smart split recommendations for oversized PRs
+- PR description generation with ASCII flow diagrams
+- Multiple modes: commit, create-pr, prepare, self-review
+- Pre-commit checks (debug code, breaking changes)
+- Self-review simulation before requesting review
+
+**Philosophy:**
+- A good PR can be understood in 5 minutes, reviewed in 20 minutes
+- Single purpose, clear description, visual explanations
+- Prepare for the reviewer's questions before they ask
+
+**Use when:** You want to commit changes, create a PR/MR, prepare changes for review, or do a self-review before requesting review. Mention "commit", "create pr", "create mr", "ready for review".
+
 ### 📝 authoring-skills
 
 Guide for authoring effective Agent Skills using a principle-based approach inspired by Claude's constitutional AI.
