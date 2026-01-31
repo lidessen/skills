@@ -74,6 +74,20 @@ Dives deep into your project to investigate any question using layered search st
 
 **Use when:** You want to investigate "how does X work", "what is Y", "where is Z", or dive into features, APIs, configuration, architecture, or any technical implementation details.
 
+### 🧹 housekeeping
+
+Manages project housekeeping including documentation organization, dependency management, directory structure, code cleanup, technical debt tracking, and infrastructure configuration.
+
+**Features:**
+- Documentation management (AGENTS.md, RFC processes, organization strategies)
+- Dependency cleanup (remove unused, update outdated, fix vulnerabilities)
+- Directory structure organization and naming conventions
+- Code cleanup (dead code removal, duplicate consolidation, file splitting)
+- Technical debt tracking and prioritization
+- Infrastructure and config file maintenance
+
+**Use when:** Organizing documentation, cleaning up dependencies (package.json, requirements.txt), reorganizing folders, removing dead code, addressing tech debt, or maintaining project structure and configuration.
+
 ## Skill Structure
 
 Each skill follows a consistent structure:
