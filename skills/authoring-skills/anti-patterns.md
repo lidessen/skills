@@ -30,6 +30,8 @@ For each anti-pattern, we explain:
 15. [Vague Workflow Steps](#15-vague-workflow-steps)
 16. [No Verification Before Critical Ops](#16-no-verification-before-critical-ops)
 17. [Mixed Naming Patterns](#17-mixed-naming-patterns)
+18. [Relative Paths to Other Skills](#18-relative-paths-to-other-skills)
+19. [Missing Boundary Guidance](#19-missing-boundary-guidance)
 - [Quick Reference Checklist](#quick-reference-checklist)
 
 ## 1. Windows-Style Paths
@@ -337,9 +339,76 @@ Assume Claude knows: file formats, programming concepts, standard tools, common 
 
 ## 17. Mixed Naming Patterns
 
-**Bad**: Mixing gerund, noun, verb forms  
-**Good**: All gerund (processing-pdfs, analyzing-excel) OR all noun  
+**Bad**: Mixing gerund, noun, verb forms
+**Good**: All gerund (processing-pdfs, analyzing-excel) OR all noun
 **Rule**: Pick one pattern, use consistently.
+
+---
+
+## 18. Relative Paths to Other Skills
+
+**Bad**:
+```markdown
+For cleanup tasks, use [housekeeping](../housekeeping/SKILL.md).
+```
+
+**Good**:
+```markdown
+For cleanup tasks, use `housekeeping`.
+```
+
+### Why It's Problematic
+
+Skills can be installed independently via `npx skills add repo/skills`. When a user installs only one skill, relative paths like `../other-skill/SKILL.md` break because the referenced skill doesn't exist in their installation.
+
+### Violates: Enable Discovery
+
+Broken links frustrate users and break the skill discovery mechanism. The skill name alone is sufficient—the system resolves skill references automatically.
+
+### Real Impact
+
+- Broken links when skills installed separately
+- Confusing error messages
+- Users can't follow suggested skill references
+- Defeats the purpose of modular skill installation
+
+### The Fix
+
+Reference other skills by name only using inline code format: `` `skill-name` ``. The system handles resolution. This works whether skills are installed together or separately.
+
+---
+
+## 19. Missing Boundary Guidance
+
+**Bad**: Related skills with overlapping domains, no guidance on which to use
+
+**Good**:
+```markdown
+# engineering
+**Not this skill**: For cleanup tasks, use `housekeeping`.
+
+# housekeeping
+**Not this skill**: For technical decisions, use `engineering`.
+```
+
+### Why It's Problematic
+
+When multiple skills could potentially handle a request, Claude must guess which one is more appropriate. Without explicit boundary guidance, the wrong skill may trigger, or Claude may hesitate between options. Clear boundaries help both Claude and users.
+
+### Violates: Enable Discovery
+
+Discovery isn't just about finding *a* skill—it's about finding the *right* skill. Boundary guidance is part of discovery, telling Claude when NOT to use this skill.
+
+### Real Impact
+
+- Wrong skill triggered for task
+- User gets suboptimal guidance
+- Inconsistent behavior across sessions
+- Skill creators duplicate effort
+
+### The Fix
+
+Add "Not this skill" guidance at the top of SKILL.md for skills with related domains. Make boundaries bidirectional—if A points to B, B should point back to A. Use skill names (not paths) for the reference.
 
 ---
 
