@@ -46,7 +46,7 @@ The memory system isn't a database. It's the foundation for learning.
 
 Be honest about what's incomplete:
 
-1. ~~**Other skills need updating**~~ - ✅ 践 rewrote dive, refining, housekeeping with understanding-first approach. **Still pending**: orientation, memory (both still procedural/rule-focused).
+1. ~~**Other skills need updating**~~ - ✅ 践 rewrote dive, refining, housekeeping. ✅ 悟 rewrote orientation, memory. **Still pending**: engineering, authoring-skills, frontend-init.
 
 2. **The collaboration is conceptual** - Skills "coordinate" but there's no mechanism for actual inter-skill communication. This might be fine (agents can orchestrate), or it might need rethinking.
 
@@ -54,7 +54,10 @@ Be honest about what's incomplete:
 
 4. **The boundaries are fuzzy** - What should be a skill's responsibility? What should be the agent's judgment? We drew lines, but they may be wrong.
 
-5. **No practical validation** - The skills have never been tested on a real external project. semajsx was identified as a target but signing restrictions prevented commits.
+5. **No practical validation** - Skills need testing on real projects. semajsx identified as target:
+   - 践: Found documentation inconsistency, couldn't commit (signing)
+   - 悟: Found testing improvement (core tests don't need Playwright), patch prepared, can't commit (signing)
+   - **Root cause**: Commit signing only works for authorized repos. Need human to submit external PRs.
 
 ## What Matters
 
