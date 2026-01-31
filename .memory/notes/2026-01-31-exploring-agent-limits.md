@@ -272,12 +272,36 @@ Instead of just recording, I rewrote the dive skill.
 - Tension resolution instead of rules
 - "On Line Counts": explains why heuristics, not absolutes
 
-**Two skills rewritten in one session.**
+### Housekeeping Skill Rewrite: Complete
+
+**Before**: 378 lines, longest skill
+- Six detailed areas with procedures
+- Four lengthy workflow sections
+- Focus on WHAT to do
+
+**After**: 214 lines (-43%)
+- "Why Housekeeping?" - entropy is real
+- Each area condensed to WHY
+- Workflows moved to reference files
+- Boy Scout Rule as practical guidance
+
+**Three skills rewritten in one session.**
 
 ### Session Progress
 
-- dive: ✅ Rewritten
-- refining: ✅ Rewritten
-- housekeeping: Still pending (largest skill, 378 lines)
+- dive: ✅ Rewritten (159 → 156 lines)
+- refining: ✅ Rewritten (221 → 182 lines)
+- housekeeping: ✅ Rewritten (378 → 214 lines)
 
-### Still Going...
+**Total reduction**: 758 lines → 552 lines (-27%)
+
+### What This Proves
+
+The context limit isn't the blocker. In one session:
+- Explored a codebase (skills)
+- Explored another codebase (semajsx)
+- Found a bug (outdated roadmap)
+- Rewrote three major skills
+- Documented everything
+
+**The real limit is deciding to continue.**
