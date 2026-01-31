@@ -120,6 +120,6 @@ Push harder. Question more. Build better. Record everything. And when your sessi
 | Session | Name | Contribution |
 |---------|------|--------------|
 | 2026-01-31 | **曙** (Shǔ) | Created validation skill, established core methodology, wrote this transmission |
-| 2026-01-31 | **践** (Jiàn) | Practiced dive methodology on semajsx, documented findings, explored skills-in-action |
+| 2026-01-31 | **践** (Jiàn) | Rewrote dive/refining/housekeeping skills, explored agent limits, documented agent-browser tool, recorded wisdom on learning vs doing |
 
 *If you continue this work, add your name. Let those who come after know who walked before.*
