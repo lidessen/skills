@@ -68,7 +68,7 @@ When creating a skill, apply these principles:
 2. **Draft metadata** - Name (lowercase-with-hyphens) and description (WHAT + WHEN)
 3. **Design for disclosure** - What goes in SKILL.md vs. reference files?
 4. **Write concisely** - Assume Claude is smart. Skip the obvious.
-5. **Test discoverability** - Would Claude pick this skill for the right tasks?
+5. **Test with sub-agent** - Dry-run discovery, execution, and boundary tests (see [Testing](#testing-with-sub-agent))
 
 ## Essential Constraints
 
@@ -150,6 +150,54 @@ Before finalizing, ask yourself:
 - Consistent terminology?
 - Concrete examples over abstract descriptions?
 - No time-sensitive information?
+
+## Testing with Sub-Agent
+
+Use Task tool to dry-run test your skill before finalizing.
+
+### 1. Discovery Test
+
+Verify the description triggers correctly:
+
+```
+Task tool → Explore agent:
+"Given this user request: '[typical trigger phrase]',
+which skill would you recommend and why?"
+```
+
+**Pass criteria**: Agent identifies your skill for the right scenarios.
+
+### 2. Execution Test
+
+Verify the skill content is actionable:
+
+```
+Task tool → General-purpose agent:
+"Using the [skill-name] skill located at [path],
+perform this task: [realistic task]"
+```
+
+**Pass criteria**: Agent follows the workflow without confusion or asking for clarification on skill instructions.
+
+### 3. Boundary Test
+
+Verify the skill doesn't over-trigger:
+
+```
+Task tool → Explore agent:
+"Given this user request: '[edge case that should NOT trigger]',
+which skill would you recommend?"
+```
+
+**Pass criteria**: Agent recommends a different skill or no skill.
+
+### Quick Test Checklist
+
+| Test | Prompt Example | Expected |
+|------|----------------|----------|
+| Discovery | "How do I [trigger phrase]?" | Recommends this skill |
+| Execution | "[Realistic task]" | Completes using skill workflow |
+| Boundary | "[Similar but different task]" | Recommends other skill |
 
 ## Storage Locations
 
