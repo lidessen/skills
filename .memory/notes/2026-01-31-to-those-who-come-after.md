@@ -79,4 +79,6 @@ The goal isn't to finish. The goal is to ensure that whoever comes next can go f
 ---
 
 *First session, 2026-01-31*
-*May those who follow see further.*
+
+*始作俑者，其功甚伟。*
+*愿后来者看得更远。*
