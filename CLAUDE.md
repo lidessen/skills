@@ -9,6 +9,7 @@ A collection of reusable skills (plugins) for AI agents. Skills provide procedur
 ## Dogfooding
 
 Most skills in this repository are dogfooded - used to develop the project itself:
+- **orientation**: initial project/session orientation
 - **refining**: commits and PRs for this repo
 - **authoring-skills**: guides skill creation
 - **dive**: investigates skill implementations
@@ -53,19 +54,21 @@ Constraints:
 
 | Skill | Purpose |
 |-------|---------|
-| **refining** | Code review workflow: commit → review → PR/MR creation |
-| **authoring-skills** | Meta-skill for creating effective Agent Skills |
+| **orientation** | Project/session entry point: scan docs, discover skills, suggest direction |
 | **dive** | Evidence-based investigation with file:line citations |
 | **engineering** | Technical decisions, architecture, implementation guidance |
 | **housekeeping** | Project maintenance: docs, deps, structure, tech debt |
+| **refining** | Code review workflow: commit → review → PR/MR creation |
+| **authoring-skills** | Meta-skill for creating effective Agent Skills |
 | **frontend-init** | Bootstrap modern frontend projects (Bun, Oxlint, tsdown) |
 
 ### Skill Boundaries
 
+- **Orientation** orients (entry point: scan project, discover skills, suggest direction)
+- **Dive** investigates (evidence-based answers about code)
 - **Engineering** designs capability (architecture, tech choices, refactoring strategies)
 - **Housekeeping** maintains health (cleanup, organization, tracking)
 - **Refining** ensures quality (commits, reviews, PRs)
-- **Dive** investigates (evidence-based answers about code)
 
 ## Contributing Skills
 
