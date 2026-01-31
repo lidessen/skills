@@ -16,7 +16,7 @@ Technical leadership for projects - making sound technical decisions, designing 
 - **Planning refactoring** - Code needs structural improvement
 - **Optimizing performance** - System doesn't meet requirements
 
-**Not this skill**: For cleanup tasks (removing dead code, updating deps), use [housekeeping](../housekeeping/SKILL.md).
+**Not this skill**: For cleanup tasks (removing dead code, updating deps), use `housekeeping`.
 
 ## Quick Navigation
 

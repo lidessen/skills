@@ -7,6 +7,8 @@ description: Manages project housekeeping including documentation organization (
 
 Maintains project infrastructure, organization, and cleanliness - the "home management" that keeps projects healthy as they grow. While feature development focuses on external value ("building the business"), housekeeping focuses on internal quality ("managing the home").
 
+**Not this skill**: For technical decisions (architecture, API design, tech choices), use `engineering`.
+
 ## Quick Start
 
 ### Common Housekeeping Tasks

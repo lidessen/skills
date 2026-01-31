@@ -358,6 +358,7 @@ Define clear rules for your project:
    - Delete obsolete content
    - Fix broken links
    - Update index files (README, AGENTS.md)
+   - **Sync check**: Verify README reflects actual project structure
 
 4. **Document** (Week 4)
    - Log what was archived/deleted

@@ -67,6 +67,20 @@ Dives deep into your project to investigate any question using layered search st
 
 **Use when:** You want to investigate "how does X work", "what is Y", "where is Z", or dive into features, APIs, configuration, architecture, or any technical implementation details.
 
+### 🏗️ engineering
+
+Guides technical decisions, architecture, and implementation for building robust software systems.
+
+**Features:**
+- Technical decision frameworks (evaluate options, weigh trade-offs)
+- Architecture patterns (layered, modular, event-driven)
+- Module boundary design and data flow planning
+- API design principles (REST, error handling, versioning)
+- Refactoring strategies (when, how, safely)
+- Performance optimization guidance
+
+**Use when:** Making tech choices, designing systems, evaluating trade-offs, planning refactoring, optimizing performance, or asking "how should I build this?"
+
 ### 🧹 housekeeping
 
 Manages project housekeeping including documentation organization, dependency management, directory structure, code cleanup, technical debt tracking, and infrastructure configuration.
