@@ -91,8 +91,33 @@ refining ◄─────────
 - `skills/validation/reference/custom-validators.md` - Custom validator guide
 - `skills/validation/templates/validation-report.md` - Report template
 
+## Iteration: Learning from Ecosystem
+
+After researching [superpowers](https://github.com/obra/superpowers) and [openclaw](https://github.com/openclaw/openclaw), added:
+
+1. **The Iron Law** (from superpowers)
+   - No completion claims without fresh verification evidence
+   - 5-step verification protocol
+   - Prohibited language patterns ("should", "probably", "Done!")
+
+2. **Defense-in-Depth** (from superpowers)
+   - Four validation layers
+   - Each layer catches what others miss
+   - Context-sensitive strictness
+
+3. **Anti-Rationalization Table** (from superpowers)
+   - Counter common excuses for skipping validation
+   - Explicit blockers for known failure modes
+
+4. **Metrics Tracking** (from openclaw)
+   - Duration, findings, cost tracking
+   - JSONL format for efficient querying
+   - Weekly summaries and trend analysis
+
 ## Related
 
 - [Project Vision](2026-01-31-project-vision.md) - Autonomous workflow skills
+- [superpowers](https://github.com/obra/superpowers) - Verification discipline inspiration
+- [openclaw](https://github.com/openclaw/openclaw) - Metrics tracking inspiration
 - skills/refining - Reviewability and impact analysis
 - skills/housekeeping - Consistency checks

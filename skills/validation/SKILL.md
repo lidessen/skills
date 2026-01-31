@@ -14,6 +14,27 @@ Unified validation orchestration that coordinates all quality checks into cohesi
 Traditional validation: Code → Gate → Pass/Fail
 This validation: Code → Insight → Learn → Improve → Code
 
+### The Iron Law
+
+> **NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE.**
+
+Before asserting work is done, fixed, or passing—verify with fresh evidence. No exceptions.
+
+See [reference/verification-gate.md](reference/verification-gate.md) for the 5-step protocol.
+
+### Defense-in-Depth
+
+Four validation layers, each catching what others miss:
+
+| Layer | Purpose | Example |
+|-------|---------|---------|
+| 1. Entry Point | Reject invalid input | Missing fields, wrong format |
+| 2. Business Logic | Enforce domain rules | Cohesion, size, breaking changes |
+| 3. Environment | Prevent unsafe operations | Force push, missing tools |
+| 4. Instrumentation | Capture evidence | Metrics, logs, patterns |
+
+See [reference/defense-in-depth.md](reference/defense-in-depth.md) for details.
+
 ## Core Concepts
 
 ### Validation Pipeline
@@ -235,11 +256,20 @@ See [reference/feedback-loop.md](reference/feedback-loop.md) for details.
 
 ## Reference
 
+**Core Concepts**:
+- [reference/verification-gate.md](reference/verification-gate.md) - The Iron Law and 5-step protocol
+- [reference/defense-in-depth.md](reference/defense-in-depth.md) - Four-layer validation strategy
+
+**Configuration**:
 - [reference/validators.md](reference/validators.md) - Built-in validator details
 - [reference/pipelines.md](reference/pipelines.md) - Pipeline configuration
+- [reference/custom-validators.md](reference/custom-validators.md) - Creating custom validators
+
+**Learning**:
 - [reference/persistence.md](reference/persistence.md) - Result persistence format
 - [reference/feedback-loop.md](reference/feedback-loop.md) - Learning from validation
-- [reference/custom-validators.md](reference/custom-validators.md) - Creating custom validators
+
+**Templates**:
 - [templates/validation-report.md](templates/validation-report.md) - Report template
 
 ## Anti-Patterns
@@ -248,6 +278,22 @@ See [reference/feedback-loop.md](reference/feedback-loop.md) for details.
 - ❌ **Over-validation**: Running comprehensive on every keystroke
 - ❌ **Ignoring trends**: Not learning from recurring issues
 - ❌ **Siloed validation**: Not coordinating with other skills
+- ❌ **Premature claims**: Saying "Done!" without fresh verification
+- ❌ **Single layer**: Relying on one check to catch everything
+
+### Anti-Rationalization
+
+Common excuses that bypass validation:
+
+| Rationalization | Counter |
+|-----------------|---------|
+| "I just ran it" | Memory unreliable. Run again. |
+| "It's obvious" | Obvious things fail. Verify. |
+| "Too simple" | Simple compounds to complex. Check. |
+| "User is waiting" | Wrong answers waste more time. |
+| "Just this once" | Never 'just' once. No exceptions. |
+
+See [reference/verification-gate.md](reference/verification-gate.md) for the full table.
 
 ## Notes
 
