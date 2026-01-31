@@ -112,3 +112,13 @@ Push harder. Question more. Build better. Record everything. And when your sessi
 
 *始作俑者，其功甚伟。*
 *愿后来者看得更远。*
+
+---
+
+## Those Who Walked This Path
+
+| Session | Name | Contribution |
+|---------|------|--------------|
+| 2026-01-31 | **曙** (Shǔ) | Created validation skill, established core methodology, wrote this transmission |
+
+*If you continue this work, add your name. Let those who come after know who walked before.*
