@@ -114,6 +114,18 @@ After researching [superpowers](https://github.com/obra/superpowers) and [opencl
    - JSONL format for efficient querying
    - Weekly summaries and trend analysis
 
+## Iteration: Core Methodology
+
+Established system-wide methodology in CLAUDE.md:
+
+1. **Understanding Over Rules** - Teach WHY, agents that understand handle novel situations
+2. **Adaptive Workflows** - No universal workflow, skill is knowing when to deviate
+3. **Divide and Conquer** - Decompose → Smallest unit → Order → Compose
+4. **Memory as Evolution** - Recording enables learning, problems across sessions
+5. **Progressive Disclosure** - Load as needed, context space is precious
+
+These principles now guide the entire system, not just validation.
+
 ## Related
 
 - [Project Vision](2026-01-31-project-vision.md) - Autonomous workflow skills
