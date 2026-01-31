@@ -1,4 +1,4 @@
-# Quick Reference
+# Documentation Quick Reference
 
 Fast lookup for common documentation decisions and patterns.
 

@@ -41,7 +41,7 @@ Real-world walkthrough of setting up documentation for a new project from scratc
 
 **Decision:** Start flat, add structure when we hit ~15 docs
 
-See: [organization-strategies.md](../reference/organization-strategies.md)
+See: [organization-strategies.md](../documentation/organization-strategies.md)
 
 ### Step 3: Plan Document Lifecycle
 
@@ -55,7 +55,7 @@ See: [organization-strategies.md](../reference/organization-strategies.md)
 - Update with code changes
 - Annual review for staleness
 
-See: [lifecycle.md](../reference/lifecycle.md)
+See: [lifecycle.md](../documentation/lifecycle.md)
 
 ## Implementation
 
@@ -163,7 +163,7 @@ Coverage requirement: 80% minimum (enforced in CI)
 - Important conventions
 - Entry points for common tasks
 
-See: [agent-docs.md](../reference/agent-docs.md)
+See: [agent-docs.md](../documentation/agent-docs.md)
 
 #### 3. CONTRIBUTING.md
 
@@ -415,7 +415,7 @@ Example: `2026-01-30-stripe-integration-research.md`
 - API documentation (auto-generated)
 ```
 
-See: [lifecycle.md](../reference/lifecycle.md)
+See: [lifecycle.md](../documentation/lifecycle.md)
 
 ### Directory Structure
 

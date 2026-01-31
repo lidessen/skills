@@ -118,7 +118,7 @@ docs/
 - Archive wiki as read-only
 - Add deprecation notice in wiki
 
-See: [organization-strategies.md](../reference/organization-strategies.md)
+See: [organization-strategies.md](../documentation/organization-strategies.md)
 
 ### Week 3: Execution
 
@@ -250,7 +250,7 @@ See: [Contributing Guide](CONTRIBUTING.md)
 - Multi-tenancy: tenant ID required in all service calls
 ```
 
-See: [agent-docs.md](../reference/agent-docs.md)
+See: [agent-docs.md](../documentation/agent-docs.md)
 
 #### Updated README.md
 
@@ -309,7 +309,7 @@ Date prefix: `YYYY-MM-DD-topic.md`
 Next review: 2026-04-01
 ```
 
-See: [lifecycle.md](../reference/lifecycle.md)
+See: [lifecycle.md](../documentation/lifecycle.md)
 
 ### Week 5: Migrate Wiki Content
 
