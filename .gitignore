@@ -19,3 +19,7 @@ npm-debug.log*
 # Temporary files
 *.tmp
 *.temp
+
+# Memory (hybrid: share decisions/notes, keep sessions/context personal)
+.memory/sessions/
+.memory/context.md

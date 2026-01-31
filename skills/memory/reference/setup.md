@@ -49,19 +49,19 @@ mkdir -p .memory/{notes,decisions,todos,sessions}
 
 ## Git Configuration
 
-**Personal memory** (not shared):
+**Hybrid (Recommended)** - Share valuable knowledge, keep personal context private:
+```gitignore
+# Share decisions/notes/todos, keep sessions and context personal
+.memory/sessions/
+.memory/context.md
+```
+
+**Personal** - Nothing shared:
 ```gitignore
 .memory/
 ```
 
-**Team memory** (shared): Commit `.memory/` to repository.
-
-**Hybrid approach**:
-```gitignore
-# Share decisions and notes, keep sessions personal
-.memory/sessions/
-.memory/context.md
-```
+**Team** - Everything shared: Commit entire `.memory/` to repository.
 
 ## Initial context.md
 

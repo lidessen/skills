@@ -2,28 +2,78 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Repository Purpose
+## Vision
 
-A collection of reusable skills (plugins) for AI agents. Skills provide procedural knowledge loaded into Claude's context to accomplish specialized tasks. Installed via `npx skills add lidessen/skills`.
+**Autonomous Workflow Skills** - A cohesive skill ecosystem designed for Claude Code, Cursor, OpenClaude and similar AI-assisted development tools.
+
+**Core Principles**:
+1. **Autonomous Triggering** - Skills auto-invoke based on context, no manual `/skill` needed
+2. **Tight Collaboration** - Skills form a complete workflow, not isolated utilities
+3. **Minimal User Burden** - Agent knows what to do; user never needs to remind
+4. **Dogfooding First** - Every skill iterated through real usage on this project
+
+Install: `npx skills add lidessen/skills`
+
+## Skill Workflow
+
+Skills collaborate as an integrated workflow, not independent tools:
+
+```
+Session Start
+    │
+    ▼
+orientation ──► memory (load context)
+    │
+    ▼
+User Request
+    │
+    ├─► dive (investigate)
+    ├─► engineering (design)
+    │       │
+    │       ▼
+    │   [implement]
+    │       │
+    ▼       ▼
+refining ◄──────────────────┐
+    │                       │
+    ▼                       │
+memory (record decisions) ──┘
+    │
+    ▼
+housekeeping (maintain health)
+```
+
+**Auto-Trigger Expectations**:
+
+| Context | Skill | Behavior |
+|---------|-------|----------|
+| Session start | orientation | Scan project, load memory |
+| "How does X work?" | dive | Investigate with file:line citations |
+| Architecture discussion | engineering | Guide design decisions |
+| Code changes ready | refining | Validate cohesion, commit, PR |
+| Decision made | memory | Record ADR automatically |
+| Session end | memory | Summarize session |
+| Periodic / on request | housekeeping | Track debt, suggest cleanup |
 
 ## Dogfooding
 
-Most skills in this repository are dogfooded - used to develop the project itself:
-- **orientation**: initial project/session orientation
-- **refining**: commits and PRs for this repo
-- **authoring-skills**: guides skill creation
-- **dive**: investigates skill implementations
-- **engineering**: architectural decisions
-- **housekeeping**: project organization
-- **memory**: cross-session context and decision tracking
+All skills are dogfooded on this repository except `frontend-init` (project bootstrapping, not applicable here):
 
-**Not dogfooded**: frontend-init (project bootstrapping, not applicable to this repo)
+| Skill | Dogfood Usage |
+|-------|---------------|
+| orientation | Session/project entry |
+| memory | Cross-session context (.memory/) |
+| dive | Investigating skill implementations |
+| engineering | Architecture decisions |
+| refining | Commits and PRs |
+| authoring-skills | Creating new skills |
+| housekeeping | Project organization |
 
 ## Architecture
 
-### Skill Structure Pattern
+### Skill Structure
 
-Each skill follows progressive disclosure - SKILL.md is the hub that links to detailed docs:
+Progressive disclosure - SKILL.md is the hub linking to detailed docs:
 
 ```
 skills/
@@ -31,50 +81,42 @@ skills/
     ├── SKILL.md           # Entry point with YAML frontmatter + navigation
     ├── reference/         # Detailed documentation (loaded on demand)
     ├── patterns/          # Common patterns and templates
-    ├── examples/          # Implementation examples
-    └── best-practices/    # Best practice guides
+    └── templates/         # Reusable templates
 ```
 
-**Design principle**: SKILL.md stays under ~500 lines and links to granular reference files. Never nest references deeper than one level from SKILL.md.
+**Design principle**: SKILL.md stays under ~500 lines. Never nest references deeper than one level.
 
-### YAML Frontmatter Format
+### YAML Frontmatter
 
 Every SKILL.md requires:
 ```yaml
 ---
 name: skill-name
-description: Two sentences. What it does + When to use it (with trigger keywords).
+description: Two sentences. What it does + When to use (with trigger keywords).
 ---
 ```
 
 Constraints:
 - Names: `lowercase-with-hyphens`, max 64 chars
-- Descriptions: Max 1024 chars, third person ("Processes files..." not "I process...")
-
-### Available Skills
-
-| Skill | Purpose |
-|-------|---------|
-| **orientation** | Project/session entry point: scan docs, discover skills, suggest direction |
-| **dive** | Evidence-based investigation with file:line citations |
-| **engineering** | Technical decisions, architecture, implementation guidance |
-| **housekeeping** | Project maintenance: docs, deps, structure, tech debt |
-| **refining** | Code review workflow: commit → review → PR/MR creation |
-| **authoring-skills** | Meta-skill for creating effective Agent Skills |
-| **memory** | Local filesystem memory: notes, decisions, todos, session summaries |
-| **frontend-init** | Bootstrap modern frontend projects (Bun, Oxlint, tsdown) |
+- Descriptions: Max 1024 chars, third person ("Processes..." not "I process...")
 
 ### Skill Boundaries
 
-- **Orientation** orients (entry point: scan project, discover skills, suggest direction)
-- **Dive** investigates (evidence-based answers about code)
-- **Engineering** designs capability (architecture, tech choices, refactoring strategies)
-- **Housekeeping** maintains health (cleanup, organization, tracking)
-- **Refining** ensures quality (commits, reviews, PRs)
+| Skill | Responsibility |
+|-------|----------------|
+| orientation | Entry point: scan project, discover skills, suggest direction |
+| memory | Persist knowledge: notes, decisions, todos, session summaries |
+| dive | Investigate: evidence-based answers with citations |
+| engineering | Design: architecture, tech choices, implementation guidance |
+| refining | Quality: cohesive commits, reviews, PRs |
+| housekeeping | Health: cleanup, organization, tech debt |
+| authoring-skills | Meta: guide skill creation |
+| frontend-init | Bootstrap: modern frontend projects |
 
-## Contributing Skills
+## Contributing
 
 1. Follow progressive disclosure - split content across files
-2. Include proper YAML frontmatter with trigger keywords in description
-3. Reference `skills/authoring-skills/` for design principles and anti-patterns
-4. Keep SKILL.md as a navigation hub, not a complete manual
+2. Include trigger keywords in description for auto-invocation
+3. Reference `skills/authoring-skills/` for design principles
+4. Ensure skill collaborates with existing workflow
+5. Dogfood before publishing
