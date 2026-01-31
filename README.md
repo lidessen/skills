@@ -108,6 +108,25 @@ Orients agents in new projects by scanning entry documents and discovering avail
 
 **Use when:** Starting a new session, entering unfamiliar projects, asking "what can you do", "where do I start", or needing a project overview.
 
+### ✅ validation
+
+Unified validation orchestration that coordinates all quality checks into cohesive pipelines.
+
+**Philosophy:**
+- Validation is not a gate—it's a continuous feedback loop
+- Learn from validation results to prevent future issues
+- Coordinate rather than replace existing validators
+
+**Features:**
+- Three pipeline levels: quick (instant), standard (pre-commit), comprehensive (pre-PR)
+- Built-in validators: reviewability, impact, security, consistency, architecture
+- Custom validator support via `.validation.yml`
+- Validation result persistence in `.memory/validations/`
+- Pattern detection and trend analysis
+- Proactive prevention recommendations
+
+**Use when:** Validating code changes, checking quality, verifying before commit/PR, or mention "validate", "check", "verify", "验证", "检查".
+
 ### 🧠 memory
 
 Manages project-level memory using local filesystem with optional GitHub/GitLab Issues sync.

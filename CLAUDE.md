@@ -33,6 +33,9 @@ User Request
     │       ▼
     │   [implement]
     │       │
+    │       ▼
+    │   validation (quality check) ◄── continuous feedback
+    │       │
     ▼       ▼
 refining ◄──────────────────┐
     │                       │
@@ -50,6 +53,7 @@ housekeeping (maintain health)
 | Session start | orientation | Scan project, load memory |
 | "How does X work?" | dive | Investigate with file:line citations |
 | Architecture discussion | engineering | Guide design decisions |
+| Code changed / "validate" | validation | Run quality pipeline, record results |
 | Code changes ready | refining | Validate cohesion, commit, PR |
 | Decision made | memory | Record ADR automatically |
 | Session end | memory | Summarize session |
@@ -65,6 +69,7 @@ All skills are dogfooded on this repository except `frontend-init` (project boot
 | memory | Cross-session context (.memory/) |
 | dive | Investigating skill implementations |
 | engineering | Architecture decisions |
+| validation | Quality checks before commit/PR |
 | refining | Commits and PRs |
 | authoring-skills | Creating new skills |
 | housekeeping | Project organization |
@@ -108,6 +113,7 @@ Constraints:
 | memory | Persist knowledge: notes, decisions, todos, session summaries |
 | dive | Investigate: evidence-based answers with citations |
 | engineering | Design: architecture, tech choices, implementation guidance |
+| validation | Quality orchestration: pipelines, feedback loop, trend analysis |
 | refining | Quality: cohesive commits, reviews, PRs |
 | housekeeping | Health: cleanup, organization, tech debt |
 | authoring-skills | Meta: guide skill creation |
