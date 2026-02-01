@@ -96,6 +96,8 @@ housekeeping (maintain health)
 
 **Auto-Trigger Expectations**:
 
+> **Note**: "Auto-trigger" has two modes. **Passive**: Claude Code matches description keywords (e.g., "how does X work" → dive). **Active**: you recognize the context and invoke the skill (e.g., session start → orientation). Contexts without quoted keywords require active judgment.
+
 | Context | Skill | Behavior |
 |---------|-------|----------|
 | Session start | orientation | Scan project, load memory |
