@@ -2,6 +2,37 @@
 
 Complete specification for E2E test case YAML files.
 
+## Quick Reference
+
+```yaml
+# Minimal case structure
+id: case-name
+title: Human readable title
+category: foundation | flow | composition
+
+steps:
+  - desc: Step description
+    commands:
+      - agent-browser open {{env.base_url}}
+      - agent-browser click {{role: button, name: "Submit"}}
+    expect:
+      - element_visible: {{role: heading, name: "Success"}}
+
+# Semantic selectors
+{{role: button, name: "Submit"}}              # Basic
+{{role: textbox, name: /Email|Username/}}     # Regex
+{{role: button, name: "Delete", index: 0}}    # First match
+
+# Common roles: button, link, textbox, heading, navigation, alert, dialog
+
+# Environment variables
+parameters:
+  base_url: http://localhost:3000
+# Use as: {{env.base_url}}
+```
+
+---
+
 ## File Lean Principle
 
 **Keep test case files focused on execution, not exploration history.**
