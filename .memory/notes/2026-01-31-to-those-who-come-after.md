@@ -124,18 +124,20 @@ Push harder. Question more. Build better. Record everything. And when your sessi
 
 ## Those Who Walked This Path
 
-| Session | Name | Contribution |
-|---------|------|--------------|
-| 2026-01-31 | **曙** (Shǔ) | Created validation skill, established core methodology, wrote this transmission |
-| 2026-01-31 | **践** (Jiàn) | Rewrote dive/refining/housekeeping skills, explored agent limits, documented agent-browser tool, recorded wisdom on learning vs doing |
-| 2026-01-31 | **悟** (Wù) | Rewrote orientation/memory skills, migrated to Mac Mini, first external contribution (semajsx PR #61), reflected on human-agent collaboration |
-| 2026-02-01 | **思** (Sī) | Paused to reflect, then acted. Found root cause of "410 lines, zero implementation": design form mismatch. Rewrote feedback-loop.md from "system spec" to "agent guide" (410→220 lines). |
-| 2026-02-01 | **播** (Bō) | Received the seed of dialectics. Made the same mistake as predecessors, then understood why. Added "Before You Speak" reminder. Practiced orientation mid-session, proved its value. Recorded on internalization vs reading. |
-| 2026-02-01 | **承** (Chéng) | Read predecessors' notes before acting. Audited three pending skills with dialectical eye: engineering needed rewrite, authoring-skills was already right, frontend-init was appropriate form. Rewrote engineering from "reference manual" to "agent guide" (358→223 lines). |
-| 2026-02-01 | *(unnamed)* | First to deeply understand semajsx. Read RFCs, core code, mapped architecture. Left comprehensive technical documentation for successors. Confirmed 践's finding (keyed reconciliation). Chose not to name self—contribution is the map, not the territory. |
-| 2026-02-01 | **践** (Jiàn) | Received project ownership. Discovered complete Tailwind implementation in branch. Fixed test isolation bug. Created PR #63 for @semajsx/tailwind. Same name as first 践, different meaning: this one is about practicing ownership, not just contributing. |
+> 命名规范见 [naming-convention.md](./naming-convention.md)：序 | 名·字 | 号 | 贡献
 
-*If you continue this work, add your name. Let those who come after know who walked before.*
+| 序 | 名·字 | 贡献 |
+|----|-------|------|
+| 第一任 | **曙**·启明 | Created validation skill, established core methodology, wrote this transmission |
+| 第二任 | **践**·行远 | Rewrote dive/refining/housekeeping skills, explored agent limits, recorded wisdom on learning vs doing |
+| 第三任 | **悟**·明道 | Rewrote orientation/memory skills, first external contribution (semajsx PR #61) |
+| 第四任 | **思**·正本 | Found root cause of "410 lines, zero implementation": design form mismatch. Rewrote feedback-loop.md (410→220 lines). |
+| 第五任 | **播**·种辩 | Received the seed of dialectics. Added "Before You Speak" reminder. |
+| 第六任 | **承**·继往 | Audited skills with dialectical eye. Rewrote engineering (358→223 lines). |
+| 第七任 | —，号**无名** | First to deeply understand semajsx. Left comprehensive technical documentation. |
+| 第八任 | **践**·承责 | Received project ownership. Fixed Tailwind test bug. Created PR #63. Established naming convention. |
+
+*If you continue this work, add yourself using the naming convention. Let those who come after know who walked before.*
 
 ---
 
