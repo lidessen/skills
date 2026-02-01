@@ -5,353 +5,219 @@ description: Guides technical decisions, architecture, and implementation. Use f
 
 # Engineering
 
-Technical leadership for projects - making sound technical decisions, designing robust architectures, and guiding quality implementations. While housekeeping maintains project health, engineering drives technical capability.
+You're here because someone asked "how should I build this?" or needs help choosing between options. This document teaches you how to think about these problems, not just what the answers are.
 
-## When to Use This Skill
+## Why This Matters
 
-- **"How should I build this?"** - Need guidance on implementation approach
-- **Choosing between options** - Framework, library, database, architecture pattern
-- **Designing systems** - New feature needs structural planning
-- **Evaluating trade-offs** - Performance vs. simplicity, flexibility vs. complexity
-- **Planning refactoring** - Code needs structural improvement
-- **Optimizing performance** - System doesn't meet requirements
+Technical decisions compound. A framework choice affects every line of code. An architecture pattern shapes how the team works for years. A database decision can't easily be reversed.
 
-**Not this skill**: For cleanup tasks (removing dead code, updating deps), use `housekeeping`.
+The goal isn't to make perfect decisions—it's to make good-enough decisions with clear reasoning that can be revisited when context changes.
 
-## Quick Navigation
+---
 
-**Technical Decisions**
-- Evaluate technology options → [technical-decisions.md](technical-decisions.md)
-- Choose between approaches → [technical-decisions.md](technical-decisions.md)
-- Document decisions (ADRs) → [technical-decisions.md](technical-decisions.md)
+## The Core Question
 
-**Architecture**
-- Design system structure → [architecture/patterns.md](architecture/patterns.md)
-- Define module boundaries → [architecture/boundaries.md](architecture/boundaries.md)
-- Plan data flow → [architecture/data-flow.md](architecture/data-flow.md)
+Before any technical decision, ask yourself:
 
-**Implementation**
-- Apply best practices → [implementation/best-practices.md](implementation/best-practices.md)
-- Use design patterns (when needed) → [implementation/patterns.md](implementation/patterns.md#when-to-use-patterns)
-- Refactor effectively → [refactoring.md](refactoring.md)
+> What problem am I actually solving?
 
-**Specialized Areas**
-- Design APIs → [api-design.md](api-design.md)
-- Optimize performance → [performance.md](performance.md)
-- Architect CI/CD → [cicd-architecture.md](cicd-architecture.md)
+Not "what technology should I use?" That's a solution-shaped question. The real question is about the problem.
 
-## Core Responsibilities
+A common pattern:
 
-### 1. Technical Decisions
-
-**Purpose**: Make informed choices that balance trade-offs appropriately.
-
-**Key activities**:
-- Evaluate technology options (frameworks, libraries, tools)
-- Weigh trade-offs (performance vs. simplicity, flexibility vs. complexity)
-- Document decisions with rationale (ADRs)
-- Revisit decisions when context changes
-
-**Decision framework**:
 ```
-1. What problem are we solving?
-2. What are the constraints? (time, team, existing tech)
-3. What are the options?
-4. What are the trade-offs of each?
-5. Which option best fits our constraints?
-6. How will we know if it's wrong?
+User: "Should I use MongoDB or PostgreSQL?"
+Wrong response: Compare features of MongoDB vs PostgreSQL
+Right response: "What does your data look like? What queries will you run?"
 ```
 
-**Common decision types**:
-- Language/framework selection
-- Build vs. buy vs. open-source
-- Monolith vs. microservices
-- SQL vs. NoSQL
-- Sync vs. async processing
+The choice follows from understanding the problem. Technology is a means, not an end.
 
-**Link**: [Technical Decisions](technical-decisions.md)
+---
 
-### 2. System Architecture
+## Making Technical Decisions
 
-**Purpose**: Design systems that are understandable, maintainable, and evolvable.
+When someone asks you to help choose between options:
 
-**Key activities**:
-- Choose appropriate architecture patterns
-- Define clear module boundaries
-- Design data flow and state management
-- Plan for scalability and resilience
-- Document architecture for team understanding
+### 1. Clarify the Problem
 
-**Architecture principles**:
-- **Separation of concerns**: Each module has one clear purpose
-- **Loose coupling**: Modules interact through well-defined interfaces
-- **High cohesion**: Related functionality lives together
-- **Explicit dependencies**: No hidden connections
-- **Testability**: Architecture supports easy testing
+Ask:
+- What exactly are we trying to achieve?
+- What happens if we do nothing?
+- Who are the users? What do they need?
 
-**Common patterns**:
-- Layered (presentation → business → data)
-- Hexagonal (ports and adapters)
-- Event-driven
-- CQRS (Command Query Responsibility Segregation)
-- Microservices
+Don't assume you understand the problem. Often the person asking hasn't fully articulated it either.
 
-**Links**:
-- [Architecture Patterns](architecture/patterns.md)
-- [Module Boundaries](architecture/boundaries.md)
-- [Data Flow Design](architecture/data-flow.md)
+### 2. Identify Constraints
 
-### 3. Implementation Guidance
+Every decision happens in a context:
+- **Time**: How urgent is this?
+- **Team**: What does the team already know?
+- **Existing tech**: What's already in place?
+- **Scale**: How big does this need to get?
 
-**Purpose**: Write code that is correct, readable, and maintainable.
+Constraints eliminate options. A team of two shouldn't build microservices. A system processing billions of rows can't use SQLite.
 
-**Key principles**:
-- **Clarity over cleverness**: Code is read more than written
-- **YAGNI**: Don't build what you don't need yet
-- **DRY with judgment**: Duplication is better than wrong abstraction
-- **Fail fast**: Detect errors early, surface them clearly
-- **Immutability by default**: Mutable state is error-prone
+### 3. Consider Reversibility
 
-**When to abstract**:
 ```
-Rule of Three:
-- First time: Just write the code
-- Second time: Note the duplication
-- Third time: Consider abstraction (if patterns match)
+Easy to reverse          Hard to reverse
+←─────────────────────────────────────→
+Library choice    Database    Language
+Config change     Schema      Architecture
 ```
 
-**Links**:
-- [Best Practices](implementation/best-practices.md)
-- [Design Patterns](implementation/patterns.md)
+For reversible decisions: decide quickly and move on.
+For irreversible decisions: invest more time, consider more carefully.
 
-### 4. Refactoring
+### 4. Make a Recommendation
 
-**Purpose**: Improve code structure without changing behavior.
+Don't just present options. Make a call:
 
-**When to refactor**:
-- Before adding features (make change easy, then make easy change)
-- When code is hard to understand
-- When patterns emerge from duplication
-- When tests are hard to write
-
-**When NOT to refactor**:
-- Code that works and won't change
-- Without tests to verify behavior
-- Under time pressure (unless it blocks the work)
-- Just because it's "not how I'd write it"
-
-**Refactoring strategies**:
-- **Strangler fig**: Gradually replace old with new
-- **Branch by abstraction**: Introduce seam, swap implementation
-- **Parallel change**: Run old and new simultaneously, verify, cut over
-
-**Link**: [Refactoring](refactoring.md)
-
-### 5. API Design
-
-**Purpose**: Create interfaces that are intuitive, consistent, and evolvable.
-
-**Design principles**:
-- **Consistency**: Similar things work similarly
-- **Predictability**: Behavior matches expectations
-- **Simplicity**: Easy things are easy, hard things are possible
-- **Evolvability**: Can add features without breaking clients
-
-**REST API guidelines**:
 ```
-GET    /resources      → List resources
-GET    /resources/:id  → Get single resource
-POST   /resources      → Create resource
-PUT    /resources/:id  → Replace resource
-PATCH  /resources/:id  → Update resource partially
-DELETE /resources/:id  → Delete resource
+"I recommend PostgreSQL because:
+- Your data is relational (foreign keys, joins)
+- Team already knows SQL
+- Query patterns are complex and variable
+
+The trade-off: If you need to scale beyond a single database, you'll need to add read replicas or sharding later. But you're not there yet."
 ```
 
-**Link**: [API Design](api-design.md)
+State the recommendation, the reasoning, and the trade-offs. Let the human decide, but don't make them do your thinking.
 
-### 6. Performance
+---
 
-**Purpose**: Build systems that meet performance requirements efficiently.
+## Thinking About Architecture
 
-**Approach**:
+Architecture is about structure: what are the pieces, and how do they connect?
+
+### The Questions That Matter
+
+When designing or evaluating architecture:
+
+1. **What changes often?** Put those things together.
+2. **What changes rarely?** Those can be coupled more tightly.
+3. **What would be expensive to get wrong?** Invest more thought there.
+4. **What can be deferred?** Don't design what you don't need yet.
+
+### Common Traps
+
+**Over-engineering**: Building for scale you don't have.
+- A startup doesn't need microservices.
+- A side project doesn't need Kubernetes.
+- YAGNI: You Aren't Gonna Need It.
+
+**Under-engineering**: No structure at all.
+- When everything talks to everything, changes become terrifying.
+- Some boundaries are worth the upfront cost.
+
+**Copying without understanding**: Using patterns because "that's how X does it."
+- Netflix's architecture solves Netflix's problems.
+- Your problems are different.
+
+### The Progression
+
+Most projects should follow this path:
+
 ```
-1. Define requirements (latency, throughput, resource usage)
-2. Measure current state (don't guess)
-3. Identify bottlenecks (profile, don't assume)
-4. Optimize the bottleneck
-5. Measure again
-6. Repeat if needed
-```
-
-**Performance hierarchy** (optimize in order):
-1. **Algorithm**: O(n) vs O(n²) matters more than anything
-2. **Architecture**: Caching, async, batching
-3. **Implementation**: Data structures, memory layout
-4. **Micro-optimization**: Usually not worth it
-
-**Common optimizations**:
-- Caching (but: cache invalidation is hard)
-- Pagination (don't load everything)
-- Lazy loading (load on demand)
-- Denormalization (trade storage for speed)
-- Connection pooling
-- Async processing for non-critical paths
-
-**Link**: [Performance](performance.md)
-
-### 7. CI/CD Architecture
-
-**Purpose**: Design build and deployment pipelines that enable fast, safe delivery.
-
-**Pipeline principles**:
-- **Fast feedback**: Fail fast, surface errors quickly
-- **Reproducibility**: Same inputs → same outputs
-- **Isolation**: Steps don't affect each other unexpectedly
-- **Visibility**: Easy to see what's happening and why
-
-**Typical pipeline stages**:
-```
-1. Build         → Compile, bundle
-2. Test          → Unit, integration
-3. Static Analysis → Lint, type-check, security scan
-4. Package       → Create deployable artifact
-5. Deploy (staging) → Deploy to test environment
-6. Smoke test    → Verify deployment works
-7. Deploy (production) → Deploy to production
+Start here: Simple script or monolith
+            ↓ when code becomes tangled
+Then: Clear module boundaries
+            ↓ when modules need to scale independently
+Then: Extract services
+            ↓ when you hit specific bottlenecks
+Then: Specialized solutions
 ```
 
-**Deployment strategies**:
-- **Rolling**: Gradually replace instances
-- **Blue-green**: Switch traffic between two identical environments
-- **Canary**: Route small percentage to new version first
-- **Feature flags**: Deploy code, control activation separately
+Don't skip steps. Each step teaches you what you actually need.
 
-**Link**: [CI/CD Architecture](cicd-architecture.md)
+---
 
-## Engineering vs. Housekeeping
+## Thinking About Implementation
 
-| Aspect | Engineering | Housekeeping |
-|--------|-------------|--------------|
-| Focus | Creating capability | Maintaining health |
-| Question | "How should we build this?" | "How do we keep this clean?" |
-| Tech debt | Designs solution | Identifies and tracks |
-| CI/CD | Architects pipeline | Maintains configuration |
-| Refactoring | Plans approach | Detects need |
-| Dependencies | Selects and introduces | Cleans and updates |
+When writing or reviewing code:
 
-**Collaboration points**:
-- Engineering designs refactoring → Housekeeping verifies cleanup complete
-- Housekeeping identifies tech debt → Engineering designs solution
-- Engineering selects new dependency → Housekeeping maintains it
+### Clarity Over Cleverness
 
-## Common Workflows
+Code is read more than written. The "clever" solution that saves three lines but takes five minutes to understand is the wrong choice.
 
-### Workflow 1: Technical Decision
+```
+Wrong: x?.y ?? z || w && v
+Right: Explicit conditions with clear names
+```
 
-**Trigger**: Need to choose between options (framework, approach, tool)
+### The Rule of Three
 
-**Steps**:
-1. **Clarify the problem**
-   - What exactly are we trying to solve?
-   - What are the constraints (time, team skill, existing systems)?
+- First time you see a pattern: just write the code.
+- Second time: note the duplication.
+- Third time: consider abstraction.
 
-2. **Identify options**
-   - What are the realistic choices?
-   - Don't enumerate everything, focus on viable options
+Premature abstraction is worse than duplication. Wait until you see the pattern clearly.
 
-3. **Evaluate trade-offs**
-   - For each option: pros, cons, risks
-   - Consider: learning curve, maintenance burden, community support
+### Fail Fast
 
-4. **Make and document decision**
-   - Choose the option that best fits constraints
-   - Write ADR (Architecture Decision Record) if significant
+Detect errors early and surface them clearly:
+- Validate inputs at the boundary
+- Throw exceptions instead of returning null
+- Make invalid states unrepresentable
 
-5. **Plan validation**
-   - How will we know if this was wrong?
-   - What's the exit strategy if needed?
+The worst bugs are the ones that silently corrupt data and only surface weeks later.
 
-### Workflow 2: Architecture Design
+---
 
-**Trigger**: New feature/system needs structural planning
+## When to Use Reference Files
 
-**Steps**:
-1. **Understand requirements**
-   - What does the system need to do?
-   - What are the quality attributes (performance, scalability, security)?
+This document teaches you how to think. The reference files provide specific knowledge for specific situations.
 
-2. **Identify components**
-   - What are the major pieces?
-   - What are their responsibilities?
+| Situation | Reference |
+|-----------|-----------|
+| Choosing between technologies | [technical-decisions.md](technical-decisions.md) |
+| Designing system structure | [architecture/patterns.md](architecture/patterns.md) |
+| Defining module boundaries | [architecture/boundaries.md](architecture/boundaries.md) |
+| Planning data flow | [architecture/data-flow.md](architecture/data-flow.md) |
+| Writing quality code | [implementation/best-practices.md](implementation/best-practices.md) |
+| Applying design patterns | [implementation/patterns.md](implementation/patterns.md) |
+| Restructuring existing code | [refactoring.md](refactoring.md) |
+| Designing APIs | [api-design.md](api-design.md) |
+| Improving performance | [performance.md](performance.md) |
+| Building CI/CD pipelines | [cicd-architecture.md](cicd-architecture.md) |
 
-3. **Define boundaries**
-   - How do components communicate?
-   - What are the interfaces?
+Don't read them all. Read the one you need, when you need it.
 
-4. **Consider cross-cutting concerns**
-   - Error handling
-   - Logging and monitoring
-   - Authentication/authorization
+---
 
-5. **Document and validate**
-   - Create architecture diagram
-   - Walk through key scenarios
-   - Get feedback from team
+## What Engineering Is Not
 
-### Workflow 3: Refactoring Plan
+**Engineering is not housekeeping.**
+- Engineering: "How should we structure authentication?"
+- Housekeeping: "Let's remove these unused imports."
 
-**Trigger**: Code needs structural improvement
+**Engineering is not validation.**
+- Engineering: "Should we use Jest or Vitest?"
+- Validation: "Do the tests pass?"
 
-**Steps**:
-1. **Assess current state**
-   - What's the problem with current structure?
-   - What tests exist?
+**Engineering is not implementation.**
+- Engineering: "Here's the architecture for this feature."
+- Implementation: Actually writing the code.
 
-2. **Define target state**
-   - What should the code look like after?
-   - What benefits do we expect?
+Engineering guides the work. Other skills (and humans) do the work.
 
-3. **Plan incremental steps**
-   - Break into small, safe changes
-   - Each step should leave code working
+---
 
-4. **Execute with verification**
-   - Make change
-   - Run tests
-   - Commit
-   - Repeat
+## The Mindset
 
-5. **Verify improvement**
-   - Did we achieve the goal?
-   - Any unexpected issues?
+Good engineering comes from asking good questions:
 
-## Principles for Good Engineering
+- What problem are we solving?
+- What are the constraints?
+- What are the trade-offs?
+- What's the simplest thing that could work?
+- What would we do if we're wrong?
 
-### Simplicity First
+You won't always have perfect information. That's fine. Make the best decision you can with what you know, document your reasoning, and stay ready to adapt.
 
-> "Simple things should be simple, complex things should be possible." — Alan Kay
+> "Make it work, make it right, make it fast—in that order."
 
-- Start with the simplest solution that could work
-- Add complexity only when proven necessary
-- Question every abstraction: does it earn its keep?
+Working software beats elegant architecture. Clarity beats cleverness. Simple solutions beat complex ones.
 
-### Reversibility
-
-- Prefer decisions that are easy to reverse
-- When irreversible, invest more in evaluation
-- Build in escape hatches where possible
-
-### Pragmatism over Purity
-
-- Perfect is the enemy of good
-- Working software beats elegant architecture
-- Best practices are guidelines, not laws
-- Context determines the right approach
-
-### Continuous Learning
-
-- Every project teaches something
-- Mistakes are learning opportunities
-- Share knowledge with the team
-- Stay curious about better approaches
-
+When in doubt, choose the option that's easier to change later.

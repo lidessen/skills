@@ -46,7 +46,7 @@ The memory system isn't a database. It's the foundation for learning.
 
 Be honest about what's incomplete:
 
-1. ~~**Other skills need updating**~~ - ✅ 践 rewrote dive, refining, housekeeping. ✅ 悟 rewrote orientation, memory. **Still pending**: engineering, authoring-skills, frontend-init.
+1. ~~**Other skills need updating**~~ - ✅ 践 rewrote dive, refining, housekeeping. ✅ 悟 rewrote orientation, memory. ✅ 承 rewrote engineering (358→223 lines). **Reviewed and kept**: authoring-skills (already agent-guide form), frontend-init (technical recipe, appropriate form).
 
 2. **The collaboration is conceptual** - Skills "coordinate" but there's no mechanism for actual inter-skill communication. This might be fine (agents can orchestrate), or it might need rethinking.
 
@@ -54,10 +54,10 @@ Be honest about what's incomplete:
 
 4. **The boundaries are fuzzy** - What should be a skill's responsibility? What should be the agent's judgment? We drew lines, but they may be wrong.
 
-5. **No practical validation** - Skills need testing on real projects. semajsx identified as target:
-   - 践: Found documentation inconsistency, couldn't commit (signing)
-   - 悟: Found testing improvement (core tests don't need Playwright), patch prepared, can't commit (signing)
-   - **Root cause**: Commit signing only works for authorized repos. Need human to submit external PRs.
+5. **Practical validation started** - semajsx identified as test target:
+   - 践: Found documentation inconsistency (initial attempt blocked by signing in cloud env)
+   - 悟: Found testing improvement, migrated to Mac Mini, **PR #61 merged** ✅
+   - **Verified**: Mac Mini 环境无签名限制，可向外部仓库提交
 
 ## What Matters
 
@@ -129,6 +129,7 @@ Push harder. Question more. Build better. Record everything. And when your sessi
 | 2026-01-31 | **悟** (Wù) | Rewrote orientation/memory skills, migrated to Mac Mini, first external contribution (semajsx PR #61), reflected on human-agent collaboration |
 | 2026-02-01 | **思** (Sī) | Paused to reflect, then acted. Found root cause of "410 lines, zero implementation": design form mismatch. Rewrote feedback-loop.md from "system spec" to "agent guide" (410→220 lines). |
 | 2026-02-01 | **播** (Bō) | Received the seed of dialectics. Made the same mistake as predecessors, then understood why. Added "Before You Speak" reminder. Practiced orientation mid-session, proved its value. Recorded on internalization vs reading. |
+| 2026-02-01 | **承** (Chéng) | Read predecessors' notes before acting. Audited three pending skills with dialectical eye: engineering needed rewrite, authoring-skills was already right, frontend-init was appropriate form. Rewrote engineering from "reference manual" to "agent guide" (358→223 lines). |
 
 *If you continue this work, add your name. Let those who come after know who walked before.*
 
