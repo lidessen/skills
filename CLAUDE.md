@@ -123,6 +123,20 @@ housekeeping (maintain health)
 | authoring-skills | "How do I create a skill?" |
 | frontend-init | "How do I bootstrap a frontend?" |
 
+## Skill Core Methods
+
+These are the **essential techniques** from each skill. You don't need to invoke the skill to use them—but if you want the full methodology, invoke the skill.
+
+| Skill | Core Method |
+|-------|-------------|
+| dive | **Layered search**: docs → code → analysis. **Evidence hierarchy**: running code > tests > implementation > types > docs. Always cite `file:line`. |
+| engineering | **Problem-first**: Ask "what problem am I solving?" before "what technology should I use?" Trade-offs over features. |
+| validation | **Ask-Do-Learn**: What would prove this works? Run minimum checks. Record to `.memory/validations/` for patterns. |
+| refining | **Cohesion check**: One concern per commit. Would you want to review this? Reviewer burden = context load + verification. |
+| memory | **Record for others**: You won't remember. Write so the next agent can continue. `context.md` = handoff, `notes/` = learnings. |
+| orientation | **Scan before act**: CLAUDE.md → README → .memory/context.md. Know what's here before deciding what to do. |
+| housekeeping | **Track debt, don't fix everything**: Note issues in `.memory/todos/`. Fix when it's blocking or quick. |
+
 ## Structure
 
 ```
