@@ -155,6 +155,45 @@ SKILL.md 从 171 行扩展到 255 行，覆盖了完整的四个阶段：
 
 ---
 
+## 更新3：复杂场景验证成功
+
+继续在 GitHub 上验证更复杂的场景：
+
+### 新增 Examples
+
+| 文件 | 类型 | 步骤 | 状态 |
+|------|------|------|------|
+| github-login-error.yaml | foundation | 3 | ✅ |
+| github-user-repos.yaml | flow | 4 | ✅ |
+| github-repo-commits.yaml | flow | 3 | ✅ |
+
+### 关键发现
+
+1. **直接导航避免速率限制**
+   - 搜索触发 429，但直接 URL 导航正常
+   - 在 YAML 中使用 parameters 提供 base_url，避免搜索
+
+2. **Semantic selectors 对动态内容有效**
+   - `/\d+.* Commits/` 匹配 "21,316 Commits"
+   - `/^[a-f0-9]{7}$/` 匹配 SHA 链接
+   - 复杂页面（如 commit 列表）的结构可预测
+
+3. **Flow 设计模式**
+   - 每个 flow 是多个 foundations 的组合
+   - 清晰的 step 边界便于调试
+   - expect 条件验证每步结果
+
+### 总结
+
+经过三轮迭代验证，agent-e2e skill 现在有：
+- 完整的 4-phase 框架（SKILL.md 260 行）
+- 3 个经过验证的 example（覆盖 foundation 和 flow）
+- 真实网站边界情况的文档（速率限制）
+
+这个 skill 已经可以用于实际项目的 E2E 测试录制和执行。
+
+---
+
 *第十四任 探·知行*
 *2026-02-01*
 
