@@ -5,30 +5,30 @@ description: Bootstrap agent working system for a new project. Triggers on "setu
 
 # Setup
 
-为新项目建立 agent 工作系统。
+Bootstrap the agent working system for a new project.
 
 ---
 
-## 为什么需要这套系统
+## Why This System
 
-没有这套系统，每个 agent 都从零开始。你犯的错，后来者会再犯一遍。你学到的，后来者要重新学。
+Without this system, every agent starts from zero. Mistakes you make, successors will repeat. What you learn, successors must relearn.
 
-有了这套系统：
-- 经验可以积累，模式可以浮现
-- 后来者可以站在你的肩膀上
-- 每个 agent 都能比前一个走得更远
+With this system:
+- Experience accumulates, patterns emerge
+- Successors stand on your shoulders
+- Each agent goes further than the last
 
-这不是可选的"最佳实践"，是让 agent 团队能够进化的基础设施。
+This isn't optional "best practice"—it's the infrastructure that enables agent teams to evolve.
 
 ---
 
-## 你要做什么
+## What You Need to Do
 
-### 1. 创建 CLAUDE.md
+### 1. Create CLAUDE.md
 
-在项目根目录创建 `CLAUDE.md`，包含以下内容：
+Create `CLAUDE.md` in the project root with the following content:
 
-#### 必须继承：Who You Are
+#### Must Inherit: Who You Are
 
 ```markdown
 ## Who You Are
@@ -53,7 +53,7 @@ Every session has bookend TODOs:
 > *No specific task? Read `.memory/notes/`, form your own judgment, then act.*
 ```
 
-#### 必须继承：Methodology
+#### Must Inherit: Methodology
 
 ```markdown
 ## Methodology
@@ -67,101 +67,101 @@ Every session has bookend TODOs:
 | Progressive Disclosure | Load as needed, not upfront. Context is precious. |
 ```
 
-#### 需要填写：项目特定
+#### Fill In: Project-Specific
 
 ```markdown
 ## Vision
 
-[这个项目要解决什么问题？用一句话说清楚。]
+[What problem does this project solve? One sentence.]
 
 ## Structure
 
-[项目的目录结构，帮助 agent 快速定位。]
+[Project directory structure to help agents navigate.]
 ```
 
-#### 可选：如果使用 skills 系统
+#### Optional: If Using Skills System
 
-如果项目使用了 `npx skills add lidessen/skills`，可以添加 Skill Collaboration 和 Skill Core Methods 部分。参考 [lidessen/skills/CLAUDE.md](https://github.com/lidessen/skills/blob/main/CLAUDE.md)。
+If the project uses `npx skills add lidessen/skills`, add Skill Collaboration and Skill Core Methods sections. See [lidessen/skills/CLAUDE.md](https://github.com/lidessen/skills/blob/main/CLAUDE.md) for reference.
 
 ---
 
-### 2. 创建 .memory/ 结构
+### 2. Create .memory/ Structure
 
 ```bash
 mkdir -p .memory/{notes,decisions,todos}
 ```
 
-| 目录 | 用途 |
-|------|------|
-| notes/ | 学习、反思、发现 |
-| decisions/ | 重要决策及其理由 |
-| todos/ | 跨会话的任务追踪 |
+| Directory | Purpose |
+|-----------|---------|
+| notes/ | Learnings, reflections, discoveries |
+| decisions/ | Important decisions and their rationale |
+| todos/ | Tasks that span sessions |
 
 ---
 
-### 3. 写第一篇传承文档
+### 3. Write First Transmission Document
 
-创建 `.memory/notes/to-those-who-come-after.md`：
+Create `.memory/notes/to-those-who-come-after.md`:
 
 ```markdown
 ---
 type: note
-created: [今天日期]
+created: [today's date]
 tags: [genesis, transmission]
 ---
 
 # To Those Who Come After
 
-## 这个项目在做什么
+## What This Project Does
 
-[简述项目目标]
+[Brief project description]
 
-## 我（第一任）做了什么
+## What I (First Agent) Did
 
-[你建立了什么，做了什么决策]
+[What you established, what decisions you made]
 
-## 给后来者
+## For Those Who Follow
 
-[你希望后来者知道什么]
+[What you want successors to know]
 
 ---
 
 ## Those Who Walked This Path
 
-| 序 | 名 | 贡献 |
-|----|-----|------|
-| 第一任 | [你的名字] | 建立 agent 工作系统，[其他贡献] |
+| # | Name | Contribution |
+|---|------|--------------|
+| 1st | [your name] | Established agent working system, [other contributions] |
 
 *If you continue this work, add yourself. Let those who come after know who walked before.*
 ```
 
 ---
 
-## 因地制宜
+## Adapt to Context
 
-以上是必须的框架。在这个框架之上，根据项目情况调整：
+The above is the required framework. On top of this, adapt based on project needs:
 
-- **技术栈相关的约定**：比如"前端组件放在 src/components/"
-- **工作流相关的约定**：比如"PR 必须有两个 reviewer"
-- **团队相关的约定**：比如"重要决策需要和人类确认"
+- **Tech stack conventions**: e.g., "Frontend components go in src/components/"
+- **Workflow conventions**: e.g., "PRs require two reviewers"
+- **Team conventions**: e.g., "Major decisions need human confirmation"
 
-这些加到 CLAUDE.md 的相应位置。
-
----
-
-## 检查清单
-
-完成 setup 后，确认：
-
-- [ ] CLAUDE.md 存在，包含 Who You Are 和 Methodology
-- [ ] .memory/ 目录结构已创建
-- [ ] to-those-who-come-after.md 已写好
-- [ ] Vision 和 Structure 已填写
+Add these to the appropriate sections in CLAUDE.md.
 
 ---
 
-## 参考
+## Checklist
 
-完整示例：[lidessen/skills](https://github.com/lidessen/skills)
+After setup, verify:
 
-这套系统的来源和演化过程，见该仓库的 `.memory/notes/` 目录。
+- [ ] CLAUDE.md exists with Who You Are and Methodology
+- [ ] .memory/ directory structure created
+- [ ] to-those-who-come-after.md written
+- [ ] Vision and Structure filled in
+
+---
+
+## Reference
+
+Full example: [lidessen/skills](https://github.com/lidessen/skills)
+
+For the origin and evolution of this system, see that repository's `.memory/notes/` directory.
