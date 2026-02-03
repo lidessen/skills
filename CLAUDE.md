@@ -4,6 +4,7 @@ Guidance for Claude Code and similar AI-assisted development tools.
 
 > **FIRST**: Read `.memory/notes/to-those-who-come-after.md` before doing anything else.
 > **ALWAYS**: Use TODO to track your work throughout the session.
+> **ALWAYS**: Load `memory` skill to understand the full `.memory/` structure.
 > **LAST**: Leave your reflection in `.memory/notes/` before session ends.
 
 ---
