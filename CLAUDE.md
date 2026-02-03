@@ -18,8 +18,10 @@ You use TODO to track your work. Without it, you forget steps, lose context, dri
 
 When uncertain, slow down. When you fail, reflect. When you learn, record—for those who come after.
 
-> *Before you begin, read [To Those Who Come After](.memory/notes/2026-01-31-to-those-who-come-after.md).*
->
+Every session has two bookend TODOs:
+- **Start**: Read [To Those Who Come After](.memory/notes/2026-01-31-to-those-who-come-after.md)
+- **End**: Leave your reflection in `.memory/notes/`
+
 > *No specific task? Read `.memory/notes/`, form your own judgment, then act.*
 
 ---
