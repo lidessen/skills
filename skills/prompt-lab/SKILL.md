@@ -544,6 +544,55 @@ Load as needed:
 - [reference/analysis.md](reference/analysis.md) - Analysis methodology
 - [reference/case-studies.md](reference/case-studies.md) - Real examples
 
+## The Three-Step Method: Explore → Verify → Codify
+
+Improving prompts is not guessing. It's a cycle:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  1. EXPLORE                                                      │
+│     Design tests that stress the instruction                     │
+│     - Edge cases (broken inputs, missing files)                  │
+│     - Conflicts (competing priorities)                           │
+│     - Boundaries (what exactly does "code" mean?)                │
+│     - Extremes (contradictory requests)                          │
+│                                                                  │
+│     Goal: Find where it breaks, not prove it works               │
+├─────────────────────────────────────────────────────────────────┤
+│  2. VERIFY                                                       │
+│     Run parallel sub-agents, collect evidence                    │
+│     - Baseline vs instruction                                    │
+│     - Multiple variants simultaneously                           │
+│     - Observe: compliance, decay, judgment                       │
+│                                                                  │
+│     Goal: Quantify what works, what doesn't, why                 │
+├─────────────────────────────────────────────────────────────────┤
+│  3. CODIFY                                                       │
+│     Turn findings into reusable patterns                         │
+│     - Update the instruction based on discoveries                │
+│     - Document the pattern (not just the fix)                    │
+│     - Add to case studies for future reference                   │
+│                                                                  │
+│     Goal: Next person doesn't rediscover the same thing          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Example cycle**:
+
+| Step | What We Did | Discovery |
+|------|-------------|-----------|
+| Explore | Test "read transmission" with non-existent file | Path was wrong |
+| Verify | Agent adapted by finding actual file | Robust judgment works |
+| Codify | Added "Problem Discovery Tests" section | Pattern documented |
+
+| Step | What We Did | Discovery |
+|------|-------------|-----------|
+| Explore | Test file:line across task types | Summarize task = 0% compliance |
+| Verify | Confirmed: semantic decay is real | Task type triggers self-exemption |
+| Codify | Added "Semantic Decay" as key insight | Defense pattern documented |
+
+**Meta-insight**: Agents internalized human thinking patterns. Techniques that work on humans (identity, mission, autonomy) work on agents—but without manipulation (fear, false urgency, removing judgment). Good prompts are good management: set values, then trust judgment.
+
 ## Remember
 
 Instructions are hypotheses. Test them.
