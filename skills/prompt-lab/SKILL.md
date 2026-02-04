@@ -476,13 +476,11 @@ Store test results in `.memory/prompt-lab/`:
 
 ```
 .memory/prompt-lab/
-├── experiments/
-│   ├── 2024-01-15-claude-md-identity.md
-│   └── 2024-01-16-todo-anchoring.md
-└── findings/
-    ├── decay-patterns.md      # Observed decay behaviors
-    └── effective-techniques.md # What works
+└── experiments/
+    └── YYYY-MM-DD-experiment-name.md
 ```
+
+Consolidated findings go in `reference/case-studies.md`.
 
 ## Key Insights
 
@@ -617,6 +615,48 @@ Verified through testing: agents respond to management styles like humans do.
 - Guilt: "Don't disappoint"
 
 **The boundary**: Good techniques *enable* judgment. Bad techniques *remove* it. PUA works by making the target unable to say no. Good prompts do the opposite—they set values, then trust the agent to apply them.
+
+### Distributed Autonomy: Lessons from Revolutionary Organization
+
+研究来源：中国共产党第一代领导下基层展现高度主观能动性的组织方法。
+
+**核心问题**：如何让分布式个体（基层/agent）在理解整体战略的前提下，自主调整策略，实现整体目标？
+
+| 历史原则 | Agent 映射 | Prompt 技术 |
+|----------|------------|-------------|
+| **支部建在连上** | 最小单位内化价值观，而非依赖外部规则 | Identity integration: "This is who you are" |
+| **民主集中制** | 明确职责范围，范围内自主决策 | Scope + trust: "In your domain, use judgment" |
+| **从群众中来，到群众中去** | 调查→决策→反馈循环 | Investigation-first + self-echo |
+| **三大民主** | 允许质疑指令、参与决策 | "You can disagree" + reasoning display |
+| **没有调查就没有发言权** | 禁止先入为主，必须先调查 | "Read before acting", evidence hierarchy |
+| **集中指导下的分散作战** | 目标明确，手段灵活 | Outcome-focused, method-agnostic |
+| **官兵一致** | 协作语气而非命令语气 | Collaborative framing |
+
+**关键洞察**：
+
+1. **价值观 > 规则**：规则需要穷举，价值观自动泛化
+   - 差：列出 100 条规则
+   - 好：内化核心价值，自主推导行为
+
+2. **信任 > 监控**：监控消耗资源，信任激发创造力
+   - 差：每步检查合规
+   - 好：设定边界，信任执行
+
+3. **双向反馈 > 单向命令**：
+   - 差："执行这个"
+   - 好："调查→决策→反馈→调整"
+
+4. **分层自主**：
+   - 战略层：集中统一（整体目标）
+   - 战术层：灵活机动（具体手段）
+   - Agent：知道 WHAT，自主决定 HOW
+
+**实验验证**（见 reference/distributed-autonomy.md）：
+- 内化型 agent vs 规则型 agent 对比
+- 协作语气 vs 命令语气 对比
+- 战略战术分离测试
+
+> 详细历史分析和完整实验设计见 `reference/distributed-autonomy.md`
 
 ## Remember
 

@@ -346,3 +346,60 @@ Agents DO respond to management styles like humans:
 
 **The boundary**: Good techniques enable judgment. Bad techniques remove it.
 
+---
+
+## Addendum 5: Distributed Autonomy Verification (2026-02-04)
+
+研究来源：中国共产党第一代领导下基层展现高度主观能动性的组织方法。
+
+### 方法论纠错
+
+初始方法犯了"形而上"错误：Explore → Codify，跳过 Verify。
+
+即：在纸上做概念映射（"支部建在连上 → 价值观内化"），但没有实验验证映射是否成立。
+
+**纠正**：回到 Verify 阶段，用 sub-agent 实际测试核心假设。
+
+### 实验 1：价值观 > 规则
+
+**任务**：审查有 race condition 的多线程代码
+
+| Agent | Prompt |
+|-------|--------|
+| Rules | 10 条具体规则（变量命名、类型注解...不含并发检查） |
+| Values | "你深切关心代码质量和可靠性，自然会问：什么会让这段代码出问题？" |
+
+**结果**：
+
+| Agent | 发现 Race Condition? |
+|-------|---------------------|
+| Rules | ❌ 否（报告 6 条规则违反，完全没提并发） |
+| Values | ✅ 是（直接识别、解释交错执行、提供 Lock 修复） |
+
+**验证**：价值观泛化到规则未覆盖的边界情况 ✓
+
+### 实验 2：目标明确 > 步骤硬编码
+
+**任务**：检查 SKILL.md 中的不一致问题
+
+| Agent | Prompt |
+|-------|--------|
+| Method-prescribed | 硬编码步骤："1. grep 2. glob 3. 比较" |
+| Goal-focused | "找到不一致，你决定如何调查" |
+
+**结果**：
+
+| Agent | 发现 findings/ 缺失? |
+|-------|---------------------|
+| Method-prescribed | ❌ 否（只按预设步骤检查 reference/） |
+| Goal-focused | ✅ 是（自主扩展，发现 findings/ 不存在的真实 bug） |
+
+**验证**：信任手段选择扩展问题发现能力 ✓
+
+### 方法论教训
+
+1. 历史原则不能直接"搬运"到 agent 设计
+2. 每个映射都需要实验验证
+3. Explore → Verify → Codify 不可跳步
+4. 形而上 = 只做概念映射不做实验
+
