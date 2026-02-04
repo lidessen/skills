@@ -342,7 +342,7 @@ program
       for (const msg of history) {
         const role = msg.role === 'user' ? 'YOU' : msg.role.toUpperCase()
         const status = msg.status === 'responding' ? ' (responding...)' : ''
-        console.log(`[${role}${status}] ${msg.content}\n`)
+        console.log(`[${role}${status}] ${msg.content}`)
       }
     }
   })
