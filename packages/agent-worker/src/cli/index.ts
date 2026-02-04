@@ -555,4 +555,36 @@ program
     }
   })
 
+// Provider API key configuration
+const PROVIDER_API_KEYS: Record<string, { envVar: string; description: string }> = {
+  gateway: { envVar: 'AI_GATEWAY_API_KEY', description: 'Vercel AI Gateway (all providers)' },
+  anthropic: { envVar: 'ANTHROPIC_API_KEY', description: 'Anthropic Claude' },
+  openai: { envVar: 'OPENAI_API_KEY', description: 'OpenAI GPT' },
+  deepseek: { envVar: 'DEEPSEEK_API_KEY', description: 'DeepSeek' },
+  google: { envVar: 'GOOGLE_GENERATIVE_AI_API_KEY', description: 'Google Gemini' },
+  groq: { envVar: 'GROQ_API_KEY', description: 'Groq' },
+  mistral: { envVar: 'MISTRAL_API_KEY', description: 'Mistral' },
+  xai: { envVar: 'XAI_API_KEY', description: 'xAI Grok' },
+}
+
+// Providers command
+program
+  .command('providers')
+  .description('Check provider availability')
+  .action(() => {
+    console.log('Provider Status:\n')
+
+    for (const [name, config] of Object.entries(PROVIDER_API_KEYS)) {
+      const isConfigured = !!process.env[config.envVar]
+      const status = isConfigured ? '✓' : '✗'
+      const statusText = isConfigured ? '' : ' (not configured)'
+      const envHint = isConfigured ? '' : ` [${config.envVar}]`
+      console.log(`  ${status} ${name.padEnd(10)} - ${config.description}${statusText}${envHint}`)
+    }
+
+    console.log('\nUsage:')
+    console.log('  Gateway format:  provider/model  (e.g., openai/gpt-4o)')
+    console.log('  Direct format:   provider:model  (e.g., deepseek:deepseek-chat)')
+  })
+
 program.parse()
