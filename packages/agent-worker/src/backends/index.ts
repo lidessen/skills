@@ -16,9 +16,9 @@ import { SdkBackend, type SdkBackendOptions } from './sdk.ts'
 
 export type BackendOptions =
   | { type: 'sdk'; model: string; maxTokens?: number }
-  | { type: 'claude'; options?: ClaudeCliOptions }
-  | { type: 'codex'; options?: CodexCliOptions }
-  | { type: 'cursor'; options?: CursorCliOptions }
+  | { type: 'claude'; model?: string; options?: Omit<ClaudeCliOptions, 'model'> }
+  | { type: 'codex'; model?: string; options?: Omit<CodexCliOptions, 'model'> }
+  | { type: 'cursor'; model?: string; options?: Omit<CursorCliOptions, 'model'> }
 
 /**
  * Create a backend instance
@@ -28,11 +28,11 @@ export function createBackend(config: BackendOptions): Backend {
     case 'sdk':
       return new SdkBackend({ model: config.model, maxTokens: config.maxTokens })
     case 'claude':
-      return new ClaudeCliBackend(config.options)
+      return new ClaudeCliBackend({ ...config.options, model: config.model })
     case 'codex':
-      return new CodexCliBackend(config.options)
+      return new CodexCliBackend({ ...config.options, model: config.model })
     case 'cursor':
-      return new CursorCliBackend(config.options)
+      return new CursorCliBackend({ ...config.options, model: config.model })
     default:
       throw new Error(`Unknown backend type: ${(config as { type: string }).type}`)
   }
