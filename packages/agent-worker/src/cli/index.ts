@@ -584,7 +584,7 @@ program
     }
 
     console.log('\nUsage:')
-    console.log('  Gateway format:  provider/model  (e.g., openai/gpt-4o)')
+    console.log('  Gateway format:  provider/model  (e.g., openai/gpt-5.2)')
     console.log('  Direct format:   provider:model  (e.g., deepseek:deepseek-chat)')
   })
 

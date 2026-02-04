@@ -37,12 +37,12 @@ async function loadProvider(
  *    - anthropic/claude-sonnet-4-5
  *    - anthropic/claude-opus-4-5
  *    - openai/gpt-5.2
- *    - openai/gpt-4o
  *    - google/gemini-2.5-flash
  *    - deepseek/deepseek-chat
  *    - xai/grok-4
  *    - mistral/mistral-large-latest
  *    - groq/llama-3.3-70b-versatile
+ *    - minimax/MiniMax-M2
  *
  * 2. Direct provider format: provider:model-name
  *    Requires installing the specific @ai-sdk/provider package
