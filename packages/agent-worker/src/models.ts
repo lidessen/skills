@@ -199,16 +199,8 @@ export const FRONTIER_MODELS = {
     'claude-sonnet-4-0',
     'claude-3-7-sonnet-latest',
   ],
-  // OpenAI GPT models - gpt-4.1 is the coding workhorse, gpt-5.2 for reasoning
-  openai: [
-    'gpt-4.1',           // best for coding tasks
-    'gpt-4.1-mini',      // fast and efficient
-    'gpt-5.2',           // flagship reasoning model
-    'gpt-4o',            // legacy but versatile
-    'gpt-4.5-preview',   // research preview, high EQ
-    'o3-mini',           // small reasoning model
-    'codex-mini-latest', // optimized for Codex CLI
-  ],
+  // OpenAI GPT models
+  openai: ['gpt-5.2', 'gpt-5.2-codex'],
   // Google Gemini models - flash is most commonly used (fast, cost-effective)
   google: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-3-pro-preview'],
   // DeepSeek models - chat is the standard choice
