@@ -4,7 +4,13 @@ import { readFileSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import type { ToolDefinition } from 'agent-worker'
 import { sendRequest, isSessionActive } from './client.ts'
-import { startServer, isServerRunning, getPidFile, getSocketPath } from './server.ts'
+import {
+  startServer,
+  isSessionRunning,
+  listSessions,
+  setDefaultSession,
+  getSessionInfo,
+} from './server.ts'
 
 const program = new Command()
 
@@ -14,50 +20,42 @@ program
   .version('0.0.1')
 
 // Session commands
-const sessionCmd = program.command('session').description('Manage test sessions')
+const sessionCmd = program.command('session').description('Manage sessions')
 
 sessionCmd
-  .command('start')
-  .description('Start a new session (runs as background service)')
-  .requiredOption('-m, --model <model>', 'Model identifier (e.g., openai/gpt-5.2, anthropic/claude-sonnet-4-5)')
+  .command('new')
+  .description('Create a new session')
+  .requiredOption('-m, --model <model>', 'Model identifier')
   .option('-s, --system <prompt>', 'System prompt', 'You are a helpful assistant.')
   .option('-f, --system-file <file>', 'Read system prompt from file')
-  .option('--foreground', 'Run in foreground (don\'t daemonize)')
+  .option('-n, --name <name>', 'Session name for easy reference')
+  .option('--foreground', 'Run in foreground')
   .action((options) => {
-    if (isServerRunning()) {
-      console.error('Session already running. Use `agent-worker session end` first.')
-      process.exit(1)
-    }
-
     let system = options.system
     if (options.systemFile) {
       system = readFileSync(options.systemFile, 'utf-8')
     }
 
     if (options.foreground) {
-      // Run in foreground
-      startServer({ model: options.model, system })
+      startServer({ model: options.model, system, name: options.name })
     } else {
-      // Spawn as background process
-      const child = spawn(
-        process.execPath,
-        [process.argv[1], 'session', 'start', '-m', options.model, '-s', system, '--foreground'],
-        {
-          detached: true,
-          stdio: 'ignore',
-        }
-      )
+      const args = [process.argv[1], 'session', 'new', '-m', options.model, '-s', system, '--foreground']
+      if (options.name) {
+        args.push('-n', options.name)
+      }
+
+      const child = spawn(process.execPath, args, {
+        detached: true,
+        stdio: 'ignore',
+      })
       child.unref()
 
-      // Wait a bit for server to start
       setTimeout(async () => {
-        if (isServerRunning()) {
-          const res = await sendRequest({ action: 'ping' })
-          if (res.success && res.data) {
-            const { id, model } = res.data as { id: string; model: string }
-            console.log(`Session started: ${id}`)
-            console.log(`Model: ${model}`)
-          }
+        const info = getSessionInfo(options.name)
+        if (info && isSessionRunning(options.name)) {
+          const nameStr = options.name ? ` (${options.name})` : ''
+          console.log(`Session started: ${info.id}${nameStr}`)
+          console.log(`Model: ${info.model}`)
         } else {
           console.error('Failed to start session')
           process.exit(1)
@@ -67,34 +65,75 @@ sessionCmd
   })
 
 sessionCmd
-  .command('status')
-  .description('Check session status')
-  .action(async () => {
-    if (!isServerRunning()) {
-      console.log('No active session')
+  .command('list')
+  .description('List all sessions')
+  .action(() => {
+    const sessions = listSessions()
+    if (sessions.length === 0) {
+      console.log('No active sessions')
       return
     }
 
-    const res = await sendRequest({ action: 'ping' })
-    if (res.success && res.data) {
-      const { id, model } = res.data as { id: string; model: string }
-      console.log(`Session active: ${id}`)
-      console.log(`Model: ${model}`)
-    } else {
-      console.log('Session not responding')
+    for (const s of sessions) {
+      const running = isSessionRunning(s.id)
+      const status = running ? 'running' : 'stopped'
+      const nameStr = s.name ? ` (${s.name})` : ''
+      console.log(`  ${s.id.slice(0, 8)}${nameStr} - ${s.model} [${status}]`)
     }
   })
 
 sessionCmd
-  .command('end')
-  .description('End the current session')
-  .action(async () => {
-    if (!isServerRunning()) {
-      console.log('No active session')
+  .command('status [target]')
+  .description('Check session status')
+  .action(async (target) => {
+    if (!isSessionRunning(target)) {
+      console.log(target ? `Session not found: ${target}` : 'No active session')
       return
     }
 
-    const res = await sendRequest({ action: 'shutdown' })
+    const res = await sendRequest({ action: 'ping' }, target)
+    if (res.success && res.data) {
+      const { id, model, name } = res.data as { id: string; model: string; name?: string }
+      const nameStr = name ? ` (${name})` : ''
+      console.log(`Session: ${id}${nameStr}`)
+      console.log(`Model: ${model}`)
+    }
+  })
+
+sessionCmd
+  .command('use <target>')
+  .description('Set default session')
+  .action((target) => {
+    if (setDefaultSession(target)) {
+      console.log(`Default session set to: ${target}`)
+    } else {
+      console.error(`Session not found: ${target}`)
+      process.exit(1)
+    }
+  })
+
+sessionCmd
+  .command('end [target]')
+  .description('End a session (or all with --all)')
+  .option('--all', 'End all sessions')
+  .action(async (target, options) => {
+    if (options.all) {
+      const sessions = listSessions()
+      for (const s of sessions) {
+        if (isSessionRunning(s.id)) {
+          await sendRequest({ action: 'shutdown' }, s.id)
+          console.log(`Ended: ${s.name || s.id}`)
+        }
+      }
+      return
+    }
+
+    if (!isSessionRunning(target)) {
+      console.log(target ? `Session not found: ${target}` : 'No active session')
+      return
+    }
+
+    const res = await sendRequest({ action: 'shutdown' }, target)
     if (res.success) {
       console.log('Session ended')
     } else {
@@ -105,13 +144,20 @@ sessionCmd
 // Send command
 program
   .command('send <message>')
-  .description('Send a message to the current session')
+  .description('Send a message')
+  .option('--to <target>', 'Target session (name or ID)')
   .option('--json', 'Output full JSON response')
   .option('--auto-approve', 'Auto-approve all tool calls (default)')
-  .option('--no-auto-approve', 'Require manual approval for tools with needsApproval')
+  .option('--no-auto-approve', 'Require manual approval')
   .action(async (message, options) => {
-    if (!isSessionActive()) {
-      console.error('No active session. Start one with: agent-worker session start -m <model>')
+    const target = options.to
+
+    if (!isSessionActive(target)) {
+      if (target) {
+        console.error(`Session not found: ${target}`)
+      } else {
+        console.error('No active session. Create one with: agent-worker session new -m <model>')
+      }
       process.exit(1)
     }
 
@@ -119,7 +165,7 @@ program
     const res = await sendRequest({
       action: 'send',
       payload: { message, options: { autoApprove } },
-    })
+    }, target)
 
     if (!res.success) {
       console.error('Error:', res.error)
@@ -147,7 +193,6 @@ program
         for (const p of response.pendingApprovals) {
           console.log(`[${p.id.slice(0, 8)}] ${p.toolName}(${JSON.stringify(p.arguments)})`)
         }
-        console.log('\nUse: agent-worker approve <id> or agent-worker deny <id>')
       }
     }
   })
@@ -157,13 +202,16 @@ const toolCmd = program.command('tool').description('Manage tools')
 
 toolCmd
   .command('add <name>')
-  .description('Add a tool to current session')
+  .description('Add a tool')
+  .option('--to <target>', 'Target session')
   .requiredOption('-d, --desc <description>', 'Tool description')
-  .option('-p, --param <params...>', 'Parameters in format name:type:description')
-  .option('--needs-approval', 'Require user approval before execution')
+  .option('-p, --param <params...>', 'Parameters (name:type:description)')
+  .option('--needs-approval', 'Require approval')
   .action(async (name, options) => {
-    if (!isSessionActive()) {
-      console.error('No active session')
+    const target = options.to
+
+    if (!isSessionActive(target)) {
+      console.error(target ? `Session not found: ${target}` : 'No active session')
       process.exit(1)
     }
 
@@ -182,15 +230,11 @@ toolCmd
     const tool: ToolDefinition = {
       name,
       description: options.desc,
-      parameters: {
-        type: 'object',
-        properties,
-        required,
-      },
+      parameters: { type: 'object', properties, required },
       needsApproval: options.needsApproval ?? false,
     }
 
-    const res = await sendRequest({ action: 'tool_add', payload: tool })
+    const res = await sendRequest({ action: 'tool_add', payload: tool }, target)
     if (res.success) {
       const approvalNote = options.needsApproval ? ' (needs approval)' : ''
       console.log(`Tool added: ${name}${approvalNote}`)
@@ -202,10 +246,13 @@ toolCmd
 
 toolCmd
   .command('mock <name> <response>')
-  .description('Set mock response for a tool')
-  .action(async (name, response) => {
-    if (!isSessionActive()) {
-      console.error('No active session')
+  .description('Set mock response')
+  .option('--to <target>', 'Target session')
+  .action(async (name, response, options) => {
+    const target = options.to
+
+    if (!isSessionActive(target)) {
+      console.error(target ? `Session not found: ${target}` : 'No active session')
       process.exit(1)
     }
 
@@ -214,7 +261,7 @@ toolCmd
       const res = await sendRequest({
         action: 'tool_mock',
         payload: { name, response: parsed },
-      })
+      }, target)
 
       if (res.success) {
         console.log(`Mock set for: ${name}`)
@@ -222,7 +269,7 @@ toolCmd
         console.error('Error:', res.error)
         process.exit(1)
       }
-    } catch (e) {
+    } catch {
       console.error('Invalid JSON response')
       process.exit(1)
     }
@@ -230,14 +277,17 @@ toolCmd
 
 toolCmd
   .command('list')
-  .description('List tools in current session')
-  .action(async () => {
-    if (!isSessionActive()) {
-      console.error('No active session')
+  .description('List tools')
+  .option('--to <target>', 'Target session')
+  .action(async (options) => {
+    const target = options.to
+
+    if (!isSessionActive(target)) {
+      console.error(target ? `Session not found: ${target}` : 'No active session')
       process.exit(1)
     }
 
-    const res = await sendRequest({ action: 'tool_list' })
+    const res = await sendRequest({ action: 'tool_list' }, target)
     if (!res.success) {
       console.error('Error:', res.error)
       process.exit(1)
@@ -259,15 +309,18 @@ toolCmd
 program
   .command('history')
   .description('Show conversation history')
+  .option('--to <target>', 'Target session')
   .option('--json', 'Output as JSON')
   .option('-n, --last <count>', 'Show last N messages', parseInt)
   .action(async (options) => {
-    if (!isSessionActive()) {
-      console.error('No active session')
+    const target = options.to
+
+    if (!isSessionActive(target)) {
+      console.error(target ? `Session not found: ${target}` : 'No active session')
       process.exit(1)
     }
 
-    const res = await sendRequest({ action: 'history' })
+    const res = await sendRequest({ action: 'history' }, target)
     if (!res.success) {
       console.error('Error:', res.error)
       process.exit(1)
@@ -287,7 +340,7 @@ program
         return
       }
       for (const msg of history) {
-        const role = msg.role.toUpperCase()
+        const role = msg.role === 'user' ? 'YOU' : msg.role.toUpperCase()
         const status = msg.status === 'responding' ? ' (responding...)' : ''
         console.log(`[${role}${status}] ${msg.content}\n`)
       }
@@ -298,13 +351,16 @@ program
 program
   .command('stats')
   .description('Show session statistics')
-  .action(async () => {
-    if (!isSessionActive()) {
-      console.error('No active session')
+  .option('--to <target>', 'Target session')
+  .action(async (options) => {
+    const target = options.to
+
+    if (!isSessionActive(target)) {
+      console.error(target ? `Session not found: ${target}` : 'No active session')
       process.exit(1)
     }
 
-    const res = await sendRequest({ action: 'stats' })
+    const res = await sendRequest({ action: 'stats' }, target)
     if (!res.success) {
       console.error('Error:', res.error)
       process.exit(1)
@@ -319,13 +375,16 @@ program
 program
   .command('export')
   .description('Export session transcript')
-  .action(async () => {
-    if (!isSessionActive()) {
-      console.error('No active session')
+  .option('--to <target>', 'Target session')
+  .action(async (options) => {
+    const target = options.to
+
+    if (!isSessionActive(target)) {
+      console.error(target ? `Session not found: ${target}` : 'No active session')
       process.exit(1)
     }
 
-    const res = await sendRequest({ action: 'export' })
+    const res = await sendRequest({ action: 'export' }, target)
     if (!res.success) {
       console.error('Error:', res.error)
       process.exit(1)
@@ -338,13 +397,16 @@ program
 program
   .command('clear')
   .description('Clear conversation history')
-  .action(async () => {
-    if (!isSessionActive()) {
-      console.error('No active session')
+  .option('--to <target>', 'Target session')
+  .action(async (options) => {
+    const target = options.to
+
+    if (!isSessionActive(target)) {
+      console.error(target ? `Session not found: ${target}` : 'No active session')
       process.exit(1)
     }
 
-    const res = await sendRequest({ action: 'clear' })
+    const res = await sendRequest({ action: 'clear' }, target)
     if (res.success) {
       console.log('History cleared')
     } else {
@@ -356,14 +418,17 @@ program
 program
   .command('pending')
   .description('List pending tool approvals')
+  .option('--to <target>', 'Target session')
   .option('--json', 'Output as JSON')
   .action(async (options) => {
-    if (!isSessionActive()) {
-      console.error('No active session')
+    const target = options.to
+
+    if (!isSessionActive(target)) {
+      console.error(target ? `Session not found: ${target}` : 'No active session')
       process.exit(1)
     }
 
-    const res = await sendRequest({ action: 'pending' })
+    const res = await sendRequest({ action: 'pending' }, target)
     if (!res.success) {
       console.error('Error:', res.error)
       process.exit(1)
@@ -389,8 +454,6 @@ program
     for (const p of pending) {
       console.log(`[${p.id.slice(0, 8)}] ${p.toolName}`)
       console.log(`  Arguments: ${JSON.stringify(p.arguments)}`)
-      console.log(`  Requested: ${p.requestedAt}`)
-      console.log()
     }
   })
 
@@ -398,14 +461,17 @@ program
 program
   .command('approve <id>')
   .description('Approve a pending tool call')
-  .option('--json', 'Output result as JSON')
+  .option('--to <target>', 'Target session')
+  .option('--json', 'Output as JSON')
   .action(async (id, options) => {
-    if (!isSessionActive()) {
-      console.error('No active session')
+    const target = options.to
+
+    if (!isSessionActive(target)) {
+      console.error(target ? `Session not found: ${target}` : 'No active session')
       process.exit(1)
     }
 
-    const res = await sendRequest({ action: 'approve', payload: { id } })
+    const res = await sendRequest({ action: 'approve', payload: { id } }, target)
     if (!res.success) {
       console.error('Error:', res.error)
       process.exit(1)
@@ -414,7 +480,7 @@ program
     if (options.json) {
       console.log(JSON.stringify({ approved: true, result: res.data }, null, 2))
     } else {
-      console.log(`Approved`)
+      console.log('Approved')
       console.log(`Result: ${JSON.stringify(res.data, null, 2)}`)
     }
   })
@@ -423,23 +489,23 @@ program
 program
   .command('deny <id>')
   .description('Deny a pending tool call')
+  .option('--to <target>', 'Target session')
   .option('-r, --reason <reason>', 'Reason for denial')
   .action(async (id, options) => {
-    if (!isSessionActive()) {
-      console.error('No active session')
+    const target = options.to
+
+    if (!isSessionActive(target)) {
+      console.error(target ? `Session not found: ${target}` : 'No active session')
       process.exit(1)
     }
 
     const res = await sendRequest({
       action: 'deny',
       payload: { id, reason: options.reason },
-    })
+    }, target)
 
     if (res.success) {
       console.log('Denied')
-      if (options.reason) {
-        console.log(`Reason: ${options.reason}`)
-      }
     } else {
       console.error('Error:', res.error)
       process.exit(1)

@@ -1,5 +1,5 @@
 import { createConnection } from 'node:net'
-import { getSocketPath, isServerRunning } from './server.ts'
+import { getSessionInfo, isSessionRunning } from './server.ts'
 
 interface Request {
   action: string
@@ -13,16 +13,29 @@ interface Response {
 }
 
 /**
- * Send a request to the session server
+ * Send a request to a specific session
+ * @param req - The request to send
+ * @param target - Session ID or name (optional, uses default if not specified)
  */
-export function sendRequest(req: Request): Promise<Response> {
+export function sendRequest(req: Request, target?: string): Promise<Response> {
   return new Promise((resolve, reject) => {
-    if (!isServerRunning()) {
-      resolve({ success: false, error: 'No active session. Start one with: agent-worker session start' })
+    const info = getSessionInfo(target)
+
+    if (!info) {
+      if (target) {
+        resolve({ success: false, error: `Session not found: ${target}` })
+      } else {
+        resolve({ success: false, error: 'No active session. Start one with: agent-worker session start -m <model>' })
+      }
       return
     }
 
-    const socket = createConnection(getSocketPath())
+    if (!isSessionRunning(target)) {
+      resolve({ success: false, error: `Session not running: ${target || info.id}` })
+      return
+    }
+
+    const socket = createConnection(info.socketPath)
     let buffer = ''
 
     socket.on('connect', () => {
@@ -61,8 +74,8 @@ export function sendRequest(req: Request): Promise<Response> {
 }
 
 /**
- * Check if session server is running
+ * Check if any session is active, or a specific session
  */
-export function isSessionActive(): boolean {
-  return isServerRunning()
+export function isSessionActive(target?: string): boolean {
+  return isSessionRunning(target)
 }

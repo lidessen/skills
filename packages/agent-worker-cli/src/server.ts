@@ -1,16 +1,32 @@
 import { createServer, type Server } from 'node:net'
-import { existsSync, unlinkSync, writeFileSync, readFileSync } from 'node:fs'
+import { existsSync, unlinkSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { AgentSession, type ToolDefinition } from 'agent-worker'
 
 const CONFIG_DIR = join(homedir(), '.agent-worker')
-const SOCKET_PATH = join(CONFIG_DIR, 'session.sock')
-const PID_FILE = join(CONFIG_DIR, 'session.pid')
+const SESSIONS_DIR = join(CONFIG_DIR, 'sessions')
+const REGISTRY_FILE = join(CONFIG_DIR, 'registry.json')
+
+interface SessionRegistry {
+  sessions: Record<string, SessionInfo>
+  defaultSession?: string
+}
+
+interface SessionInfo {
+  id: string
+  name?: string
+  model: string
+  socketPath: string
+  pidFile: string
+  pid: number
+  createdAt: string
+}
 
 interface ServerState {
   session: AgentSession
   server: Server
+  info: SessionInfo
 }
 
 let state: ServerState | null = null
@@ -26,6 +42,103 @@ interface Response {
   error?: string
 }
 
+function ensureDirs(): void {
+  if (!existsSync(CONFIG_DIR)) {
+    mkdirSync(CONFIG_DIR, { recursive: true })
+  }
+  if (!existsSync(SESSIONS_DIR)) {
+    mkdirSync(SESSIONS_DIR, { recursive: true })
+  }
+}
+
+function loadRegistry(): SessionRegistry {
+  ensureDirs()
+  if (!existsSync(REGISTRY_FILE)) {
+    return { sessions: {} }
+  }
+  try {
+    return JSON.parse(readFileSync(REGISTRY_FILE, 'utf-8'))
+  } catch {
+    return { sessions: {} }
+  }
+}
+
+function saveRegistry(registry: SessionRegistry): void {
+  ensureDirs()
+  writeFileSync(REGISTRY_FILE, JSON.stringify(registry, null, 2))
+}
+
+export function registerSession(info: SessionInfo): void {
+  const registry = loadRegistry()
+  registry.sessions[info.id] = info
+  if (info.name) {
+    // Also register by name for easy lookup
+    registry.sessions[info.name] = info
+  }
+  // Set as default if first session
+  if (Object.keys(registry.sessions).length <= 2) {
+    registry.defaultSession = info.id
+  }
+  saveRegistry(registry)
+}
+
+export function unregisterSession(idOrName: string): void {
+  const registry = loadRegistry()
+  const info = registry.sessions[idOrName]
+  if (info) {
+    delete registry.sessions[info.id]
+    if (info.name) {
+      delete registry.sessions[info.name]
+    }
+    if (registry.defaultSession === info.id) {
+      // Set another session as default
+      const remaining = Object.values(registry.sessions).filter(s => s.id !== info.id)
+      registry.defaultSession = remaining[0]?.id
+    }
+  }
+  saveRegistry(registry)
+}
+
+export function getSessionInfo(idOrName?: string): SessionInfo | null {
+  const registry = loadRegistry()
+  if (!idOrName) {
+    // Return default session
+    if (registry.defaultSession) {
+      return registry.sessions[registry.defaultSession] || null
+    }
+    // Return the only session if there's just one
+    const sessions = Object.values(registry.sessions)
+    const uniqueSessions = sessions.filter((s, i, arr) =>
+      arr.findIndex(x => x.id === s.id) === i
+    )
+    if (uniqueSessions.length === 1) {
+      return uniqueSessions[0]
+    }
+    return null
+  }
+  return registry.sessions[idOrName] || null
+}
+
+export function listSessions(): SessionInfo[] {
+  const registry = loadRegistry()
+  // Deduplicate (since we store by both id and name)
+  const seen = new Set<string>()
+  return Object.values(registry.sessions).filter(info => {
+    if (seen.has(info.id)) return false
+    seen.add(info.id)
+    return true
+  })
+}
+
+export function setDefaultSession(idOrName: string): boolean {
+  const registry = loadRegistry()
+  const info = registry.sessions[idOrName]
+  if (!info) return false
+  registry.defaultSession = info.id
+  saveRegistry(registry)
+  return true
+}
+
 async function handleRequest(req: Request): Promise<Response> {
   if (!state) {
     return { success: false, error: 'No active session' }
@@ -36,7 +149,14 @@ async function handleRequest(req: Request): Promise<Response> {
   try {
     switch (req.action) {
       case 'ping':
-        return { success: true, data: { id: session.id, model: session.model } }
+        return {
+          success: true,
+          data: {
+            id: session.id,
+            model: session.model,
+            name: state.info.name,
+          }
+        }
 
       case 'send': {
         const { message, options } = req.payload as { message: string; options?: { autoApprove?: boolean } }
@@ -90,7 +210,6 @@ async function handleRequest(req: Request): Promise<Response> {
       }
 
       case 'shutdown':
-        // Graceful shutdown
         setTimeout(() => {
           cleanup()
           process.exit(0)
@@ -106,23 +225,44 @@ async function handleRequest(req: Request): Promise<Response> {
 }
 
 function cleanup(): void {
-  if (existsSync(SOCKET_PATH)) {
-    unlinkSync(SOCKET_PATH)
-  }
-  if (existsSync(PID_FILE)) {
-    unlinkSync(PID_FILE)
+  if (state) {
+    if (existsSync(state.info.socketPath)) {
+      unlinkSync(state.info.socketPath)
+    }
+    if (existsSync(state.info.pidFile)) {
+      unlinkSync(state.info.pidFile)
+    }
+    unregisterSession(state.info.id)
   }
 }
 
-export function startServer(config: { model: string; system: string }): void {
-  // Clean up any existing socket
-  cleanup()
+export function startServer(config: { model: string; system: string; name?: string }): void {
+  ensureDirs()
 
   // Create session
   const session = new AgentSession({
     model: config.model,
     system: config.system,
   })
+
+  // Generate paths
+  const socketPath = join(SESSIONS_DIR, `${session.id}.sock`)
+  const pidFile = join(SESSIONS_DIR, `${session.id}.pid`)
+
+  // Clean up any existing socket
+  if (existsSync(socketPath)) {
+    unlinkSync(socketPath)
+  }
+
+  const info: SessionInfo = {
+    id: session.id,
+    name: config.name,
+    model: config.model,
+    socketPath,
+    pidFile,
+    pid: process.pid,
+    createdAt: session.createdAt,
+  }
 
   // Create Unix socket server
   const server = createServer((socket) => {
@@ -131,7 +271,6 @@ export function startServer(config: { model: string; system: string }): void {
     socket.on('data', async (data) => {
       buffer += data.toString()
 
-      // Handle newline-delimited JSON
       const lines = buffer.split('\n')
       buffer = lines.pop() || ''
 
@@ -156,14 +295,17 @@ export function startServer(config: { model: string; system: string }): void {
     })
   })
 
-  server.listen(SOCKET_PATH, () => {
+  server.listen(socketPath, () => {
     // Write PID file
-    writeFileSync(PID_FILE, process.pid.toString())
+    writeFileSync(pidFile, process.pid.toString())
 
-    console.log(`Session started: ${session.id}`)
+    // Register session
+    registerSession(info)
+
+    const nameStr = config.name ? ` (${config.name})` : ''
+    console.log(`Session started: ${session.id}${nameStr}`)
     console.log(`Model: ${session.model}`)
-    console.log(`Socket: ${SOCKET_PATH}`)
-    console.log('\nSession is running. Use `agent-worker session end` to stop.')
+    console.log(`Socket: ${socketPath}`)
   })
 
   server.on('error', (error) => {
@@ -172,7 +314,7 @@ export function startServer(config: { model: string; system: string }): void {
     process.exit(1)
   })
 
-  state = { session, server }
+  state = { session, server, info }
 
   // Handle signals
   process.on('SIGINT', () => {
@@ -187,25 +329,23 @@ export function startServer(config: { model: string; system: string }): void {
   })
 }
 
-export function getSocketPath(): string {
-  return SOCKET_PATH
-}
-
-export function getPidFile(): string {
-  return PID_FILE
-}
-
-export function isServerRunning(): boolean {
-  if (!existsSync(PID_FILE)) return false
+export function isSessionRunning(idOrName?: string): boolean {
+  const info = getSessionInfo(idOrName)
+  if (!info) return false
 
   try {
-    const pid = parseInt(readFileSync(PID_FILE, 'utf-8').trim(), 10)
     // Check if process exists
-    process.kill(pid, 0)
+    process.kill(info.pid, 0)
     return true
   } catch {
-    // Process doesn't exist, clean up stale files
-    cleanup()
+    // Process doesn't exist, clean up
+    if (existsSync(info.socketPath)) {
+      unlinkSync(info.socketPath)
+    }
+    if (existsSync(info.pidFile)) {
+      unlinkSync(info.pidFile)
+    }
+    unregisterSession(info.id)
     return false
   }
 }
