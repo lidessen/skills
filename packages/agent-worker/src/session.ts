@@ -1,4 +1,4 @@
-import { generateText, stepCountIs, type LanguageModel, type ModelMessage } from 'ai'
+import { ToolLoopAgent, stepCountIs, type ModelMessage } from 'ai'
 import { createModelAsync } from './models.ts'
 import { createTools } from './tools.ts'
 import type {
@@ -13,16 +13,28 @@ import type {
 } from './types.ts'
 
 /**
+ * Step finish callback info
+ */
+export interface StepInfo {
+  stepNumber: number
+  toolCalls: ToolCall[]
+  usage: TokenUsage
+}
+
+/**
  * Options for send() method
  */
 export interface SendOptions {
-  /** Auto-approve all tool calls that require approval (default: false) */
+  /** Auto-approve all tool calls that require approval (default: true) */
   autoApprove?: boolean
+  /** Callback after each agent step */
+  onStepFinish?: (info: StepInfo) => void | Promise<void>
 }
 
 /**
  * AgentSession - Stateful session for controlled agent testing
  *
+ * Uses ToolLoopAgent internally for multi-step reasoning loops.
  * Maintains conversation state across multiple send() calls,
  * enabling improvisational testing where you observe responses
  * and decide next actions.
@@ -40,9 +52,8 @@ export class AgentSession {
   private totalUsage: TokenUsage = { input: 0, output: 0, total: 0 }
   private pendingApprovals: PendingApproval[] = []
 
-  // Cached instances
-  private cachedModel: LanguageModel | null = null
-  private cachedTools: ReturnType<typeof createTools> | null = null
+  // Cached agent instance (rebuilt when tools change)
+  private cachedAgent: ToolLoopAgent | null = null
   private toolsChanged = false
 
   constructor(config: SessionConfig, restore?: SessionState) {
@@ -66,16 +77,6 @@ export class AgentSession {
   }
 
   /**
-   * Get or create cached model instance (lazy loads provider if needed)
-   */
-  private async getModel(): Promise<LanguageModel> {
-    if (!this.cachedModel) {
-      this.cachedModel = await createModelAsync(this.model)
-    }
-    return this.cachedModel
-  }
-
-  /**
    * Check if a tool needs approval for given arguments
    */
   private toolNeedsApproval(tool: ToolDefinition, args: Record<string, unknown>): boolean {
@@ -87,45 +88,57 @@ export class AgentSession {
   }
 
   /**
-   * Get or create cached tools, rebuild if tools changed
+   * Build tools with approval handling
    */
-  private getTools(autoApprove: boolean): ReturnType<typeof createTools> | undefined {
+  private buildTools(autoApprove: boolean): ReturnType<typeof createTools> | undefined {
     if (this.tools.length === 0) return undefined
 
-    // Always rebuild if approval mode might affect execution
-    if (!this.cachedTools || this.toolsChanged || !autoApprove) {
-      // Wrap tools to handle approval
-      const wrappedTools = this.tools.map((tool) => ({
-        ...tool,
-        execute: async (args: Record<string, unknown>) => {
-          // Check if approval is needed
-          if (!autoApprove && this.toolNeedsApproval(tool, args)) {
-            // Create pending approval
-            const approval: PendingApproval = {
-              id: crypto.randomUUID(),
-              toolName: tool.name,
-              toolCallId: crypto.randomUUID(), // Will be updated with actual ID
-              arguments: args,
-              requestedAt: new Date().toISOString(),
-              status: 'pending',
-            }
-            this.pendingApprovals.push(approval)
-            // Return a marker indicating approval is needed
-            return { __approvalRequired: true, approvalId: approval.id }
+    // Wrap tools to handle approval
+    const wrappedTools = this.tools.map((tool) => ({
+      ...tool,
+      execute: async (args: Record<string, unknown>) => {
+        // Check if approval is needed
+        if (!autoApprove && this.toolNeedsApproval(tool, args)) {
+          // Create pending approval
+          const approval: PendingApproval = {
+            id: crypto.randomUUID(),
+            toolName: tool.name,
+            toolCallId: crypto.randomUUID(),
+            arguments: args,
+            requestedAt: new Date().toISOString(),
+            status: 'pending',
           }
-          // Execute normally
-          if (tool.execute) {
-            return tool.execute(args)
-          }
-          return { error: 'No mock implementation provided' }
-        },
-      }))
-      this.cachedTools = createTools(wrappedTools)
+          this.pendingApprovals.push(approval)
+          return { __approvalRequired: true, approvalId: approval.id }
+        }
+        // Execute normally
+        if (tool.execute) {
+          return tool.execute(args)
+        }
+        return { error: 'No mock implementation provided' }
+      },
+    }))
+    return createTools(wrappedTools)
+  }
+
+  /**
+   * Get or create cached agent, rebuild if tools changed
+   */
+  private async getAgent(autoApprove: boolean): Promise<ToolLoopAgent> {
+    if (!this.cachedAgent || this.toolsChanged || !autoApprove) {
+      const model = await createModelAsync(this.model)
+      this.cachedAgent = new ToolLoopAgent({
+        model,
+        instructions: this.system,
+        tools: this.buildTools(autoApprove),
+        maxOutputTokens: this.maxTokens,
+        stopWhen: stepCountIs(this.maxSteps),
+      })
       if (autoApprove) {
         this.toolsChanged = false
       }
     }
-    return this.cachedTools
+    return this.cachedAgent
   }
 
   /**
@@ -133,41 +146,55 @@ export class AgentSession {
    * Conversation state is maintained across calls
    *
    * @param content - The message to send
-   * @param options - Send options (autoApprove, etc.)
+   * @param options - Send options (autoApprove, onStepFinish, etc.)
    */
   async send(content: string, options: SendOptions = {}): Promise<AgentResponse> {
-    const { autoApprove = true } = options
+    const { autoApprove = true, onStepFinish } = options
     const startTime = performance.now()
 
     // Add user message to history
     this.messages.push({ role: 'user', content })
 
-    const result = await generateText({
-      model: await this.getModel(),
-      system: this.system,
+    const agent = await this.getAgent(autoApprove)
+
+    // Track tool calls across steps
+    const allToolCalls: ToolCall[] = []
+    let stepNumber = 0
+
+    const result = await agent.generate({
       messages: this.messages,
-      tools: this.getTools(autoApprove),
-      maxOutputTokens: this.maxTokens,
-      stopWhen: stepCountIs(this.maxSteps),
+      onStepFinish: async ({ usage, toolCalls, toolResults }) => {
+        stepNumber++
+
+        // Build tool calls for this step
+        const stepToolCalls: ToolCall[] = []
+        if (toolCalls) {
+          for (const tc of toolCalls) {
+            const toolResult = toolResults?.find((tr) => tr.toolCallId === tc.toolCallId)
+            const toolCall: ToolCall = {
+              name: tc.toolName,
+              arguments: tc.input as Record<string, unknown>,
+              result: toolResult?.output ?? null,
+              timing: 0,
+            }
+            stepToolCalls.push(toolCall)
+            allToolCalls.push(toolCall)
+          }
+        }
+
+        // Call user's callback if provided
+        if (onStepFinish) {
+          const stepUsage: TokenUsage = {
+            input: usage?.inputTokens ?? 0,
+            output: usage?.outputTokens ?? 0,
+            total: (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0),
+          }
+          await onStepFinish({ stepNumber, toolCalls: stepToolCalls, usage: stepUsage })
+        }
+      },
     })
 
     const latency = Math.round(performance.now() - startTime)
-
-    // Extract tool calls from steps
-    const toolCalls: ToolCall[] = []
-    for (const step of result.steps) {
-      if (step.toolCalls) {
-        for (const tc of step.toolCalls) {
-          const toolResult = step.toolResults?.find((tr) => tr.toolCallId === tc.toolCallId)
-          toolCalls.push({
-            name: tc.toolName,
-            arguments: tc.input as Record<string, unknown>,
-            result: toolResult?.output ?? null,
-            timing: 0, // Individual timing not available
-          })
-        }
-      }
-    }
 
     // Add assistant response to history
     this.messages.push({ role: 'assistant', content: result.text })
@@ -187,7 +214,96 @@ export class AgentSession {
 
     return {
       content: result.text,
-      toolCalls,
+      toolCalls: allToolCalls,
+      pendingApprovals: currentPending,
+      usage,
+      latency,
+    }
+  }
+
+  /**
+   * Send a message and stream the response
+   * Returns an async iterable of text chunks
+   *
+   * @param content - The message to send
+   * @param options - Send options (autoApprove, onStepFinish, etc.)
+   */
+  async *sendStream(
+    content: string,
+    options: SendOptions = {}
+  ): AsyncGenerator<string, AgentResponse, unknown> {
+    const { autoApprove = true, onStepFinish } = options
+    const startTime = performance.now()
+
+    // Add user message to history
+    this.messages.push({ role: 'user', content })
+
+    const agent = await this.getAgent(autoApprove)
+
+    // Track tool calls across steps
+    const allToolCalls: ToolCall[] = []
+    let stepNumber = 0
+
+    const result = await agent.stream({
+      messages: this.messages,
+      onStepFinish: async ({ usage, toolCalls, toolResults }) => {
+        stepNumber++
+
+        const stepToolCalls: ToolCall[] = []
+        if (toolCalls) {
+          for (const tc of toolCalls) {
+            const toolResult = toolResults?.find((tr) => tr.toolCallId === tc.toolCallId)
+            const toolCall: ToolCall = {
+              name: tc.toolName,
+              arguments: tc.input as Record<string, unknown>,
+              result: toolResult?.output ?? null,
+              timing: 0,
+            }
+            stepToolCalls.push(toolCall)
+            allToolCalls.push(toolCall)
+          }
+        }
+
+        if (onStepFinish) {
+          const stepUsage: TokenUsage = {
+            input: usage?.inputTokens ?? 0,
+            output: usage?.outputTokens ?? 0,
+            total: (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0),
+          }
+          await onStepFinish({ stepNumber, toolCalls: stepToolCalls, usage: stepUsage })
+        }
+      },
+    })
+
+    // Stream text chunks
+    for await (const chunk of result.textStream) {
+      yield chunk
+    }
+
+    const latency = Math.round(performance.now() - startTime)
+
+    // Get final text
+    const text = await result.text
+
+    // Add assistant response to history
+    this.messages.push({ role: 'assistant', content: text })
+
+    // Update usage
+    const finalUsage = await result.usage
+    const usage: TokenUsage = {
+      input: finalUsage?.inputTokens ?? 0,
+      output: finalUsage?.outputTokens ?? 0,
+      total: (finalUsage?.inputTokens ?? 0) + (finalUsage?.outputTokens ?? 0),
+    }
+    this.totalUsage.input += usage.input
+    this.totalUsage.output += usage.output
+    this.totalUsage.total += usage.total
+
+    const currentPending = this.pendingApprovals.filter((p) => p.status === 'pending')
+
+    return {
+      content: text,
+      toolCalls: allToolCalls,
       pendingApprovals: currentPending,
       usage,
       latency,
@@ -200,6 +316,7 @@ export class AgentSession {
   addTool(tool: ToolDefinition): void {
     this.tools.push(tool)
     this.toolsChanged = true
+    this.cachedAgent = null // Force rebuild
   }
 
   /**
@@ -210,6 +327,7 @@ export class AgentSession {
     if (tool) {
       tool.execute = mockFn
       this.toolsChanged = true
+      this.cachedAgent = null // Force rebuild
     } else {
       throw new Error(`Tool not found: ${name}`)
     }
