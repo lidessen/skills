@@ -31,29 +31,16 @@ async function loadProvider(
  * Supports three formats:
  *
  * 1. Provider-only format: provider
- *    Uses first (most commonly used) model from FRONTIER_MODELS via gateway
- *
- *    Examples:
- *    - anthropic  → anthropic/claude-sonnet-4-5
- *    - openai     → openai/gpt-4o
- *    - deepseek   → deepseek/deepseek-chat
+ *    Uses first model from FRONTIER_MODELS via gateway
+ *    Examples: anthropic → anthropic/claude-sonnet-4-5, openai → openai/gpt-5.2
  *
  * 2. Gateway format: provider/model-name
- *    Uses Vercel AI Gateway, works out of the box with AI_GATEWAY_API_KEY
- *
- *    Examples:
- *    - anthropic/claude-sonnet-4-5
- *    - openai/gpt-4o
- *    - google/gemini-2.5-flash
- *    - deepseek/deepseek-chat
+ *    Uses Vercel AI Gateway (requires AI_GATEWAY_API_KEY)
+ *    Examples: anthropic/claude-sonnet-4-5, openai/gpt-5.2, deepseek/deepseek-chat
  *
  * 3. Direct provider format: provider:model-name
  *    Requires installing the specific @ai-sdk/provider package
- *
- *    Examples:
- *    - anthropic:claude-sonnet-4-5      (requires @ai-sdk/anthropic)
- *    - openai:gpt-4o                    (requires @ai-sdk/openai)
- *    - deepseek:deepseek-chat           (requires @ai-sdk/deepseek)
+ *    Examples: anthropic:claude-sonnet-4-5, openai:gpt-5.2, deepseek:deepseek-chat
  */
 export function createModel(modelId: string): LanguageModel {
   // Check if it's gateway format (contains /)

@@ -1,5 +1,3 @@
-import type { ModelMessage } from 'ai'
-
 /**
  * Message status for streaming/response tracking
  */

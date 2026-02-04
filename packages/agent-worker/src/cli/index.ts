@@ -4,14 +4,13 @@ import { readFileSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import type { ToolDefinition } from '../types.ts'
-import { FRONTIER_MODELS, getDefaultModel, DEFAULT_PROVIDER } from '../models.ts'
+import { FRONTIER_MODELS, getDefaultModel } from '../models.ts'
 import { sendRequest, isSessionActive } from './client.ts'
 import {
   startServer,
   isSessionRunning,
   listSessions,
   setDefaultSession,
-  getSessionInfo,
   waitForReady,
 } from './server.ts'
 
