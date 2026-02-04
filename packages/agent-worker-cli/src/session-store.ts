@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import {
   AgentSession,
+  type PendingApproval,
   type SessionConfig,
   type SessionState,
   type TokenUsage,
@@ -21,6 +22,7 @@ interface StoredSession {
   // Persisted state
   messages: ModelMessage[]
   totalUsage: TokenUsage
+  pendingApprovals: PendingApproval[]
 }
 
 interface SessionsData {
@@ -67,6 +69,7 @@ export function saveCurrentSession(): void {
   const state = session.getState()
   stored.messages = state.messages
   stored.totalUsage = state.totalUsage
+  stored.pendingApprovals = state.pendingApprovals
 
   saveSessionsData(data)
 }
@@ -85,6 +88,7 @@ export function createSession(config: SessionConfig): AgentSession {
     createdAt: session.createdAt,
     messages: state.messages,
     totalUsage: state.totalUsage,
+    pendingApprovals: state.pendingApprovals,
   }
   data.current = session.id
   saveSessionsData(data)
@@ -114,6 +118,7 @@ export function getCurrentSession(): AgentSession | null {
     createdAt: stored.createdAt,
     messages: stored.messages ?? [],
     totalUsage: stored.totalUsage ?? { input: 0, output: 0, total: 0 },
+    pendingApprovals: stored.pendingApprovals ?? [],
   }
 
   const session = new AgentSession(

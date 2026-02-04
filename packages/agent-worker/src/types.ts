@@ -13,6 +13,28 @@ export interface ToolDefinition {
   }
   /** Mock function - returns controlled response for testing */
   execute?: (args: Record<string, unknown>) => unknown | Promise<unknown>
+  /** Require user approval before execution (default: false) */
+  needsApproval?: boolean | ((args: Record<string, unknown>) => boolean)
+}
+
+/**
+ * A pending tool call awaiting user approval
+ */
+export interface PendingApproval {
+  /** Unique approval ID */
+  id: string
+  /** Tool name */
+  toolName: string
+  /** Tool call ID from the model */
+  toolCallId: string
+  /** Arguments passed to the tool */
+  arguments: Record<string, unknown>
+  /** When the approval was requested */
+  requestedAt: string
+  /** Current status */
+  status: 'pending' | 'approved' | 'denied'
+  /** Denial reason if denied */
+  denyReason?: string
 }
 
 /**
@@ -42,6 +64,8 @@ export interface AgentResponse {
   content: string
   /** All tool calls made during this turn */
   toolCalls: ToolCall[]
+  /** Tool calls awaiting approval (response is incomplete until approved) */
+  pendingApprovals: PendingApproval[]
   /** Token usage */
   usage: TokenUsage
   /** Response latency in ms */
@@ -76,6 +100,8 @@ export interface SessionState {
   messages: ModelMessage[]
   /** Accumulated token usage */
   totalUsage: TokenUsage
+  /** Pending tool approvals */
+  pendingApprovals: PendingApproval[]
 }
 
 /**

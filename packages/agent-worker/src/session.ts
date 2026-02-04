@@ -3,6 +3,7 @@ import { createModelAsync } from './models.ts'
 import { createTools } from './tools.ts'
 import type {
   AgentResponse,
+  PendingApproval,
   SessionConfig,
   SessionState,
   ToolCall,
@@ -10,6 +11,14 @@ import type {
   TokenUsage,
   Transcript,
 } from './types.ts'
+
+/**
+ * Options for send() method
+ */
+export interface SendOptions {
+  /** Auto-approve all tool calls that require approval (default: false) */
+  autoApprove?: boolean
+}
 
 /**
  * AgentSession - Stateful session for controlled agent testing
@@ -29,6 +38,7 @@ export class AgentSession {
   private maxSteps: number
   private messages: ModelMessage[] = []
   private totalUsage: TokenUsage = { input: 0, output: 0, total: 0 }
+  private pendingApprovals: PendingApproval[] = []
 
   // Cached instances
   private cachedModel: LanguageModel | null = null
@@ -42,6 +52,7 @@ export class AgentSession {
       this.createdAt = restore.createdAt
       this.messages = [...restore.messages]
       this.totalUsage = { ...restore.totalUsage }
+      this.pendingApprovals = [...(restore.pendingApprovals ?? [])]
     } else {
       this.id = crypto.randomUUID()
       this.createdAt = new Date().toISOString()
@@ -65,14 +76,54 @@ export class AgentSession {
   }
 
   /**
+   * Check if a tool needs approval for given arguments
+   */
+  private toolNeedsApproval(tool: ToolDefinition, args: Record<string, unknown>): boolean {
+    if (!tool.needsApproval) return false
+    if (typeof tool.needsApproval === 'function') {
+      return tool.needsApproval(args)
+    }
+    return tool.needsApproval
+  }
+
+  /**
    * Get or create cached tools, rebuild if tools changed
    */
-  private getTools(): ReturnType<typeof createTools> | undefined {
+  private getTools(autoApprove: boolean): ReturnType<typeof createTools> | undefined {
     if (this.tools.length === 0) return undefined
 
-    if (!this.cachedTools || this.toolsChanged) {
-      this.cachedTools = createTools(this.tools)
-      this.toolsChanged = false
+    // Always rebuild if approval mode might affect execution
+    if (!this.cachedTools || this.toolsChanged || !autoApprove) {
+      // Wrap tools to handle approval
+      const wrappedTools = this.tools.map((tool) => ({
+        ...tool,
+        execute: async (args: Record<string, unknown>) => {
+          // Check if approval is needed
+          if (!autoApprove && this.toolNeedsApproval(tool, args)) {
+            // Create pending approval
+            const approval: PendingApproval = {
+              id: crypto.randomUUID(),
+              toolName: tool.name,
+              toolCallId: crypto.randomUUID(), // Will be updated with actual ID
+              arguments: args,
+              requestedAt: new Date().toISOString(),
+              status: 'pending',
+            }
+            this.pendingApprovals.push(approval)
+            // Return a marker indicating approval is needed
+            return { __approvalRequired: true, approvalId: approval.id }
+          }
+          // Execute normally
+          if (tool.execute) {
+            return tool.execute(args)
+          }
+          return { error: 'No mock implementation provided' }
+        },
+      }))
+      this.cachedTools = createTools(wrappedTools)
+      if (autoApprove) {
+        this.toolsChanged = false
+      }
     }
     return this.cachedTools
   }
@@ -80,8 +131,12 @@ export class AgentSession {
   /**
    * Send a message and get the agent's response
    * Conversation state is maintained across calls
+   *
+   * @param content - The message to send
+   * @param options - Send options (autoApprove, etc.)
    */
-  async send(content: string): Promise<AgentResponse> {
+  async send(content: string, options: SendOptions = {}): Promise<AgentResponse> {
+    const { autoApprove = true } = options
     const startTime = performance.now()
 
     // Add user message to history
@@ -91,7 +146,7 @@ export class AgentSession {
       model: await this.getModel(),
       system: this.system,
       messages: this.messages,
-      tools: this.getTools(),
+      tools: this.getTools(autoApprove),
       maxOutputTokens: this.maxTokens,
       stopWhen: stepCountIs(this.maxSteps),
     })
@@ -127,9 +182,13 @@ export class AgentSession {
     this.totalUsage.output += usage.output
     this.totalUsage.total += usage.total
 
+    // Get pending approvals created during this send
+    const currentPending = this.pendingApprovals.filter((p) => p.status === 'pending')
+
     return {
       content: result.text,
       toolCalls,
+      pendingApprovals: currentPending,
       usage,
       latency,
     }
@@ -196,7 +255,66 @@ export class AgentSession {
       createdAt: this.createdAt,
       messages: [...this.messages],
       totalUsage: { ...this.totalUsage },
+      pendingApprovals: [...this.pendingApprovals],
     }
+  }
+
+  /**
+   * Get all pending approvals
+   */
+  getPendingApprovals(): PendingApproval[] {
+    return this.pendingApprovals.filter((p) => p.status === 'pending')
+  }
+
+  /**
+   * Approve a pending tool call and execute it
+   * @returns The tool execution result
+   */
+  async approve(approvalId: string): Promise<unknown> {
+    const approval = this.pendingApprovals.find((p) => p.id === approvalId)
+    if (!approval) {
+      throw new Error(`Approval not found: ${approvalId}`)
+    }
+    if (approval.status !== 'pending') {
+      throw new Error(`Approval already ${approval.status}: ${approvalId}`)
+    }
+
+    // Find the tool
+    const tool = this.tools.find((t) => t.name === approval.toolName)
+    if (!tool) {
+      throw new Error(`Tool not found: ${approval.toolName}`)
+    }
+
+    // Execute the tool
+    let result: unknown
+    if (tool.execute) {
+      result = await tool.execute(approval.arguments)
+    } else {
+      result = { error: 'No mock implementation provided' }
+    }
+
+    // Update approval status
+    approval.status = 'approved'
+
+    return result
+  }
+
+  /**
+   * Deny a pending tool call
+   * @param approvalId - The approval ID to deny
+   * @param reason - Optional reason for denial
+   */
+  deny(approvalId: string, reason?: string): void {
+    const approval = this.pendingApprovals.find((p) => p.id === approvalId)
+    if (!approval) {
+      throw new Error(`Approval not found: ${approvalId}`)
+    }
+    if (approval.status !== 'pending') {
+      throw new Error(`Approval already ${approval.status}: ${approvalId}`)
+    }
+
+    approval.status = 'denied'
+    approval.denyReason = reason
   }
 
   /**
@@ -205,5 +323,6 @@ export class AgentSession {
   clear(): void {
     this.messages = []
     this.totalUsage = { input: 0, output: 0, total: 0 }
+    this.pendingApprovals = []
   }
 }

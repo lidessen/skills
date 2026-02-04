@@ -676,3 +676,129 @@ describe('bash-tools integration', () => {
     expect(session.stats().messageCount).toBe(0)
   })
 })
+
+describe('tool approval workflow', () => {
+  test('needsApproval boolean flag on tool definition', () => {
+    const session = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'Test',
+      tools: [
+        {
+          name: 'safe_tool',
+          description: 'A safe tool',
+          parameters: { type: 'object', properties: {} },
+          needsApproval: false,
+        },
+        {
+          name: 'dangerous_tool',
+          description: 'A dangerous tool',
+          parameters: { type: 'object', properties: {} },
+          needsApproval: true,
+        },
+      ],
+    })
+
+    expect(session.id).toBeDefined()
+    expect(session.getPendingApprovals()).toEqual([])
+  })
+
+  test('needsApproval function for conditional approval', () => {
+    const session = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'Test',
+      tools: [
+        {
+          name: 'file_op',
+          description: 'File operations',
+          parameters: {
+            type: 'object',
+            properties: {
+              path: { type: 'string' },
+              action: { type: 'string' },
+            },
+          },
+          // Only need approval for delete operations
+          needsApproval: (args) => args.action === 'delete',
+        },
+      ],
+    })
+
+    expect(session.id).toBeDefined()
+  })
+
+  test('getPendingApprovals returns empty array initially', () => {
+    const session = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'Test',
+    })
+
+    expect(session.getPendingApprovals()).toEqual([])
+  })
+
+  test('approve throws for non-existent approval', async () => {
+    const session = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'Test',
+    })
+
+    await expect(session.approve('non-existent-id')).rejects.toThrow(
+      'Approval not found: non-existent-id'
+    )
+  })
+
+  test('deny throws for non-existent approval', () => {
+    const session = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'Test',
+    })
+
+    expect(() => session.deny('non-existent-id')).toThrow('Approval not found: non-existent-id')
+  })
+
+  test('getState includes pendingApprovals', () => {
+    const session = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'Test',
+    })
+
+    const state = session.getState()
+    expect(state.pendingApprovals).toEqual([])
+  })
+
+  test('clear resets pendingApprovals', () => {
+    const session = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'Test',
+    })
+
+    session.clear()
+    expect(session.getPendingApprovals()).toEqual([])
+  })
+
+  test('restore session with pendingApprovals', () => {
+    const savedState = {
+      id: 'test-id',
+      createdAt: '2026-02-04T00:00:00.000Z',
+      messages: [],
+      totalUsage: { input: 0, output: 0, total: 0 },
+      pendingApprovals: [
+        {
+          id: 'approval-1',
+          toolName: 'test_tool',
+          toolCallId: 'call-1',
+          arguments: { path: '/tmp' },
+          requestedAt: '2026-02-04T00:00:00.000Z',
+          status: 'pending' as const,
+        },
+      ],
+    }
+
+    const session = new AgentSession(
+      { model: 'openai/gpt-5.2', system: 'Test' },
+      savedState
+    )
+
+    expect(session.getPendingApprovals()).toHaveLength(1)
+    expect(session.getPendingApprovals()[0].toolName).toBe('test_tool')
+  })
+})

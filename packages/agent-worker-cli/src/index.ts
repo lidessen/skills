@@ -90,6 +90,8 @@ program
   .command('send <message>')
   .description('Send a message to the current session')
   .option('--json', 'Output full JSON response')
+  .option('--auto-approve', 'Auto-approve all tool calls (default)')
+  .option('--no-auto-approve', 'Require manual approval for tools with needsApproval')
   .action(async (message, options) => {
     const session = getCurrentSession()
     if (!session) {
@@ -98,7 +100,8 @@ program
     }
 
     try {
-      const response = await session.send(message)
+      const autoApprove = options.autoApprove !== false
+      const response = await session.send(message, { autoApprove })
 
       // Persist conversation state after send
       saveCurrentSession()
@@ -112,6 +115,14 @@ program
           for (const tc of response.toolCalls) {
             console.log(`${tc.name}(${JSON.stringify(tc.arguments)})`)
           }
+        }
+        // Show pending approvals
+        if (response.pendingApprovals.length > 0) {
+          console.log('\n--- Pending Approvals ---')
+          for (const p of response.pendingApprovals) {
+            console.log(`[${p.id.slice(0, 8)}] ${p.toolName}(${JSON.stringify(p.arguments)})`)
+          }
+          console.log('\nUse: agent-worker approve <id> or agent-worker deny <id>')
         }
       }
     } catch (error) {
@@ -128,6 +139,7 @@ toolCmd
   .description('Add a tool to current session')
   .requiredOption('-d, --desc <description>', 'Tool description')
   .option('-p, --param <params...>', 'Parameters in format name:type:description')
+  .option('--needs-approval', 'Require user approval before execution')
   .action((name, options) => {
     const session = getCurrentSession()
     if (!session) {
@@ -155,10 +167,12 @@ toolCmd
         properties,
         required,
       },
+      needsApproval: options.needsApproval ?? false,
     }
 
     session.addTool(tool)
-    console.log(`Tool added: ${name}`)
+    const approvalNote = options.needsApproval ? ' (needs approval)' : ''
+    console.log(`Tool added: ${name}${approvalNote}`)
   })
 
 toolCmd
@@ -260,6 +274,108 @@ program
     }
 
     console.log(JSON.stringify(session.export(), null, 2))
+  })
+
+// Pending approvals command
+program
+  .command('pending')
+  .description('List pending tool approvals')
+  .option('--json', 'Output as JSON')
+  .action((options) => {
+    const session = getCurrentSession()
+    if (!session) {
+      console.error('No active session')
+      process.exit(1)
+    }
+
+    const pending = session.getPendingApprovals()
+
+    if (options.json) {
+      console.log(JSON.stringify(pending, null, 2))
+      return
+    }
+
+    if (pending.length === 0) {
+      console.log('No pending approvals')
+      return
+    }
+
+    for (const p of pending) {
+      console.log(`[${p.id.slice(0, 8)}] ${p.toolName}`)
+      console.log(`  Arguments: ${JSON.stringify(p.arguments)}`)
+      console.log(`  Requested: ${p.requestedAt}`)
+      console.log()
+    }
+  })
+
+// Approve command
+program
+  .command('approve <id>')
+  .description('Approve a pending tool call')
+  .option('--json', 'Output result as JSON')
+  .action(async (id, options) => {
+    const session = getCurrentSession()
+    if (!session) {
+      console.error('No active session')
+      process.exit(1)
+    }
+
+    // Find matching approval (supports partial ID)
+    const pending = session.getPendingApprovals()
+    const match = pending.find((p) => p.id.startsWith(id) || p.id === id)
+    if (!match) {
+      console.error(`No pending approval found matching: ${id}`)
+      process.exit(1)
+    }
+
+    try {
+      const result = await session.approve(match.id)
+      saveCurrentSession()
+
+      if (options.json) {
+        console.log(JSON.stringify({ approved: true, result }, null, 2))
+      } else {
+        console.log(`Approved: ${match.toolName}`)
+        console.log(`Result: ${JSON.stringify(result, null, 2)}`)
+      }
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error)
+      process.exit(1)
+    }
+  })
+
+// Deny command
+program
+  .command('deny <id>')
+  .description('Deny a pending tool call')
+  .option('-r, --reason <reason>', 'Reason for denial')
+  .action((id, options) => {
+    const session = getCurrentSession()
+    if (!session) {
+      console.error('No active session')
+      process.exit(1)
+    }
+
+    // Find matching approval (supports partial ID)
+    const pending = session.getPendingApprovals()
+    const match = pending.find((p) => p.id.startsWith(id) || p.id === id)
+    if (!match) {
+      console.error(`No pending approval found matching: ${id}`)
+      process.exit(1)
+    }
+
+    try {
+      session.deny(match.id, options.reason)
+      saveCurrentSession()
+
+      console.log(`Denied: ${match.toolName}`)
+      if (options.reason) {
+        console.log(`Reason: ${options.reason}`)
+      }
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error)
+      process.exit(1)
+    }
   })
 
 program.parse()
