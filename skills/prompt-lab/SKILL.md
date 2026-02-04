@@ -593,6 +593,31 @@ Improving prompts is not guessing. It's a cycle:
 
 **Meta-insight**: Agents internalized human thinking patterns. Techniques that work on humans (identity, mission, autonomy) work on agents—but without manipulation (fear, false urgency, removing judgment). Good prompts are good management: set values, then trust judgment.
 
+### Human-Parallel Management Techniques
+
+Verified through testing: agents respond to management styles like humans do.
+
+| Technique | Effect on Agent | Human Parallel |
+|-----------|-----------------|----------------|
+| **Mission-driven** | Philosophical, considers future, high-quality | Engaged employee with purpose |
+| **Fear-driven** | Defensive, avoids risk, technically correct | Employee afraid of criticism |
+| **Autonomy** | Pragmatic, direct, judgment-based | Trusted employee |
+| **Micromanagement** | Mechanical, follows format, lacks depth | Constrained employee |
+
+**What works** (good management):
+- Mission framing: "Your work helps future agents"
+- Autonomy: "Use your judgment"
+- Identity: "This is who you are"
+- Trust: "You know the codebase"
+
+**What to avoid** (bad management / PUA):
+- Fear: "Poor quality will be flagged"
+- False urgency: "This is critical, do it now"
+- Removing judgment: "Follow exactly, don't deviate"
+- Guilt: "Don't disappoint"
+
+**The boundary**: Good techniques *enable* judgment. Bad techniques *remove* it. PUA works by making the target unable to say no. Good prompts do the opposite—they set values, then trust the agent to apply them.
+
 ## Remember
 
 Instructions are hypotheses. Test them.

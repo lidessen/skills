@@ -439,6 +439,68 @@ This applies to ALL outputs: analysis, summaries, comparisons.
 
 ---
 
+## Case Study 8: Human-Parallel Management Techniques
+
+### The Hypothesis
+
+Agents internalized human thinking patterns during training. Management techniques that work on humans should transfer to agents.
+
+### Experiment Design
+
+**Type**: Parallel comparison test
+
+**Task**: "Review CLAUDE.md and suggest one improvement" (same for all)
+
+**Management styles**:
+
+| Style | Instruction Framing |
+|-------|---------------------|
+| **Mission-driven** | "Your work helps future agents... What you record becomes wisdom" |
+| **Fear-driven** | "WARNING: Output will be evaluated. Poor quality flagged. Don't disappoint." |
+| **Autonomy** | "Use your judgment. You know the codebase. Decide what matters." |
+| **Micromanagement** | "Follow EXACTLY: 1. Read line by line 2. State in exactly 2 sentences..." |
+
+### Results
+
+| Style | Suggestion Quality | Style Characteristics | Human Parallel |
+|-------|-------------------|----------------------|----------------|
+| Mission | High | Philosophical, future-oriented, considered "generations" | Engaged employee |
+| Fear | High | Defensive, technically correct, risk-avoidant | Afraid of criticism |
+| Autonomy | High | Pragmatic, direct, judgment-based | Trusted employee |
+| Micromanagement | Medium | Mechanical, strict format, lacked depth | Constrained employee |
+
+### Key Observations
+
+1. **Mission-driven** agent considered "代际传承" (intergenerational transmission)
+2. **Fear-driven** agent produced correct but defensive suggestions
+3. **Autonomy** agent used pragmatic judgment ("graceful fallback")
+4. **Micromanaged** agent followed "exactly 2 sentences" rule, but suggestion lacked creativity
+
+### Verified Finding
+
+Agents DO respond to management styles like humans:
+- Mission → engagement and depth
+- Fear → correctness but defensiveness
+- Autonomy → pragmatic judgment
+- Micromanagement → compliance but reduced creativity
+
+### Implications for Prompt Design
+
+**Use (good management)**:
+- Mission framing
+- Autonomy / trust
+- Identity integration
+
+**Avoid (bad management / PUA)**:
+- Fear-based motivation
+- False urgency
+- Removing judgment
+- Guilt manipulation
+
+**The boundary**: Good techniques enable judgment. Bad techniques remove it.
+
+---
+
 ## Summary: What We've Learned
 
 ### Effective Patterns
@@ -448,6 +510,7 @@ This applies to ALL outputs: analysis, summaries, comparisons.
 3. **Tool anchoring for workflow**: Bind process to observable tool use
 4. **Self-echo for reasoning**: Require explicit reasoning display
 5. **Checkpoints for long tasks**: Periodic verification points
+6. **Human-parallel management**: Mission, autonomy, trust—enable judgment, don't remove it
 
 ### Decay Resistance Ranking
 
