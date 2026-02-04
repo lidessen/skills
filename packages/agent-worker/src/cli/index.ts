@@ -622,6 +622,7 @@ program
     console.log('  SDK backend:    agent-worker session new -m openai/gpt-5.2')
     console.log('  Claude CLI:     agent-worker session new --backend claude')
     console.log('  Codex CLI:      agent-worker session new --backend codex')
+    console.log('  Cursor CLI:     agent-worker session new --backend cursor')
   })
 
 program.parse()

@@ -2,7 +2,7 @@
  * Backend types for different AI execution engines
  */
 
-export type BackendType = 'sdk' | 'claude' | 'codex'
+export type BackendType = 'sdk' | 'claude' | 'codex' | 'cursor'
 
 export interface BackendConfig {
   type: BackendType

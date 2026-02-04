@@ -5,17 +5,20 @@
 export * from './types.ts'
 export { ClaudeCliBackend, type ClaudeCliOptions } from './claude-cli.ts'
 export { CodexCliBackend, type CodexCliOptions } from './codex-cli.ts'
+export { CursorCliBackend, type CursorCliOptions } from './cursor-cli.ts'
 export { SdkBackend, type SdkBackendOptions } from './sdk.ts'
 
 import type { Backend, BackendType } from './types.ts'
 import { ClaudeCliBackend, type ClaudeCliOptions } from './claude-cli.ts'
 import { CodexCliBackend, type CodexCliOptions } from './codex-cli.ts'
+import { CursorCliBackend, type CursorCliOptions } from './cursor-cli.ts'
 import { SdkBackend, type SdkBackendOptions } from './sdk.ts'
 
 export type BackendOptions =
   | { type: 'sdk'; model: string; maxTokens?: number }
   | { type: 'claude'; options?: ClaudeCliOptions }
   | { type: 'codex'; options?: CodexCliOptions }
+  | { type: 'cursor'; options?: CursorCliOptions }
 
 /**
  * Create a backend instance
@@ -28,6 +31,8 @@ export function createBackend(config: BackendOptions): Backend {
       return new ClaudeCliBackend(config.options)
     case 'codex':
       return new CodexCliBackend(config.options)
+    case 'cursor':
+      return new CursorCliBackend(config.options)
     default:
       throw new Error(`Unknown backend type: ${(config as { type: string }).type}`)
   }
@@ -39,16 +44,19 @@ export function createBackend(config: BackendOptions): Backend {
 export async function checkBackends(): Promise<Record<BackendType, boolean>> {
   const claude = new ClaudeCliBackend()
   const codex = new CodexCliBackend()
+  const cursor = new CursorCliBackend()
 
-  const [claudeAvailable, codexAvailable] = await Promise.all([
+  const [claudeAvailable, codexAvailable, cursorAvailable] = await Promise.all([
     claude.isAvailable(),
     codex.isAvailable(),
+    cursor.isAvailable(),
   ])
 
   return {
     sdk: true, // Always available (depends on API keys at runtime)
     claude: claudeAvailable,
     codex: codexAvailable,
+    cursor: cursorAvailable,
   }
 }
 
@@ -64,5 +72,6 @@ export async function listBackends(): Promise<
     { type: 'sdk', available: availability.sdk, name: 'Vercel AI SDK' },
     { type: 'claude', available: availability.claude, name: 'Claude Code CLI' },
     { type: 'codex', available: availability.codex, name: 'OpenAI Codex CLI' },
+    { type: 'cursor', available: availability.cursor, name: 'Cursor Agent CLI' },
   ]
 }

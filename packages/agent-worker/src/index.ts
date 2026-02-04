@@ -13,6 +13,7 @@ export {
   listBackends,
   ClaudeCliBackend,
   CodexCliBackend,
+  CursorCliBackend,
   SdkBackend,
 } from './backends/index.ts'
 export type { SupportedProvider } from './models.ts'
@@ -25,6 +26,7 @@ export type {
   BackendOptions,
   ClaudeCliOptions,
   CodexCliOptions,
+  CursorCliOptions,
   SdkBackendOptions,
 } from './backends/index.ts'
 export type {
