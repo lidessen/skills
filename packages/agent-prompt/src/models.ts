@@ -1,36 +1,29 @@
 import { gateway, type LanguageModel } from 'ai'
 
-// Optional provider imports - users install what they need
-let anthropic: ((model: string) => LanguageModel) | undefined
-let openai: ((model: string) => LanguageModel) | undefined
-let deepseek: ((model: string) => LanguageModel) | undefined
-let google: ((model: string) => LanguageModel) | undefined
-let groq: ((model: string) => LanguageModel) | undefined
-let mistral: ((model: string) => LanguageModel) | undefined
-let xai: ((model: string) => LanguageModel) | undefined
+// Cache for lazy-loaded providers
+const providerCache: Record<string, ((model: string) => LanguageModel) | null> = {}
 
-// Try to load optional providers
-try {
-  anthropic = (await import('@ai-sdk/anthropic')).anthropic
-} catch {}
-try {
-  openai = (await import('@ai-sdk/openai')).openai
-} catch {}
-try {
-  deepseek = (await import('@ai-sdk/deepseek')).deepseek
-} catch {}
-try {
-  google = (await import('@ai-sdk/google')).google
-} catch {}
-try {
-  groq = (await import('@ai-sdk/groq')).groq
-} catch {}
-try {
-  mistral = (await import('@ai-sdk/mistral')).mistral
-} catch {}
-try {
-  xai = (await import('@ai-sdk/xai')).xai
-} catch {}
+/**
+ * Lazy load a provider, caching the result
+ */
+async function loadProvider(
+  name: string,
+  packageName: string,
+  exportName: string
+): Promise<((model: string) => LanguageModel) | null> {
+  if (name in providerCache) {
+    return providerCache[name]
+  }
+
+  try {
+    const module = await import(packageName)
+    providerCache[name] = module[exportName]
+    return providerCache[name]
+  } catch {
+    providerCache[name] = null
+    return null
+  }
+}
 
 /**
  * Parse model identifier and return the appropriate provider model
@@ -84,56 +77,70 @@ export function createModel(modelId: string): LanguageModel {
     throw new Error(`Invalid model identifier: ${modelId}. Model name is required.`)
   }
 
-  switch (provider) {
-    case 'anthropic':
-      if (!anthropic) {
-        throw new Error('Install @ai-sdk/anthropic to use Anthropic models directly')
-      }
-      return anthropic(modelName)
-
-    case 'openai':
-      if (!openai) {
-        throw new Error('Install @ai-sdk/openai to use OpenAI models directly')
-      }
-      return openai(modelName)
-
-    case 'deepseek':
-      if (!deepseek) {
-        throw new Error('Install @ai-sdk/deepseek to use DeepSeek models directly')
-      }
-      return deepseek(modelName)
-
-    case 'google':
-      if (!google) {
-        throw new Error('Install @ai-sdk/google to use Google models directly')
-      }
-      return google(modelName)
-
-    case 'groq':
-      if (!groq) {
-        throw new Error('Install @ai-sdk/groq to use Groq models directly')
-      }
-      return groq(modelName)
-
-    case 'mistral':
-      if (!mistral) {
-        throw new Error('Install @ai-sdk/mistral to use Mistral models directly')
-      }
-      return mistral(modelName)
-
-    case 'xai':
-      if (!xai) {
-        throw new Error('Install @ai-sdk/xai to use xAI models directly')
-      }
-      return xai(modelName)
-
-    default:
-      throw new Error(
-        `Unknown provider: ${provider}. ` +
-          `Supported: anthropic, openai, deepseek, google, groq, mistral, xai. ` +
-          `Or use gateway format: provider/model (e.g., openai/gpt-5.2)`
-      )
+  // For direct providers, we need synchronous access after first load
+  // Check cache first
+  if (provider in providerCache && providerCache[provider]) {
+    return providerCache[provider]!(modelName)
   }
+
+  // Provider not loaded yet - throw helpful error
+  // The user should use createModelAsync for first-time direct provider access
+  throw new Error(
+    `Provider '${provider}' not loaded. Use gateway format (${provider}/${modelName}) ` +
+      `or call createModelAsync() for direct provider access.`
+  )
+}
+
+/**
+ * Async version of createModel - supports lazy loading of direct providers
+ * Use this when you need direct provider access (provider:model format)
+ */
+export async function createModelAsync(modelId: string): Promise<LanguageModel> {
+  // Check if it's gateway format (contains /)
+  if (modelId.includes('/')) {
+    return gateway(modelId)
+  }
+
+  // Direct provider format (contains :)
+  const colonIndex = modelId.indexOf(':')
+  if (colonIndex === -1) {
+    throw new Error(
+      `Invalid model identifier: ${modelId}. Expected format: provider/model or provider:model`
+    )
+  }
+
+  const provider = modelId.slice(0, colonIndex)
+  const modelName = modelId.slice(colonIndex + 1)
+
+  if (!modelName) {
+    throw new Error(`Invalid model identifier: ${modelId}. Model name is required.`)
+  }
+
+  const providerConfigs: Record<string, { package: string; export: string }> = {
+    anthropic: { package: '@ai-sdk/anthropic', export: 'anthropic' },
+    openai: { package: '@ai-sdk/openai', export: 'openai' },
+    deepseek: { package: '@ai-sdk/deepseek', export: 'deepseek' },
+    google: { package: '@ai-sdk/google', export: 'google' },
+    groq: { package: '@ai-sdk/groq', export: 'groq' },
+    mistral: { package: '@ai-sdk/mistral', export: 'mistral' },
+    xai: { package: '@ai-sdk/xai', export: 'xai' },
+  }
+
+  const config = providerConfigs[provider]
+  if (!config) {
+    throw new Error(
+      `Unknown provider: ${provider}. ` +
+        `Supported: ${Object.keys(providerConfigs).join(', ')}. ` +
+        `Or use gateway format: provider/model (e.g., openai/gpt-5.2)`
+    )
+  }
+
+  const providerFn = await loadProvider(provider, config.package, config.export)
+  if (!providerFn) {
+    throw new Error(`Install ${config.package} to use ${provider} models directly`)
+  }
+
+  return providerFn(modelName)
 }
 
 /**

@@ -1,9 +1,10 @@
-import { generateText, stepCountIs, type ModelMessage } from 'ai'
+import { generateText, stepCountIs, type LanguageModel, type ModelMessage } from 'ai'
 import { createModel } from './models.ts'
 import { createTools } from './tools.ts'
 import type {
   AgentResponse,
   SessionConfig,
+  SessionState,
   ToolCall,
   ToolDefinition,
   TokenUsage,
@@ -25,16 +26,55 @@ export class AgentSession {
 
   private tools: ToolDefinition[]
   private maxTokens: number
+  private maxSteps: number
   private messages: ModelMessage[] = []
   private totalUsage: TokenUsage = { input: 0, output: 0, total: 0 }
 
-  constructor(config: SessionConfig) {
-    this.id = crypto.randomUUID()
+  // Cached instances
+  private cachedModel: LanguageModel | null = null
+  private cachedTools: ReturnType<typeof createTools> | null = null
+  private toolsChanged = false
+
+  constructor(config: SessionConfig, restore?: SessionState) {
+    // Restore from saved state or create new
+    if (restore) {
+      this.id = restore.id
+      this.createdAt = restore.createdAt
+      this.messages = [...restore.messages]
+      this.totalUsage = { ...restore.totalUsage }
+    } else {
+      this.id = crypto.randomUUID()
+      this.createdAt = new Date().toISOString()
+    }
+
     this.model = config.model
     this.system = config.system
     this.tools = config.tools ?? []
     this.maxTokens = config.maxTokens ?? 4096
-    this.createdAt = new Date().toISOString()
+    this.maxSteps = config.maxSteps ?? 10
+  }
+
+  /**
+   * Get or create cached model instance
+   */
+  private getModel(): LanguageModel {
+    if (!this.cachedModel) {
+      this.cachedModel = createModel(this.model)
+    }
+    return this.cachedModel
+  }
+
+  /**
+   * Get or create cached tools, rebuild if tools changed
+   */
+  private getTools(): ReturnType<typeof createTools> | undefined {
+    if (this.tools.length === 0) return undefined
+
+    if (!this.cachedTools || this.toolsChanged) {
+      this.cachedTools = createTools(this.tools)
+      this.toolsChanged = false
+    }
+    return this.cachedTools
   }
 
   /**
@@ -47,16 +87,13 @@ export class AgentSession {
     // Add user message to history
     this.messages.push({ role: 'user', content })
 
-    const model = createModel(this.model)
-    const tools = this.tools.length > 0 ? createTools(this.tools) : undefined
-
     const result = await generateText({
-      model,
+      model: this.getModel(),
       system: this.system,
       messages: this.messages,
-      tools,
+      tools: this.getTools(),
       maxOutputTokens: this.maxTokens,
-      stopWhen: stepCountIs(10), // Allow multi-step tool use
+      stopWhen: stepCountIs(this.maxSteps),
     })
 
     const latency = Math.round(performance.now() - startTime)
@@ -66,9 +103,7 @@ export class AgentSession {
     for (const step of result.steps) {
       if (step.toolCalls) {
         for (const tc of step.toolCalls) {
-          const toolResult = step.toolResults?.find(
-            (tr) => tr.toolCallId === tc.toolCallId
-          )
+          const toolResult = step.toolResults?.find((tr) => tr.toolCallId === tc.toolCallId)
           toolCalls.push({
             name: tc.toolName,
             arguments: tc.input as Record<string, unknown>,
@@ -105,6 +140,7 @@ export class AgentSession {
    */
   addTool(tool: ToolDefinition): void {
     this.tools.push(tool)
+    this.toolsChanged = true
   }
 
   /**
@@ -114,6 +150,7 @@ export class AgentSession {
     const tool = this.tools.find((t) => t.name === name)
     if (tool) {
       tool.execute = mockFn
+      this.toolsChanged = true
     } else {
       throw new Error(`Tool not found: ${name}`)
     }
@@ -147,6 +184,18 @@ export class AgentSession {
       messages: [...this.messages],
       totalUsage: { ...this.totalUsage },
       createdAt: this.createdAt,
+    }
+  }
+
+  /**
+   * Get session state for persistence
+   */
+  getState(): SessionState {
+    return {
+      id: this.id,
+      createdAt: this.createdAt,
+      messages: [...this.messages],
+      totalUsage: { ...this.totalUsage },
     }
   }
 

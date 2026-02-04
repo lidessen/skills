@@ -52,14 +52,30 @@ export interface AgentResponse {
  * Session configuration
  */
 export interface SessionConfig {
-  /** Model identifier (e.g., 'anthropic:claude-3-5-sonnet') */
+  /** Model identifier (e.g., 'openai/gpt-5.2' or 'anthropic:claude-sonnet-4-5') */
   model: string
   /** System prompt */
   system: string
   /** Tool definitions with mock implementations */
   tools?: ToolDefinition[]
-  /** Maximum tokens for response */
+  /** Maximum tokens for response (default: 4096) */
   maxTokens?: number
+  /** Maximum tool call steps per turn (default: 10) */
+  maxSteps?: number
+}
+
+/**
+ * Persisted session state for restoration
+ */
+export interface SessionState {
+  /** Session ID to restore */
+  id: string
+  /** Creation timestamp */
+  createdAt: string
+  /** Conversation messages */
+  messages: ModelMessage[]
+  /** Accumulated token usage */
+  totalUsage: TokenUsage
 }
 
 /**

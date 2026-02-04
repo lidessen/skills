@@ -1,7 +1,13 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { AgentSession, type SessionConfig, type Transcript } from 'agent-prompt'
+import {
+  AgentSession,
+  type SessionConfig,
+  type SessionState,
+  type TokenUsage,
+} from 'agent-prompt'
+import type { ModelMessage } from 'ai'
 
 const CONFIG_DIR = join(homedir(), '.agent-prompt')
 const SESSIONS_FILE = join(CONFIG_DIR, 'sessions.json')
@@ -12,6 +18,9 @@ interface StoredSession {
   system: string
   tools: SessionConfig['tools']
   createdAt: string
+  // Persisted state
+  messages: ModelMessage[]
+  totalUsage: TokenUsage
 }
 
 interface SessionsData {
@@ -41,17 +50,41 @@ function saveSessionsData(data: SessionsData): void {
 // In-memory session instances
 const activeSessions = new Map<string, AgentSession>()
 
+/**
+ * Save current session state to disk
+ */
+export function saveCurrentSession(): void {
+  const data = loadSessionsData()
+  if (!data.current) return
+
+  const session = activeSessions.get(data.current)
+  if (!session) return
+
+  const stored = data.sessions[data.current]
+  if (!stored) return
+
+  // Update persisted state
+  const state = session.getState()
+  stored.messages = state.messages
+  stored.totalUsage = state.totalUsage
+
+  saveSessionsData(data)
+}
+
 export function createSession(config: SessionConfig): AgentSession {
   const session = new AgentSession(config)
 
-  // Store session metadata
+  // Store session with full state
   const data = loadSessionsData()
+  const state = session.getState()
   data.sessions[session.id] = {
     id: session.id,
     model: config.model,
     system: config.system,
     tools: config.tools,
     createdAt: session.createdAt,
+    messages: state.messages,
+    totalUsage: state.totalUsage,
   }
   data.current = session.id
   saveSessionsData(data)
@@ -71,19 +104,29 @@ export function getCurrentSession(): AgentSession | null {
     return activeSessions.get(data.current)!
   }
 
-  // Recreate from stored config
+  // Recreate from stored config with restored state
   const stored = data.sessions[data.current]
   if (!stored) return null
 
-  const session = new AgentSession({
-    model: stored.model,
-    system: stored.system,
-    tools: stored.tools,
-  })
+  // Build restore state
+  const restore: SessionState = {
+    id: stored.id,
+    createdAt: stored.createdAt,
+    messages: stored.messages ?? [],
+    totalUsage: stored.totalUsage ?? { input: 0, output: 0, total: 0 },
+  }
 
-  // Note: This creates a new session ID, we need to restore the original
-  // For now, this is a limitation - sessions don't persist across CLI invocations
-  activeSessions.set(session.id, session)
+  const session = new AgentSession(
+    {
+      model: stored.model,
+      system: stored.system,
+      tools: stored.tools,
+    },
+    restore
+  )
+
+  // Store with CORRECT ID (the restored ID, not new)
+  activeSessions.set(data.current, session)
 
   return session
 }

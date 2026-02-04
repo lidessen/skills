@@ -9,6 +9,7 @@ import {
   useSession,
   closeSession,
   getCurrentSessionId,
+  saveCurrentSession,
 } from './session-store.ts'
 
 const program = new Command()
@@ -24,7 +25,7 @@ const sessionCmd = program.command('session').description('Manage test sessions'
 sessionCmd
   .command('new')
   .description('Create a new test session')
-  .requiredOption('-m, --model <model>', 'Model identifier (e.g., anthropic:claude-3-5-sonnet)')
+  .requiredOption('-m, --model <model>', 'Model identifier (e.g., openai/gpt-5.2, anthropic/claude-sonnet-4-5)')
   .option('-s, --system <prompt>', 'System prompt')
   .option('-f, --system-file <file>', 'Read system prompt from file')
   .action((options) => {
@@ -98,6 +99,9 @@ program
 
     try {
       const response = await session.send(message)
+
+      // Persist conversation state after send
+      saveCurrentSession()
 
       if (options.json) {
         console.log(JSON.stringify(response, null, 2))

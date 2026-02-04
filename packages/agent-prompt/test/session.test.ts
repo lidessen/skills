@@ -288,10 +288,19 @@ describe('createModel', () => {
     )
   })
 
-  test('throws on unknown provider', async () => {
+  test('throws on unloaded provider', async () => {
     const { createModel } = await import('../src/models.ts')
 
+    // Direct provider format requires async loading first
     expect(() => createModel('unknown:model-name')).toThrow(
+      "Provider 'unknown' not loaded"
+    )
+  })
+
+  test('createModelAsync throws on unknown provider', async () => {
+    const { createModelAsync } = await import('../src/models.ts')
+
+    await expect(createModelAsync('unknown:model-name')).rejects.toThrow(
       'Unknown provider: unknown'
     )
   })
@@ -406,6 +415,61 @@ describe('AgentSession advanced', () => {
     const session = new AgentSession({ model: 'test', system: '' })
     const date = new Date(session.createdAt)
     expect(date.toISOString()).toBe(session.createdAt)
+  })
+
+  test('getState returns session state for persistence', () => {
+    const session = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'Test',
+    })
+
+    const state = session.getState()
+
+    expect(state.id).toBe(session.id)
+    expect(state.createdAt).toBe(session.createdAt)
+    expect(state.messages).toEqual([])
+    expect(state.totalUsage).toEqual({ input: 0, output: 0, total: 0 })
+  })
+
+  test('restores session from state', () => {
+    const originalSession = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'Test system',
+    })
+
+    // Simulate state with messages
+    const savedState = {
+      id: originalSession.id,
+      createdAt: originalSession.createdAt,
+      messages: [
+        { role: 'user' as const, content: 'Hello' },
+        { role: 'assistant' as const, content: 'Hi there!' },
+      ],
+      totalUsage: { input: 10, output: 5, total: 15 },
+    }
+
+    // Restore session
+    const restoredSession = new AgentSession(
+      { model: 'openai/gpt-5.2', system: 'Test system' },
+      savedState
+    )
+
+    // Verify restored state
+    expect(restoredSession.id).toBe(originalSession.id)
+    expect(restoredSession.createdAt).toBe(originalSession.createdAt)
+    expect(restoredSession.history()).toHaveLength(2)
+    expect(restoredSession.stats().usage.total).toBe(15)
+  })
+
+  test('configurable maxSteps', () => {
+    const session = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'Test',
+      maxSteps: 5,
+    })
+
+    // Session created with custom maxSteps
+    expect(session.export().sessionId).toBeDefined()
   })
 })
 
