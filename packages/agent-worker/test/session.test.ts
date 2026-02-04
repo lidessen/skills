@@ -542,3 +542,137 @@ describe('createTools edge cases', () => {
     expect(tools.required_params.description).toBe('Has required params')
   })
 })
+
+describe('bash-tools integration', () => {
+  test('createBashTools returns tools and toolkit', async () => {
+    const { createBashTools } = await import('../src/bash-tools.ts')
+
+    const { tools, toolkit } = await createBashTools({
+      files: { 'test.txt': 'hello world' },
+    })
+
+    expect(tools).toHaveLength(3) // bash, readFile, writeFile
+    expect(tools.map((t) => t.name)).toEqual(['bash', 'readFile', 'writeFile'])
+    expect(toolkit).toBeDefined()
+    expect(toolkit.sandbox).toBeDefined()
+  })
+
+  test('createBashTools respects includeReadFile option', async () => {
+    const { createBashTools } = await import('../src/bash-tools.ts')
+
+    const { tools } = await createBashTools({
+      files: {},
+      includeReadFile: false,
+    })
+
+    expect(tools.map((t) => t.name)).toEqual(['bash', 'writeFile'])
+  })
+
+  test('createBashTools respects includeWriteFile option', async () => {
+    const { createBashTools } = await import('../src/bash-tools.ts')
+
+    const { tools } = await createBashTools({
+      files: {},
+      includeWriteFile: false,
+    })
+
+    expect(tools.map((t) => t.name)).toEqual(['bash', 'readFile'])
+  })
+
+  test('bash tool executes commands', async () => {
+    const { createBashTools } = await import('../src/bash-tools.ts')
+
+    const { tools } = await createBashTools({
+      files: { 'test.txt': 'hello world' },
+    })
+
+    const bashTool = tools.find((t) => t.name === 'bash')!
+    const result = (await bashTool.execute!({ command: 'echo "test"' })) as {
+      stdout: string
+      stderr: string
+      exitCode: number
+    }
+
+    expect(result.stdout.trim()).toBe('test')
+    expect(result.exitCode).toBe(0)
+  })
+
+  test('readFile tool reads files', async () => {
+    const { createBashTools } = await import('../src/bash-tools.ts')
+
+    const { tools } = await createBashTools({
+      files: { 'hello.txt': 'Hello, World!' },
+    })
+
+    const readFileTool = tools.find((t) => t.name === 'readFile')!
+    const result = (await readFileTool.execute!({ path: 'hello.txt' })) as { content: string }
+
+    expect(result.content).toBe('Hello, World!')
+  })
+
+  test('writeFile tool writes files', async () => {
+    const { createBashTools } = await import('../src/bash-tools.ts')
+
+    const { tools } = await createBashTools({ files: {} })
+
+    const writeFileTool = tools.find((t) => t.name === 'writeFile')!
+    const readFileTool = tools.find((t) => t.name === 'readFile')!
+
+    await writeFileTool.execute!({ path: 'new.txt', content: 'new content' })
+    const result = (await readFileTool.execute!({ path: 'new.txt' })) as { content: string }
+
+    expect(result.content).toBe('new content')
+  })
+
+  test('createBashToolsFromFiles helper', async () => {
+    const { createBashToolsFromFiles } = await import('../src/bash-tools.ts')
+
+    const { tools } = await createBashToolsFromFiles({
+      'src/index.ts': 'console.log("hello")',
+      'package.json': '{"name": "test"}',
+    })
+
+    expect(tools).toHaveLength(3)
+
+    const readFileTool = tools.find((t) => t.name === 'readFile')!
+    const result = (await readFileTool.execute!({ path: 'src/index.ts' })) as { content: string }
+    expect(result.content).toBe('console.log("hello")')
+  })
+
+  test('tools have correct parameter schemas', async () => {
+    const { createBashTools } = await import('../src/bash-tools.ts')
+
+    const { tools } = await createBashTools({ files: {} })
+
+    const bashTool = tools.find((t) => t.name === 'bash')!
+    expect(bashTool.parameters.properties).toHaveProperty('command')
+    expect(bashTool.parameters.required).toContain('command')
+
+    const readFileTool = tools.find((t) => t.name === 'readFile')!
+    expect(readFileTool.parameters.properties).toHaveProperty('path')
+    expect(readFileTool.parameters.required).toContain('path')
+
+    const writeFileTool = tools.find((t) => t.name === 'writeFile')!
+    expect(writeFileTool.parameters.properties).toHaveProperty('path')
+    expect(writeFileTool.parameters.properties).toHaveProperty('content')
+    expect(writeFileTool.parameters.required).toContain('path')
+    expect(writeFileTool.parameters.required).toContain('content')
+  })
+
+  test('tools work with AgentSession', async () => {
+    const { createBashTools } = await import('../src/bash-tools.ts')
+
+    const { tools } = await createBashTools({
+      files: { 'data.json': '{"key": "value"}' },
+    })
+
+    const session = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'You are a coding assistant with file system access.',
+      tools,
+    })
+
+    expect(session.id).toBeDefined()
+    expect(session.stats().messageCount).toBe(0)
+  })
+})
