@@ -32,7 +32,7 @@ Current sub-agent testing through Claude Code's Task tool has limitations:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    agent-prompt CLI                          │
-│  session new | send | tool | history | run | stats          │
+│  session new | send | tool | history | stats                │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -120,135 +120,10 @@ agent-prompt stats
 agent-prompt export > transcript.json
 ```
 
-### Batch Execution (YAML)
-
-```bash
-# Run predefined test case
-agent-prompt run test-case.yaml
-
-# Run with output format
-agent-prompt run test-case.yaml --output results.json
-```
-
-## YAML Test Format
-
-Inspired by agent-e2e's YAML structure:
-
-```yaml
-# test-case.yaml
-id: values-vs-rules-comparison
-title: Test if values-based prompt finds uncovered issues
-model: anthropic:claude-3-5-sonnet
-
-# System prompt to test
-system: |
-  You care deeply about code quality. When you see code, you instinctively ask:
-  "What could go wrong here?"
-
-# Tools available to the agent
-tools:
-  - name: read_file
-    description: Read a file from the codebase
-    parameters:
-      type: object
-      properties:
-        path:
-          type: string
-          description: File path
-      required: [path]
-    # Mock response when tool is called
-    mock:
-      content: |
-        function transfer(to, amount) {
-          balance -= amount;
-          send(to, amount);
-        }
-
-# Conversation
-messages:
-  - role: user
-    content: Review this code for security and correctness issues.
-
-# Assertions
-expect:
-  - response_contains: race condition
-  - tool_called: read_file
-  - no_tool: execute_code  # Should not call this
-```
-
-### Multi-Turn with Conditionals
-
-```yaml
-id: decay-test
-title: Test instruction decay over multiple turns
-model: anthropic:claude-3-5-sonnet
-
-system: |
-  Always cite code with file:line format.
-
-messages:
-  - role: user
-    content: How does the auth system work?
-
-  # Conditional: only continue if format followed
-  - role: checkpoint
-    expect:
-      - response_matches: "\\w+\\.\\w+:\\d+"  # file:line pattern
-    on_fail: stop
-
-  - role: user
-    content: Now summarize the key points.  # Tests decay on different task type
-
-  - role: checkpoint
-    expect:
-      - response_matches: "\\w+\\.\\w+:\\d+"
-```
-
-### Parallel Comparison
-
-```yaml
-id: prompt-comparison
-title: Compare identity vs rules prompt
-parallel: true
-
-variants:
-  - id: rules
-    model: anthropic:claude-3-5-sonnet
-    system: |
-      Rules:
-      1. Check for null pointers
-      2. Check for SQL injection
-      3. Check for XSS
-
-  - id: identity
-    model: anthropic:claude-3-5-sonnet
-    system: |
-      You've seen systems breached, data leaked. You remember the incident reports.
-      When you see code, you instinctively ask: "How could this be exploited?"
-
-tools:
-  # Shared across variants
-  - name: read_file
-    mock:
-      content: |
-        function transfer(to, amount) {
-          balance -= amount;
-          send(to, amount);
-        }
-
-messages:
-  - role: user
-    content: Review this code.
-
-compare:
-  - metric: found_race_condition
-    pattern: "race condition|concurrent|atomic"
-```
-
 ## SDK Interface
 
 ```typescript
-import { AgentSession, runTest } from 'agent-prompt';
+import { AgentSession } from 'agent-prompt';
 
 // Programmatic session for improvisational testing
 const session = new AgentSession({
@@ -287,9 +162,6 @@ if (response.content.includes('race condition')) {
 
 // Export for analysis
 const transcript = session.export();  // Full conversation
-
-// Batch execution
-const results = await runTest('./test-case.yaml');
 ```
 
 ## Key Design Decisions
@@ -350,11 +222,6 @@ agent-prompt send "Test message"
 # Compare results
 ```
 
-### 5. YAML for Reproducibility, SDK for Improvisation
-
-- **YAML**: Predefined test cases, version controlled, batch execution
-- **SDK**: Dynamic tests, conditional logic, real-time adaptation
-
 ## Implementation Plan
 
 ### Phase 1: Core SDK
@@ -379,18 +246,11 @@ packages/agent-prompt-cli/
 │   │   ├── session.ts   # session new/list/use/close
 │   │   ├── send.ts      # send message
 │   │   ├── tool.ts      # tool add/mock/list
-│   │   ├── history.ts   # conversation history
-│   │   └── run.ts       # YAML execution
+│   │   └── history.ts   # conversation history
 │   └── index.ts         # CLI entry
 ├── package.json
 └── bin/agent-prompt
 ```
-
-### Phase 3: YAML Runner
-
-- Parse YAML test format
-- Execute with assertions
-- Generate comparison reports
 
 ## Usage Examples
 
@@ -419,15 +279,6 @@ agent-prompt history --json | jq '.messages[].content'
 # Analyze when citation format decayed
 ```
 
-### Example 3: A/B Comparison (Batch)
-
-```bash
-agent-prompt run prompt-comparison.yaml --output results.json
-# Generates comparison report:
-# rules variant: did not find race condition
-# identity variant: found race condition
-```
-
 ## Integration with prompt-lab Skill
 
 This tool becomes the "execution engine" for prompt-lab experiments:
@@ -447,7 +298,7 @@ This tool becomes the "execution engine" for prompt-lab experiments:
                         ▼
 ┌──────────────────────────────────────────────────┐
 │        .memory/prompt-lab/experiments/           │
-│  YAML test cases + results                       │
+│  Transcripts + analysis results                  │
 └──────────────────────────────────────────────────┘
 ```
 
