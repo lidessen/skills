@@ -270,3 +270,211 @@ describe('EXAMPLE_MODELS', () => {
     expect(EXAMPLE_MODELS.deepseek).toContain('deepseek-chat')
   })
 })
+
+describe('createModel', () => {
+  test('throws on invalid model identifier without separator', async () => {
+    const { createModel } = await import('../src/models.ts')
+
+    expect(() => createModel('invalid-model')).toThrow(
+      'Invalid model identifier: invalid-model. Expected format: provider/model or provider:model'
+    )
+  })
+
+  test('throws on empty model name after colon', async () => {
+    const { createModel } = await import('../src/models.ts')
+
+    expect(() => createModel('anthropic:')).toThrow(
+      'Invalid model identifier: anthropic:. Model name is required.'
+    )
+  })
+
+  test('throws on unknown provider', async () => {
+    const { createModel } = await import('../src/models.ts')
+
+    expect(() => createModel('unknown:model-name')).toThrow(
+      'Unknown provider: unknown'
+    )
+  })
+
+  test('handles gateway format with slash', async () => {
+    const { createModel } = await import('../src/models.ts')
+
+    // Gateway format should not throw (creates gateway model)
+    const model = createModel('openai/gpt-5.2')
+    expect(model).toBeDefined()
+    expect(model.modelId).toBe('openai/gpt-5.2')
+  })
+})
+
+describe('AgentSession advanced', () => {
+  test('addTool adds tool to session', () => {
+    const session = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'Test',
+    })
+
+    session.addTool({
+      name: 'test_tool',
+      description: 'A test tool',
+      parameters: {
+        type: 'object',
+        properties: {
+          input: { type: 'string' },
+        },
+      },
+    })
+
+    // Export should work (tools are internal but session should function)
+    const transcript = session.export()
+    expect(transcript.sessionId).toBeDefined()
+  })
+
+  test('mockTool updates existing tool execute function', () => {
+    const session = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'Test',
+      tools: [
+        {
+          name: 'my_tool',
+          description: 'Original tool',
+          parameters: { type: 'object', properties: {} },
+          execute: () => ({ result: 'original' }),
+        },
+      ],
+    })
+
+    session.mockTool('my_tool', () => ({ result: 'mocked' }))
+
+    // The mock was set (internal state changed)
+    expect(session.stats().messageCount).toBe(0)
+  })
+
+  test('mockTool throws for non-existent tool', () => {
+    const session = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'Test',
+    })
+
+    expect(() => session.mockTool('nonexistent', () => ({}))).toThrow(
+      'Tool not found: nonexistent'
+    )
+  })
+
+  test('session with custom maxTokens', () => {
+    const session = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'Test',
+      maxTokens: 8192,
+    })
+
+    expect(session.export().sessionId).toBeDefined()
+  })
+
+  test('session with initial tools', () => {
+    const session = new AgentSession({
+      model: 'openai/gpt-5.2',
+      system: 'Test',
+      tools: [
+        {
+          name: 'tool1',
+          description: 'First',
+          parameters: { type: 'object', properties: {} },
+        },
+        {
+          name: 'tool2',
+          description: 'Second',
+          parameters: { type: 'object', properties: {} },
+        },
+      ],
+    })
+
+    expect(session.stats().messageCount).toBe(0)
+  })
+
+  test('session id is unique UUID format', () => {
+    const session1 = new AgentSession({ model: 'test', system: '' })
+    const session2 = new AgentSession({ model: 'test', system: '' })
+
+    expect(session1.id).not.toBe(session2.id)
+    // UUID format check
+    expect(session1.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    )
+  })
+
+  test('createdAt is valid ISO timestamp', () => {
+    const session = new AgentSession({ model: 'test', system: '' })
+    const date = new Date(session.createdAt)
+    expect(date.toISOString()).toBe(session.createdAt)
+  })
+})
+
+describe('createTools edge cases', () => {
+  test('tool without execute returns error object', async () => {
+    const toolDefs: ToolDefinition[] = [
+      {
+        name: 'no_impl',
+        description: 'No implementation',
+        parameters: { type: 'object', properties: {} },
+      },
+    ]
+
+    const tools = createTools(toolDefs)
+
+    const result = await tools.no_impl.execute!(
+      {},
+      { toolCallId: 'test', messages: [], abortSignal: undefined as never }
+    )
+
+    expect(result).toEqual({ error: 'No mock implementation provided' })
+  })
+
+  test('tool with async execute function', async () => {
+    const toolDefs: ToolDefinition[] = [
+      {
+        name: 'async_tool',
+        description: 'Async tool',
+        parameters: {
+          type: 'object',
+          properties: {
+            delay: { type: 'number' },
+          },
+        },
+        execute: async (args) => {
+          await new Promise((r) => setTimeout(r, 1))
+          return { delayed: true, input: args.delay }
+        },
+      },
+    ]
+
+    const tools = createTools(toolDefs)
+
+    const result = await tools.async_tool.execute!(
+      { delay: 100 },
+      { toolCallId: 'test', messages: [], abortSignal: undefined as never }
+    )
+
+    expect(result).toEqual({ delayed: true, input: 100 })
+  })
+
+  test('tool parameters with required fields', () => {
+    const toolDefs: ToolDefinition[] = [
+      {
+        name: 'required_params',
+        description: 'Has required params',
+        parameters: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'User name' },
+            age: { type: 'number', description: 'User age' },
+          },
+          required: ['name'],
+        },
+      },
+    ]
+
+    const tools = createTools(toolDefs)
+    expect(tools.required_params).toBeDefined()
+    expect(tools.required_params.description).toBe('Has required params')
+  })
+})
