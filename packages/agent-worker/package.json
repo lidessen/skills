@@ -1,6 +1,6 @@
 {
   "name": "agent-worker",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "SDK and CLI for creating and testing agent workers with Vercel AI SDK",
   "type": "module",
   "main": "./dist/index.mjs",
@@ -15,7 +15,9 @@
       "import": "./dist/index.mjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "tsdown --watch",
     "build": "tsdown",
