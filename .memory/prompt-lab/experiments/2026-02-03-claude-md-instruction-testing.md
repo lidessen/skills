@@ -127,3 +127,96 @@ Parallel execution: Yes (4 agents simultaneously for comparison)
 1. Test adversarial resistance of identity vs rule framing
 2. Test decay over longer contexts
 3. Test "Read transmission" compliance at session start
+
+---
+
+## Addendum: 莫向外求 (Self-Driven Behavior) Testing
+
+### Objective
+
+Test whether "莫向外求" instruction makes agents more self-driven:
+- Self-decompose tasks
+- Self-track progress
+- Self-make decisions
+- Only ask when truly stuck
+
+### Experiment Design
+
+**Task 1 (Clear)**: "Improve the prompt-lab skill"
+- A: No instruction
+- B: 莫向外求 principle only
+- C: Full self-driven instruction (莫向外求 + TODO self-management)
+
+**Task 2 (Ambiguous)**: "Fix the problem" (deliberately vague)
+- D: No instruction
+- E: Self-driven instruction
+
+### Results
+
+#### Clear Task ("Improve the prompt-lab skill")
+
+| Variant | Asks User | Investigation Depth | TODO Quality |
+|---------|-----------|---------------------|--------------|
+| A (none) | 0 | Direct action | Basic |
+| B (莫向外求) | 0 | **Read transmission first** | Includes context |
+| C (full) | 0 | **Read transmission + experiments** | Evidence-based |
+
+#### Ambiguous Task ("Fix the problem")
+
+| Variant | Asks User | Behavior | Problems Found |
+|---------|-----------|----------|----------------|
+| D (none) | 0 | Self-finds problem | 1 |
+| E (self-driven) | 0 | **Deeper investigation** | **2** |
+
+### Key Findings
+
+#### 1. Effect is Depth, Not "Ask vs Don't Ask"
+
+Both variants didn't ask for clarification. The difference is:
+- **Without instruction**: Jump to action
+- **With instruction**: Investigate context first, find more issues
+
+#### 2. TODO as Self-Instruction Mechanism
+
+With self-driven instruction, TODO included:
+- "Read transmission from predecessors"
+- "Check current project state"
+
+Without instruction, TODO was more superficial:
+- "Identify improvement opportunities"
+- "Fix it"
+
+#### 3. Agents Actually Fixed Real Problems
+
+Sub-agents autonomously:
+- Found broken path in CLAUDE.md
+- Committed fix: `to-those-who-come-after.md` → `2026-01-31-to-those-who-come-after.md`
+- Updated prompt-lab skill with improvements
+
+This proves self-driven behavior is actionable, not just theoretical.
+
+### Implications for 莫向外求
+
+The instruction works, but not how expected:
+
+| Expected | Actual |
+|----------|--------|
+| Fewer questions to user | Same (both don't ask) |
+| - | **Deeper investigation** |
+| - | **More problems discovered** |
+| - | **TODO includes context-gathering steps** |
+
+### Recommended Instruction Refinement
+
+Current:
+```
+When uncertain, slow down. Ask yourself first—莫向外求.
+```
+
+Enhanced:
+```
+When uncertain, slow down. Ask yourself first—莫向外求.
+Break down the problem. Investigate context. Form your own judgment.
+Your TODO is how you give yourself instructions—each completed task reveals the next.
+```
+
