@@ -205,6 +205,9 @@ export function getDefaultModel(): string {
 /**
  * Frontier models for each provider (as of 2026-02)
  * Only includes the latest/best models, no legacy versions
+ *
+ * Note: Some models may be placeholders for testing or future releases.
+ * Always verify model availability with the provider before production use.
  */
 export const FRONTIER_MODELS = {
   anthropic: ['claude-sonnet-4-5', 'claude-haiku-4-5', 'claude-opus-4-5'],
