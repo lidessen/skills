@@ -89,10 +89,7 @@ interface AgentDefinition {
   max_steps?: number
 }
 
-/** Task can be a single task or an array of tasks (parallel execution) */
-type Task = SingleTask | SingleTask[]
-
-type SingleTask = ShellTask | SendTask | ConditionalTask
+type Task = ShellTask | SendTask | ConditionalTask | ParallelTask
 
 interface ShellTask {
   /** Shell command to execute */
@@ -122,6 +119,11 @@ interface ConditionalTask {
   shell?: string
   to?: string
   as?: string
+}
+
+interface ParallelTask {
+  /** Tasks to execute in parallel */
+  parallel: Task[]
 }
 ```
 
@@ -518,7 +520,7 @@ agent-worker down reviewer
 - [ ] Add task output capture
 
 ### Phase 6: Advanced Task Features
-- [ ] Implement parallel task execution (nested arrays)
+- [ ] Implement parallel task execution (`parallel` keyword)
 - [ ] Implement conditional tasks (`if` field)
 - [ ] Add condition expression evaluator
 
@@ -560,7 +562,7 @@ tasks:
 
 ### 3. Parallel Tasks
 
-Supported via **nested arrays** - no extra keyword needed:
+Supported via `parallel` keyword for clarity and extensibility:
 
 ```yaml
 tasks:
@@ -569,13 +571,14 @@ tasks:
     to: code-reviewer
     as: review
 
-  # Parallel tasks (array of tasks)
-  - - send: "Security review based on ${{ review }}"
-      to: security-reviewer
-      as: security
-    - send: "Performance review based on ${{ review }}"
-      to: perf-reviewer
-      as: perf
+  # Parallel tasks
+  - parallel:
+      - send: "Security review based on ${{ review }}"
+        to: security-reviewer
+        as: security
+      - send: "Performance review based on ${{ review }}"
+        to: perf-reviewer
+        as: perf
 
   # Sequential (waits for parallel to complete)
   - send: "Summarize: ${{ security }} and ${{ perf }}"
@@ -584,9 +587,19 @@ tasks:
 
 **Execution model**:
 - Top-level array items execute sequentially
-- Nested arrays execute in parallel
+- `parallel:` block executes all nested tasks concurrently
 - All parallel tasks must complete before next sequential task starts
 - Variables from parallel tasks are all available after the parallel block
+
+**Future extensibility**:
+```yaml
+# Potential future syntax for concurrency limits
+- parallel:
+    max: 3  # Max concurrent tasks
+    tasks:
+      - send: ...
+      - send: ...
+```
 
 ---
 
