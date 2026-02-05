@@ -1,31 +1,147 @@
 # agent-worker
 
-SDK and CLI for creating and testing agent workers with multiple AI backends.
+CLI and SDK for creating and managing AI agent sessions with multiple backends.
 
 ## Installation
 
 ```bash
-npm install agent-worker
+npm install -g agent-worker
 # or
-bun add agent-worker
+bun add -g agent-worker
 ```
 
-## Quick Start
+## CLI Usage
 
-### CLI
+### Session Management
 
 ```bash
-# Create a session
+# Create a session (SDK backend, default)
 agent-worker session new -m anthropic/claude-sonnet-4-5
 
-# Send a message
-agent-worker send "What is 2+2?"
+# Create with system prompt
+agent-worker session new -s "You are a code reviewer."
+
+# Create with system prompt from file
+agent-worker session new -f ./prompts/reviewer.txt
+
+# Create named session
+agent-worker session new -n my-session
+
+# Create with Claude CLI backend
+agent-worker session new -b claude
+
+# List all sessions
+agent-worker session list
+
+# Switch default session
+agent-worker session use my-session
+
+# Check session status
+agent-worker session status
 
 # End session
 agent-worker session end
+
+# End specific session
+agent-worker session end my-session
+
+# End all sessions
+agent-worker session end --all
 ```
 
-### SDK
+### Sending Messages
+
+```bash
+# Send to current session
+agent-worker send "What is 2+2?"
+
+# Send to specific session
+agent-worker send "Explain recursion" --to my-session
+
+# View conversation history
+agent-worker history
+agent-worker history --last 5
+
+# View token usage
+agent-worker stats
+
+# Export transcript
+agent-worker export > transcript.json
+
+# Clear history (keep session)
+agent-worker clear
+```
+
+### Tool Management (SDK Backend Only)
+
+```bash
+# Add a tool
+agent-worker tool add get_weather \
+  -d "Get weather for a location" \
+  -p "location:string:City name"
+
+# Add tool requiring approval
+agent-worker tool add delete_file \
+  -d "Delete a file" \
+  -p "path:string:File path" \
+  --needs-approval
+
+# Import tools from file
+agent-worker tool import ./my-tools.ts
+
+# Mock tool response (for testing)
+agent-worker tool mock get_weather '{"temp": 72, "condition": "sunny"}'
+
+# List registered tools
+agent-worker tool list
+```
+
+### Approval Workflow
+
+```bash
+# Check pending approvals
+agent-worker pending
+
+# Approve a tool call
+agent-worker approve <approval-id>
+
+# Deny with reason
+agent-worker deny <approval-id> -r "Path not allowed"
+```
+
+### Backends
+
+```bash
+# Check available backends
+agent-worker backends
+
+# Check SDK providers
+agent-worker providers
+```
+
+| Backend | Command | Best For |
+|---------|---------|----------|
+| SDK (default) | `session new -m provider/model` | Full control, tool injection, mocking |
+| Claude CLI | `session new -b claude` | Use existing Claude installation |
+| Codex | `session new -b codex` | OpenAI Codex workflows |
+| Cursor | `session new -b cursor` | Cursor Agent integration |
+
+### Model Formats (SDK Backend)
+
+```bash
+# Gateway format (recommended)
+agent-worker session new -m anthropic/claude-sonnet-4-5
+agent-worker session new -m openai/gpt-5.2
+
+# Provider-only (uses frontier model)
+agent-worker session new -m anthropic
+agent-worker session new -m openai
+
+# Direct provider format
+agent-worker session new -m deepseek:deepseek-chat
+```
+
+## SDK Usage
 
 ```typescript
 import { AgentSession } from 'agent-worker'
@@ -33,44 +149,61 @@ import { AgentSession } from 'agent-worker'
 const session = new AgentSession({
   model: 'anthropic/claude-sonnet-4-5',
   system: 'You are a helpful assistant.',
+  tools: [/* your tools */]
 })
 
+// Send message
 const response = await session.send('Hello')
 console.log(response.content)
+console.log(response.toolCalls)
+console.log(response.usage)
+
+// Stream response
+for await (const chunk of session.sendStream('Tell me a story')) {
+  process.stdout.write(chunk)
+}
+
+// Get state for persistence
+const state = session.getState()
 ```
 
-## Features
+## Common Patterns
 
-- **Multiple backends**: SDK (Anthropic, OpenAI, etc.), Claude CLI, Codex, Cursor
-- **Persistent sessions**: State maintained across commands
-- **Tool injection**: Add, import, and mock tools
-- **Approval workflow**: Human-in-the-loop for sensitive operations
+### Prompt Testing
 
-## Backends
-
-| Backend | Command | Best For |
-|---------|---------|----------|
-| SDK | `-m provider/model` | Full control, tool injection |
-| Claude CLI | `-b claude` | Existing Claude installation |
-| Codex | `-b codex` | OpenAI Codex workflows |
-| Cursor | `-b cursor` | Cursor Agent integration |
-
-## CLI Commands
-
+```bash
+agent-worker session new -f ./my-prompt.txt -n test
+agent-worker send "Test case 1: ..." --to test
+agent-worker send "Test case 2: ..." --to test
+agent-worker history --to test
+agent-worker session end test
 ```
-session new       Create session
-session list      List sessions
-session end       End session
-send              Send message
-tool add          Add tool (SDK only)
-tool mock         Mock tool response
-history           Show conversation
+
+### Tool Development with Mocks
+
+```bash
+agent-worker session new -n dev
+agent-worker tool add my_api -d "Call my API" -p "endpoint:string"
+agent-worker tool mock my_api '{"status": "ok"}'
+agent-worker send "Call my API at /users"
+# Update mock, test error handling
+agent-worker tool mock my_api '{"status": "error", "code": 500}'
+agent-worker send "Call my API at /users"
+```
+
+### Multi-Model Comparison
+
+```bash
+agent-worker session new -m anthropic/claude-sonnet-4-5 -n claude
+agent-worker session new -m openai/gpt-5.2 -n gpt
+agent-worker send "Explain recursion" --to claude
+agent-worker send "Explain recursion" --to gpt
 ```
 
 ## Requirements
 
 - Node.js 18+ or Bun
-- API key for chosen provider (e.g., `ANTHROPIC_API_KEY`)
+- API key for chosen provider (e.g., `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`)
 
 ## License
 
