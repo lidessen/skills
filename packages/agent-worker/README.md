@@ -223,6 +223,13 @@ agent-worker providers
 | Codex | `session new -b codex` | OpenAI Codex workflows |
 | Cursor | `session new -b cursor` | Cursor Agent integration |
 
+> **⚠️ Important:** Different backends have different capabilities. CLI backends (claude, codex, cursor) don't support:
+> - Dynamic tool management (`tool_add`, `tool_mock`, `tool_import`)
+> - Approval system (`approve`, `deny`)
+> - `--import-skill` (use `npx skills add --global` instead)
+>
+> See [BACKEND_COMPATIBILITY.md](./BACKEND_COMPATIBILITY.md) for a complete feature comparison.
+
 ### Model Formats (SDK Backend)
 
 ```bash
