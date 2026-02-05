@@ -395,7 +395,7 @@ async function handleRequest(req: Request): Promise<Response> {
               success: true,
               data: {
                 async: true,
-                message: 'Message sent. Use "history" command to view response.',
+                message: 'Message sent. Use "peek" command to view response.',
               },
             }
           }
@@ -434,7 +434,7 @@ async function handleRequest(req: Request): Promise<Response> {
               success: true,
               data: {
                 async: true,
-                message: 'Message sent. Use "history" command to view response.',
+                message: 'Message sent. Use "peek" command to view response.',
               },
             }
           }
