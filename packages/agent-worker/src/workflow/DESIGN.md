@@ -2,14 +2,14 @@
 
 ## Overview
 
-This document defines the design for agent-worker v2, introducing workflow-based orchestration and renaming `session` to `agent` throughout.
+This document defines the design for agent-worker v2, introducing workflow-based orchestration with shared context and @mention-driven collaboration.
 
-### Key Changes
+### Key Concepts
 
-1. **session → agent**: All CLI commands and APIs rename `session` to `agent`
-2. **Workflow files**: YAML-based definition of multiple agents and tasks
-3. **Instance support**: Run multiple instances of the same workflow (`agent@instance`)
-4. **run/up modes**: One-shot execution vs persistent agents
+1. **Unified Agent Naming**: `agent-name` (standalone) or `agent-name@instance` (workflow)
+2. **Shared Context**: Channel (communication) + Document (shared workspace)
+3. **Kickoff Model**: Natural language workflow initiation with @mention triggers
+4. **Two Modes**: `run` (one-shot) and `start` (persistent)
 
 ---
 
@@ -18,62 +18,160 @@ This document defines the design for agent-worker v2, introducing workflow-based
 ### Basic Structure
 
 ```yaml
-# review.yml
-name: review  # Optional, defaults to filename without extension
+# review.yaml
+name: code-review
+
+# Shared context (optional, defaults enabled)
+context:
 
 agents:
   reviewer:
     model: anthropic/claude-sonnet-4-5
-    system_prompt: ./prompts/reviewer.txt  # String or file path
-    tools:
-      - read_file
-      - search_code
-    max_tokens: 4096        # Optional
-    max_steps: 10           # Optional
+    system_prompt: prompts/reviewer.md
 
-  generator:
+  coder:
     model: anthropic/claude-sonnet-4-5
-    system_prompt: |
-      You generate changesets in the standard format.
-      Be concise and accurate.
+    system_prompt: prompts/coder.md
 
-tasks:
-  - shell: git diff --cached
+# Optional: shell commands for setup
+setup:
+  - shell: gh pr diff
     as: diff
 
-  - send: |
-      Review these changes:
-      ${{ diff }}
-    to: reviewer
-    as: review
+# Kickoff message - triggers workflow via @mention
+kickoff: |
+  PR diff:
+  ${{ diff }}
 
-  - send: |
-      Generate changeset based on:
-      ${{ review }}
-    to: generator
-    as: changeset
-
-  - shell: |
-      mkdir -p .changeset
-      echo "${{ changeset }}" > .changeset/auto-$(date +%s).md
+  @reviewer please review these changes.
+  When issues found, @coder to fix them.
 ```
 
-### Schema Definition
+### Context Configuration
+
+Context enables shared communication and workspace between agents.
+
+```yaml
+# Minimal - enable all with defaults
+context:
+
+# Equivalent to:
+context:
+  channel:
+  document:
+
+# Equivalent to:
+context:
+  dir: .workflow/${{ instance }}/
+  channel:
+    file: channel.md
+  document:
+    file: notes.md
+
+# Selective - only channel
+context:
+  channel:
+
+# Custom paths
+context:
+  dir: ./my-context/
+  channel:
+    file: discussion.md
+  document:
+    file: workspace.md
+```
+
+**Default Values:**
+
+```typescript
+const CONTEXT_DEFAULTS = {
+  dir: '.workflow/${{ instance }}/',
+  channel: {
+    file: 'channel.md',
+  },
+  document: {
+    file: 'notes.md',
+  },
+}
+```
+
+### Channel vs Document
+
+| Aspect | Channel | Document |
+|--------|---------|----------|
+| Purpose | Communication log | Shared workspace |
+| Format | Append-only timeline | Editable content |
+| @mention | Triggers notifications | No triggers |
+| Typical use | Discussions, handoffs | Notes, findings, decisions |
+
+**channel.md** (append-only):
+```markdown
+### 10:00:00 [system]
+Workflow started
+
+### 10:00:05 [reviewer]
+@coder found auth validation issue in line 42
+
+### 10:01:00 [coder]
+Fixed, @reviewer please verify
+```
+
+**notes.md** (editable):
+```markdown
+# Review Notes
+
+## Issues Found
+1. Auth validation missing (line 42)
+2. N+1 query in user loader
+
+## Decisions
+- Use zod for validation
+- Defer performance fix to next sprint
+```
+
+---
+
+## Schema Definition
 
 ```typescript
 interface WorkflowFile {
   /** Workflow name (defaults to filename) */
   name?: string
 
+  /** Shared context configuration */
+  context?: ContextConfig | true
+
   /** Agent definitions */
   agents: Record<string, AgentDefinition>
 
-  /** Task sequence (optional) */
-  tasks?: Task[]
+  /** Setup commands (run before kickoff) */
+  setup?: SetupTask[]
+
+  /** Kickoff message - initiates workflow via @mention */
+  kickoff: string
+}
+
+interface ContextConfig {
+  /** Context directory */
+  dir?: string
+
+  /** Channel config (true = defaults) */
+  channel?: ChannelConfig | true
+
+  /** Document config (true = defaults) */
+  document?: DocumentConfig | true
+}
+
+interface ChannelConfig {
+  file?: string  // default: channel.md
+}
+
+interface DocumentConfig {
+  file?: string  // default: notes.md
 }
 
 interface AgentDefinition {
-  /** Model identifier (e.g., 'anthropic/claude-sonnet-4-5') */
+  /** Model identifier */
   model: string
 
   /** System prompt - inline string or file path */
@@ -81,565 +179,493 @@ interface AgentDefinition {
 
   /** Tool names to enable */
   tools?: string[]
-
-  /** Maximum tokens for response */
-  max_tokens?: number
-
-  /** Maximum tool call steps per turn */
-  max_steps?: number
 }
 
-type Task = ShellTask | SendTask | ConditionalTask | ParallelTask
-
-interface ShellTask {
+interface SetupTask {
   /** Shell command to execute */
   shell: string
 
   /** Variable name to store output */
   as?: string
 }
-
-interface SendTask {
-  /** Message to send */
-  send: string
-
-  /** Target agent name */
-  to: string
-
-  /** Output variable - string or object with prompt */
-  as?: string | {
-    name: string
-    prompt: string  // Summary/extraction instruction
-  }
-}
-
-interface ConditionalTask {
-  /** Condition expression */
-  if: string
-
-  /** Task to execute if condition is true */
-  send?: string
-  shell?: string
-  to?: string
-  as?: string | { name: string; prompt: string }
-}
-
-interface ParallelTask {
-  /** Tasks to execute in parallel */
-  parallel: Task[]
-}
 ```
-
-### Variable Syntax
-
-Variables use `${{ name }}` syntax (GitHub Actions style):
-
-```yaml
-tasks:
-  - shell: git diff
-    as: diff
-
-  - send: "Review: ${{ diff }}"
-    to: reviewer
-    as: review
-
-  - send: "Based on ${{ review }}, generate changeset"
-    to: generator
-```
-
-**Variable scope**: All variables are global within a workflow execution.
-
-**Reserved variables**:
-- `${{ env.VAR_NAME }}` - Environment variables
-- `${{ workflow.name }}` - Workflow name
-- `${{ workflow.instance }}` - Instance name
 
 ---
 
-## CLI API Design
+## @Mention System
 
-### Command Renaming (session → agent)
+### How It Works
 
-| Old Command | New Command |
-|-------------|-------------|
-| `session new` | `new` (shorthand) or `agent new` |
-| `session list` | `agent list` or `ls` |
-| `session status` | `agent status` |
-| `session use` | `agent use` |
-| `session end` | `agent end` |
+1. Agent writes to channel with @mention
+2. System detects @mention pattern
+3. Mentioned agent receives notification
+4. Agent can respond via channel
 
-### New Commands
+```
+reviewer writes: "@coder please fix the auth issue"
+                     │
+                     ▼
+              ┌──────────────┐
+              │ System parses │
+              │   @coder      │
+              └──────┬───────┘
+                     │
+                     ▼
+              ┌──────────────┐
+              │ coder gets   │
+              │ notification │
+              └──────────────┘
+```
+
+### Mention Pattern
+
+```typescript
+const MENTION_PATTERN = /@([a-zA-Z][a-zA-Z0-9_-]*)/g
+
+function extractMentions(message: string, validAgents: string[]): string[] {
+  const mentions: string[] = []
+  let match: RegExpExecArray | null
+
+  while ((match = MENTION_PATTERN.exec(message)) !== null) {
+    const agent = match[1]
+    if (validAgents.includes(agent) && !mentions.includes(agent)) {
+      mentions.push(agent)
+    }
+  }
+
+  return mentions
+}
+```
+
+---
+
+## Agent Tools
+
+Agents receive context tools when context is enabled:
+
+```typescript
+// Channel tool - communication
+channel: {
+  action: 'send' | 'read' | 'peek',
+  message?: string,      // for send (auto-parses @mentions)
+  since?: string,        // for read/peek
+  limit?: number,        // for read/peek
+}
+
+// Document tool - shared workspace
+document: {
+  action: 'read' | 'write' | 'append',
+  content?: string,      // for write/append
+}
+```
+
+**peek vs read:**
+- `peek` = view without marking as read
+- `read` = view and acknowledge @mentions
+
+---
+
+## CLI Commands
+
+### Unified Agent Namespace
+
+All agents (standalone or workflow) share the same namespace:
+
+```
+agent-name           # Standalone agent
+agent-name@instance  # Workflow agent
+@instance            # Instance group (for batch ops)
+```
+
+### Command Reference
 
 ```bash
-# Workflow execution
-agent-worker run <file>              # Execute tasks, exit when done
-agent-worker up <file>               # Execute tasks, keep agents alive
-agent-worker down [target]           # Stop agents
-agent-worker ps                      # List running agents
+# One-shot execution (exits when no agents working)
+agent-worker run <file> [options]
 
-# Single agent (existing, renamed)
-agent-worker new <name>              # Create agent
-agent-worker send <message>          # Send message
-agent-worker peek                    # View messages
+# Persistent mode (keeps running until stopped)
+agent-worker start <file> [options]
+
+# Stop agents
+agent-worker stop [target]
+
+# List agents
+agent-worker list
+agent-worker ls              # alias
+
+# Standalone agent management
+agent-worker new <name>
+agent-worker send <message>
+agent-worker peek
 ```
 
 ### Command Details
 
 #### `agent-worker run <file>`
 
-Execute workflow tasks and exit.
+Execute workflow and exit when complete.
 
 ```bash
-agent-worker run ./review.yml
-agent-worker run ./review.yml --lazy          # Lazy agent startup
-agent-worker run ./review.yml --instance pr-123
-agent-worker run ./review.yml --json          # JSON output
-agent-worker run ./review.yml --verbose       # Show task progress
+agent-worker run review.yaml
+agent-worker run review.yaml --instance pr-123
+agent-worker run review.yaml --verbose
+agent-worker run review.yaml --json
+```
+
+**Completion**: Exits when no agents are actively working.
+
+**Behavior**:
+1. Parse workflow file
+2. Execute setup tasks
+3. Send kickoff to channel (triggers @mentioned agents)
+4. Agents collaborate via channel/@mention
+5. Wait until all agents idle
+6. Output results and exit
+
+#### `agent-worker start <file>`
+
+Start workflow in persistent mode.
+
+```bash
+agent-worker start review.yaml
+agent-worker start review.yaml --instance pr-123
+agent-worker start review.yaml --background
 ```
 
 **Behavior**:
 1. Parse workflow file
-2. Start all agents (eager by default)
-3. Execute tasks sequentially
-4. Print final task output
-5. Shutdown all agents
-6. Exit
+2. Execute setup tasks
+3. Send kickoff to channel
+4. Keep running until manually stopped
+5. Agents can continue collaborating indefinitely
 
-#### `agent-worker up <file>`
-
-Execute workflow tasks and keep agents alive for interaction.
-
-```bash
-agent-worker up ./review.yml
-agent-worker up ./review.yml --instance pr-123
-agent-worker up ./review.yml --lazy
-```
-
-**Behavior**:
-1. Parse workflow file
-2. Start all agents
-3. Execute tasks (if any)
-4. Keep agents running in background
-5. Print agent status
-
-#### `agent-worker down [target]`
+#### `agent-worker stop [target]`
 
 Stop running agents.
 
 ```bash
-agent-worker down                    # Stop default instance
-agent-worker down pr-123             # Stop specific instance
-agent-worker down --all              # Stop all instances
-agent-worker down reviewer@pr-123    # Stop specific agent in instance
+agent-worker stop reviewer           # Stop standalone agent
+agent-worker stop reviewer@pr-123    # Stop specific workflow agent
+agent-worker stop @pr-123            # Stop all agents in instance
+agent-worker stop --all              # Stop everything
 ```
 
-#### `agent-worker ps`
+#### `agent-worker list`
 
-List running agents.
+List all running agents.
 
 ```bash
-agent-worker ps
-```
+$ agent-worker list
 
-Output:
-```
-WORKFLOW    INSTANCE    AGENT       STATUS    MESSAGES
-review      default     reviewer    running   5
-review      default     generator   running   3
-review      pr-123      reviewer    running   12
-```
-
-#### `agent-worker new <name>`
-
-Create a single agent (existing functionality, renamed from `session new`).
-
-```bash
-agent-worker new reviewer -m anthropic/claude-sonnet-4-5
-agent-worker new reviewer -m anthropic/claude-sonnet-4-5 --instance pr-123
-agent-worker new reviewer -f ./prompts/reviewer.txt
+NAME                 SOURCE          STATUS
+reviewer             (standalone)    running
+coder                (standalone)    idle
+reviewer@pr-123      review.yaml     running
+coder@pr-123         review.yaml     running
+helper@pr-456        review.yaml     idle
 ```
 
 #### `agent-worker send <message>`
 
-Send message to an agent.
+Send message to agent.
 
 ```bash
-agent-worker send "Review this code"
-agent-worker send "Review this code" --to reviewer
-agent-worker send "Review this code" --to reviewer@pr-123
-agent-worker send "Review this code" --wait      # Synchronous
+agent-worker send "hello"                    # To default/active agent
+agent-worker send "hello" --to reviewer      # To standalone
+agent-worker send "hello" --to coder@pr-123  # To workflow agent
 ```
 
-### Instance Naming Convention
+### Options Reference
 
-Format: `agent@instance`
-
-```bash
-# Default instance (when --instance not specified)
-reviewer          # Same as reviewer@default
-
-# Named instance
-reviewer@pr-123
-generator@pr-123
-
-# Workflow context
-# When using `up ./review.yml --instance pr-123`:
-# - reviewer@pr-123
-# - generator@pr-123
-```
-
-**Rules**:
-- Instance names: alphanumeric, hyphen, underscore (`[a-zA-Z0-9_-]+`)
-- Default instance name: `default`
-- `@` is the separator (email style)
-
-### Flag Reference
-
-| Flag | Commands | Description |
-|------|----------|-------------|
-| `--to <target>` | send, peek, stats | Target agent (`name` or `name@instance`) |
-| `--instance <name>` | run, up, new | Instance name |
-| `--lazy` | run, up | Lazy agent startup |
-| `--wait` | send | Wait for response (sync mode) |
-| `--json` | run, send, peek, ps | JSON output |
-| `--verbose` | run, up | Show detailed progress |
-| `--all` | down | Stop all instances |
+| Option | Commands | Description |
+|--------|----------|-------------|
+| `--instance <name>` | run, start, new | Instance name (default: `default`) |
+| `--to <target>` | send, peek | Target agent |
+| `--background` | start | Run in background |
+| `--verbose` | run, start | Show detailed progress |
+| `--json` | run, list, send | JSON output |
+| `--all` | stop | Stop all agents |
 
 ---
 
-## TypeScript API Design
+## Variable Interpolation
 
-### Core Interfaces
+Variables use `${{ name }}` syntax:
 
-```typescript
-// Workflow execution
-interface WorkflowConfig {
-  file: string
-  instance?: string
-  lazy?: boolean
-  verbose?: boolean
-}
+```yaml
+setup:
+  - shell: gh pr diff
+    as: diff
 
-interface WorkflowRunner {
-  run(config: WorkflowConfig): Promise<WorkflowResult>
-  up(config: WorkflowConfig): Promise<WorkflowHandle>
-}
+kickoff: |
+  Review this PR:
+  ${{ diff }}
 
-interface WorkflowResult {
-  /** Final output (last task result) */
-  output: string
-  /** All task results */
-  results: Record<string, string>
-  /** Execution time in ms */
-  duration: number
-}
-
-interface WorkflowHandle {
-  /** Workflow name */
-  name: string
-  /** Instance name */
-  instance: string
-  /** Running agents */
-  agents: Map<string, AgentHandle>
-  /** Stop all agents */
-  down(): Promise<void>
-}
-
-// Agent management
-interface AgentHandle {
-  /** Agent name */
-  name: string
-  /** Full identifier (name@instance) */
-  id: string
-  /** Send message */
-  send(message: string): Promise<AgentResponse>
-  /** Send message (async) */
-  sendAsync(message: string): Promise<void>
-  /** Get messages */
-  getMessages(): AgentMessage[]
-  /** Stop agent */
-  stop(): Promise<void>
-}
+  @reviewer please analyze
 ```
 
-### File Parsing
+**Reserved variables:**
+- `${{ env.VAR_NAME }}` - Environment variables
+- `${{ workflow.name }}` - Workflow name
+- `${{ workflow.instance }}` - Instance name
+- `${{ context.channel }}` - Channel file path
+- `${{ context.document }}` - Document file path
 
-```typescript
-interface WorkflowParser {
-  parse(filePath: string): Promise<ParsedWorkflow>
-  validate(workflow: ParsedWorkflow): ValidationResult
-}
+---
 
-interface ParsedWorkflow {
-  name: string
-  agents: Record<string, AgentDefinition>
-  tasks: Task[]
-}
+## Execution Flow
 
-interface ValidationResult {
-  valid: boolean
-  errors: ValidationError[]
-}
+### Run Mode
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    run command                       │
+└─────────────────────────┬───────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────┐
+│              Execute setup tasks                     │
+│         (shell commands, variable capture)           │
+└─────────────────────────┬───────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────┐
+│            Send kickoff to channel                   │
+│         (@mentioned agents get triggered)            │
+└─────────────────────────┬───────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────┐
+│           Agents collaborate via channel             │
+│      (read, write, @mention each other)              │
+└─────────────────────────┬───────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────┐
+│            All agents idle? ──────────────────┐     │
+│                    │                          │     │
+│                   Yes                         No    │
+│                    │                          │     │
+│                    ▼                          │     │
+│               Exit with results      (continue)     │
+└─────────────────────────────────────────────────────┘
 ```
 
-### Variable Interpolation
+### Start Mode
 
-```typescript
-interface VariableContext {
-  /** Task output variables */
-  [key: string]: string
-  /** Environment variables */
-  env: Record<string, string>
-  /** Workflow metadata */
-  workflow: {
-    name: string
-    instance: string
-  }
-}
-
-function interpolate(template: string, context: VariableContext): string
+```
+┌─────────────────────────────────────────────────────┐
+│                   start command                      │
+└─────────────────────────┬───────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────┐
+│     Execute setup + Send kickoff (same as run)      │
+└─────────────────────────┬───────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────┐
+│              Keep running indefinitely               │
+│                                                      │
+│   - Agents collaborate via channel                  │
+│   - External messages can be sent via CLI           │
+│   - New @mentions trigger agents                    │
+│                                                      │
+│               (until `stop` command)                 │
+└─────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Internal Architecture
+## Examples
 
-### Component Diagram
+### Simple Review Workflow
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                        CLI Layer                         │
-│  ┌─────┐ ┌────┐ ┌──────┐ ┌────┐ ┌──────┐ ┌────────┐   │
-│  │ run │ │ up │ │ down │ │ ps │ │ send │ │ new... │   │
-│  └──┬──┘ └─┬──┘ └──┬───┘ └─┬──┘ └──┬───┘ └───┬────┘   │
-└─────┼──────┼───────┼───────┼───────┼─────────┼────────┘
-      │      │       │       │       │         │
-      v      v       v       v       v         v
-┌─────────────────────────────────────────────────────────┐
-│                   Workflow Runtime                       │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │ WorkflowFile │  │   Variable   │  │    Task      │  │
-│  │    Parser    │  │   Resolver   │  │   Executor   │  │
-│  └──────────────┘  └──────────────┘  └──────────────┘  │
-└─────────────────────────────────────────────────────────┘
-                            │
-                            v
-┌─────────────────────────────────────────────────────────┐
-│                   Agent Manager                          │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │              Instance Registry                    │  │
-│  │  ┌─────────────┐  ┌─────────────┐               │  │
-│  │  │ reviewer@   │  │ generator@  │  ...          │  │
-│  │  │ default     │  │ pr-123      │               │  │
-│  │  └─────────────┘  └─────────────┘               │  │
-│  └──────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-                            │
-                            v
-┌─────────────────────────────────────────────────────────┐
-│                   Backend Layer                          │
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐   │
-│  │   SDK   │  │ Claude  │  │  Codex  │  │ Cursor  │   │
-│  │ Backend │  │   CLI   │  │   CLI   │  │   CLI   │   │
-│  └─────────┘  └─────────┘  └─────────┘  └─────────┘   │
-└─────────────────────────────────────────────────────────┘
+```yaml
+name: review
+context:
+
+agents:
+  reviewer:
+    model: anthropic/claude-sonnet-4-5
+    system_prompt: |
+      You review code for quality and issues.
+      Use the channel tool to communicate.
+      Use the document tool to record findings.
+
+setup:
+  - shell: gh pr diff
+    as: diff
+
+kickoff: |
+  Please review this PR:
+
+  ${{ diff }}
+
+  @reviewer
 ```
 
-### State Management
+### Multi-Agent Collaboration
 
-```typescript
-// Instance state stored in ~/.agent-worker/instances/
-interface InstanceState {
-  workflow: string
-  instance: string
-  agents: Record<string, AgentState>
-  createdAt: string
-  pid: number
-}
+```yaml
+name: code-review
+context:
 
-interface AgentState {
-  name: string
-  model: string
-  socketPath: string
-  status: 'starting' | 'running' | 'stopped'
-  messageCount: number
-}
+agents:
+  coordinator:
+    model: anthropic/claude-sonnet-4-5
+    system_prompt: prompts/coordinator.md
+
+  reviewer:
+    model: anthropic/claude-sonnet-4-5
+    system_prompt: prompts/reviewer.md
+
+  coder:
+    model: anthropic/claude-sonnet-4-5
+    system_prompt: prompts/coder.md
+
+setup:
+  - shell: gh pr view --json title,body,files
+    as: pr_info
+
+kickoff: |
+  New PR to review:
+  ${{ pr_info }}
+
+  @coordinator please orchestrate the review.
+  - Use @reviewer for code review
+  - Use @coder for any fixes needed
 ```
 
----
-
-## Migration Guide
-
-### CLI Changes
+### Standalone Agent + Channel
 
 ```bash
-# Before
-agent-worker session new -m anthropic/claude-sonnet-4-5 -n reviewer
-agent-worker send "hello" --to reviewer
-agent-worker session list
-agent-worker session end reviewer
+# Create standalone agent with context access
+agent-worker new helper --context
 
-# After
-agent-worker new reviewer -m anthropic/claude-sonnet-4-5
-agent-worker send "hello" --to reviewer
-agent-worker ls
-agent-worker down reviewer
+# It can now use channel/document tools
+agent-worker send "Check the notes in the document"
 ```
-
-### Deprecation Strategy
-
-1. **Phase 1**: Add new commands, keep old as aliases with deprecation warning
-2. **Phase 2**: Remove old commands in next major version
 
 ---
 
 ## Implementation Phases
 
-### Phase 1: Core Refactoring
-- [ ] Rename `session` to `agent` in CLI
-- [ ] Add `new` as shorthand for `agent new`
-- [ ] Add `ls` as alias for `agent list`
-- [ ] Update internal types
+### Phase 1: Context System
+- [ ] Implement SharedContext class
+- [ ] Channel (append-only log with @mention detection)
+- [ ] Document (read/write workspace)
+- [ ] Context tools for agents
 
-### Phase 2: Instance Support
-- [ ] Implement `--instance` flag
-- [ ] Add `@instance` syntax for `--to`
-- [ ] Update state management for multi-instance
+### Phase 2: Kickoff Model
+- [ ] Replace tasks with setup + kickoff
+- [ ] Implement @mention notification
+- [ ] Agent trigger on @mention
 
-### Phase 3: Workflow Basics
-- [ ] Implement workflow file parser
-- [ ] Add YAML schema validation
-- [ ] Implement variable interpolation
+### Phase 3: CLI Updates
+- [ ] Rename `up` → `start`
+- [ ] Rename `down` → `stop`
+- [ ] Rename `ps` → `list`
+- [ ] Unify standalone and workflow agent listing
 
-### Phase 4: Workflow Execution
-- [ ] Implement `run` command
-- [ ] Implement `up` command
-- [ ] Implement `down` command
-- [ ] Implement `ps` command
+### Phase 4: Run/Start Modes
+- [ ] Run mode: exit when all agents idle
+- [ ] Start mode: persistent until stop
+- [ ] Background mode for start
 
-### Phase 5: Task Execution
-- [ ] Implement shell task executor
-- [ ] Implement send task executor
-- [ ] Add task output capture
+---
 
-### Phase 6: Advanced Task Features
-- [ ] Implement parallel task execution (`parallel` keyword)
-- [ ] Implement conditional tasks (`if` field)
-- [ ] Add condition expression evaluator
+## Migration from v1
+
+### CLI Changes
+
+```bash
+# Before (v1)
+agent-worker up workflow.yaml
+agent-worker down
+agent-worker ps
+
+# After (v2)
+agent-worker start workflow.yaml
+agent-worker stop
+agent-worker list
+```
+
+### Workflow Changes
+
+```yaml
+# Before (v1) - tasks-based
+tasks:
+  - shell: gh pr diff
+    as: diff
+  - send: "Review: ${{ diff }}"
+    to: reviewer
+    as: review
+  - send: "Fix issues: ${{ review }}"
+    to: coder
+
+# After (v2) - kickoff-based
+setup:
+  - shell: gh pr diff
+    as: diff
+
+kickoff: |
+  PR diff:
+  ${{ diff }}
+
+  @reviewer please review.
+  When done, @coder for fixes.
+```
 
 ---
 
 ## Design Decisions
 
-### 1. Tool Definition
+### 1. Why Kickoff Instead of Tasks?
 
-Tools can only be **referenced by name or file path**, not defined inline:
+**Tasks** (v1) were procedural - explicit sequence of steps:
+- Rigid execution order
+- Manual `wait_mention` for coordination
+- Poor fit for autonomous agent collaboration
 
-```yaml
-agents:
-  reviewer:
-    tools:
-      - read_file              # Built-in tool name
-      - search_code            # Built-in tool name
-      - ./my-tools.ts          # External file
-```
+**Kickoff** (v2) is declarative - describe goal, let agents coordinate:
+- Natural language work description
+- @mention for automatic coordination
+- Agents decide their own actions
 
-**Rationale**: Tool definitions are complex (parameters, implementations). Inline definition would bloat workflow files and duplicate definitions across workflows.
+### 2. Why Separate Channel and Document?
 
-### 2. Conditional Tasks
+- **Channel** = communication (who said what, when)
+- **Document** = workspace (current state, findings)
 
-Supported via `if` field:
+Combining them would mix transient messages with persistent content.
 
-```yaml
-tasks:
-  - send: "Review"
-    to: reviewer
-    as: review
+### 3. Why Default Context Enabled?
 
-  - if: ${{ review.contains('security') }}
-    send: "Deep security review"
-    to: security-reviewer
-```
-
-**Condition syntax**: `${{ expression }}` where expression is evaluated as JavaScript.
-
-### 3. Task Mode and Output Capture
-
-Workflow tasks run in **task execution mode**, not conversation mode:
-
-**Automatic context injection**:
-```
-[Task Mode] This is a task execution, not a conversation.
-Complete the task and provide your final result in the last message.
-
-Task: {send content}
-```
-
-**Output capture** - `as` field stores the agent's last message:
+Most workflows benefit from shared context. The minimal config:
 
 ```yaml
-# Basic: store last message
-- send: "Review this code"
-  to: reviewer
-  as: review
-
-# With summary prompt: agent summarizes before storing
-- send: "Review this code"
-  to: reviewer
-  as:
-    name: review
-    prompt: "Summarize your review in one sentence"
+context:
 ```
 
-**Behavior**:
-- `as: review` → stores agent's last message as `review`
-- `as: { name, prompt }` → sends additional prompt, stores that response
-
-### 4. Parallel Tasks
-
-Supported via `parallel` keyword for clarity and extensibility:
+Enables both channel and document with sensible defaults. Explicit opt-out:
 
 ```yaml
-tasks:
-  # Sequential task
-  - send: "Review code"
-    to: code-reviewer
-    as: review
-
-  # Parallel tasks
-  - parallel:
-      - send: "Security review based on ${{ review }}"
-        to: security-reviewer
-        as: security
-      - send: "Performance review based on ${{ review }}"
-        to: perf-reviewer
-        as: perf
-
-  # Sequential (waits for parallel to complete)
-  - send: "Summarize: ${{ security }} and ${{ perf }}"
-    to: summarizer
+# No context - agents can't communicate
+# (omit context field entirely)
 ```
 
-**Execution model**:
-- Top-level array items execute sequentially
-- `parallel:` block executes all nested tasks concurrently
-- All parallel tasks must complete before next sequential task starts
-- Variables from parallel tasks are all available after the parallel block
+### 4. Run vs Start Completion
 
-**Future extensibility**:
-```yaml
-# Potential future syntax for concurrency limits
-- parallel:
-    max: 3  # Max concurrent tasks
-    tasks:
-      - send: ...
-      - send: ...
-```
+- **Run**: Complete when no agents actively working (auto-detect idle)
+- **Start**: Never complete until manual `stop`
+
+No need for explicit `completion:` config - the command choice determines behavior.
 
 ---
 
 ## References
 
-- [Docker Compose specification](https://docs.docker.com/compose/compose-file/)
-- [GitHub Actions workflow syntax](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions)
-- [Ansible Playbook format](https://docs.ansible.com/ansible/latest/playbook_guide/)
+- [Docker Compose](https://docs.docker.com/compose/) - Service orchestration inspiration
+- [Slack API](https://api.slack.com/) - Channel/mention model
+- [GitHub Actions](https://docs.github.com/en/actions) - Variable syntax
