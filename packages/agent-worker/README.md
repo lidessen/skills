@@ -52,11 +52,17 @@ agent-worker session end --all
 ### Sending Messages
 
 ```bash
-# Send to current session
+# Send to current session (synchronous - waits for response)
 agent-worker send "What is 2+2?"
 
 # Send to specific session
 agent-worker send "Explain recursion" --to my-session
+
+# Send asynchronously (returns immediately, agent processes in background)
+agent-worker send "Analyze this codebase" --async
+
+# Send with debug logging (useful for troubleshooting)
+agent-worker send "Debug this" --debug
 
 # View conversation history
 agent-worker history
@@ -71,6 +77,40 @@ agent-worker export > transcript.json
 # Clear history (keep session)
 agent-worker clear
 ```
+
+**Understanding Message Flow:**
+
+The CLI supports two modes for sending messages:
+
+1. **Synchronous (default)**: The command waits for the agent to fully process the message and return a response. This is best for quick questions.
+   ```bash
+   agent-worker send "What is 2+2?"
+   # Waits for response, then prints: 4
+   ```
+
+2. **Asynchronous (`--async`)**: The command returns immediately after sending. The agent processes in the background. Use `history` to view the response.
+   ```bash
+   # Terminal 1: Send message
+   agent-worker send "Analyze this large codebase" --async
+   # Returns immediately: "Message sent. Use 'history' command to view response."
+
+   # Terminal 2 (or later): View response
+   agent-worker history --last 2
+   ```
+
+**Troubleshooting:**
+
+If `send` appears stuck or times out, use `--debug` to see what's happening:
+
+```bash
+agent-worker send "test message" --debug
+```
+
+Debug output shows:
+- Session lookup and connection status
+- Socket communication
+- Request/response timing
+- Error details
 
 ### Tool Management (SDK Backend Only)
 
