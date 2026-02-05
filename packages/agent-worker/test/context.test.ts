@@ -399,6 +399,304 @@ describe('createContextMCPServer', () => {
   })
 })
 
+// ==================== MCP Server Tool Tests ====================
+
+describe('MCP Server Tools', () => {
+  let provider: MemoryContextProvider
+  let mcpServer: ReturnType<typeof createContextMCPServer>
+
+  // Helper to call MCP tool and extract result
+  async function callTool(
+    toolName: string,
+    args: Record<string, unknown>,
+    extra?: { sessionId?: string }
+  ): Promise<unknown> {
+    // Access internal _registeredTools object
+    const server = mcpServer.server as unknown as {
+      _registeredTools: Record<
+        string,
+        {
+          handler: (
+            args: Record<string, unknown>,
+            extra: unknown
+          ) => Promise<{ content: Array<{ type: string; text: string }> }>
+        }
+      >
+    }
+    const tool = server._registeredTools[toolName]
+    if (!tool) {
+      throw new Error(`Tool ${toolName} not found`)
+    }
+    const result = await tool.handler(args, extra || {})
+    const text = result.content[0].text
+    // Try to parse as JSON, return as-is if not JSON
+    try {
+      return JSON.parse(text)
+    } catch {
+      return text
+    }
+  }
+
+  beforeEach(() => {
+    provider = new MemoryContextProvider(['agent1', 'agent2', 'agent3'])
+    mcpServer = createContextMCPServer({
+      provider,
+      validAgents: ['agent1', 'agent2', 'agent3'],
+    })
+  })
+
+  describe('channel_send', () => {
+    test('sends message to channel', async () => {
+      const result = (await callTool(
+        'channel_send',
+        { message: 'Hello world' },
+        { sessionId: 'agent1' }
+      )) as { status: string; timestamp: string; mentions: string[] }
+
+      expect(result.status).toBe('sent')
+      expect(result.timestamp).toBeDefined()
+      expect(result.mentions).toEqual([])
+
+      // Verify message in provider
+      const entries = await provider.readChannel()
+      expect(entries).toHaveLength(1)
+      expect(entries[0].from).toBe('agent1')
+      expect(entries[0].message).toBe('Hello world')
+    })
+
+    test('extracts mentions from message', async () => {
+      const result = (await callTool(
+        'channel_send',
+        { message: '@agent2 @agent3 please review' },
+        { sessionId: 'agent1' }
+      )) as { mentions: string[] }
+
+      expect(result.mentions).toEqual(['agent2', 'agent3'])
+    })
+
+    test('uses anonymous when no sessionId', async () => {
+      await callTool('channel_send', { message: 'Anonymous message' })
+
+      const entries = await provider.readChannel()
+      expect(entries[0].from).toBe('anonymous')
+    })
+  })
+
+  describe('channel_read', () => {
+    test('reads all channel entries', async () => {
+      await provider.appendChannel('agent1', 'First')
+      await provider.appendChannel('agent2', 'Second')
+
+      const result = (await callTool('channel_read', {})) as Array<{
+        from: string
+        message: string
+      }>
+
+      expect(result).toHaveLength(2)
+      expect(result[0].message).toBe('First')
+      expect(result[1].message).toBe('Second')
+    })
+
+    test('reads entries since timestamp', async () => {
+      await provider.appendChannel('agent1', 'First')
+      const second = await provider.appendChannel('agent2', 'Second')
+      await provider.appendChannel('agent3', 'Third')
+
+      const result = (await callTool('channel_read', {
+        since: second.timestamp,
+      })) as Array<{ message: string }>
+
+      expect(result).toHaveLength(1)
+      expect(result[0].message).toBe('Third')
+    })
+
+    test('limits entries', async () => {
+      await provider.appendChannel('agent1', 'First')
+      await provider.appendChannel('agent2', 'Second')
+      await provider.appendChannel('agent3', 'Third')
+
+      const result = (await callTool('channel_read', { limit: 2 })) as Array<{
+        message: string
+      }>
+
+      expect(result).toHaveLength(2)
+    })
+
+    test('acknowledges mentions when reading', async () => {
+      await provider.appendChannel('agent1', '@agent2 check this')
+
+      // Read as agent2 (should acknowledge)
+      await callTool('channel_read', {}, { sessionId: 'agent2' })
+
+      // Verify mentions acknowledged
+      const unread = await provider.getUnreadMentions('agent2')
+      expect(unread).toEqual([])
+    })
+  })
+
+  describe('channel_peek', () => {
+    test('reads without acknowledging mentions', async () => {
+      await provider.appendChannel('agent1', '@agent2 check this')
+
+      // Peek (should NOT acknowledge)
+      const result = (await callTool('channel_peek', {})) as Array<{
+        message: string
+      }>
+      expect(result).toHaveLength(1)
+
+      // Verify mentions still unread
+      const unread = await provider.getUnreadMentions('agent2')
+      expect(unread).toHaveLength(1)
+    })
+
+    test('limits entries', async () => {
+      await provider.appendChannel('agent1', 'First')
+      await provider.appendChannel('agent2', 'Second')
+      await provider.appendChannel('agent3', 'Third')
+
+      const result = (await callTool('channel_peek', { limit: 1 })) as Array<{
+        message: string
+      }>
+
+      expect(result).toHaveLength(1)
+    })
+  })
+
+  describe('channel_mentions', () => {
+    test('gets unread mentions for agent', async () => {
+      await provider.appendChannel('agent1', '@agent2 first mention')
+      await provider.appendChannel('agent3', '@agent2 second mention')
+
+      const result = (await callTool(
+        'channel_mentions',
+        { unread_only: true },
+        { sessionId: 'agent2' }
+      )) as Array<{ from: string }>
+
+      expect(result).toHaveLength(2)
+      expect(result[0].from).toBe('agent1')
+      expect(result[1].from).toBe('agent3')
+    })
+
+    test('returns empty for no unread mentions', async () => {
+      await provider.appendChannel('agent1', 'No mentions here')
+
+      const result = (await callTool(
+        'channel_mentions',
+        {},
+        { sessionId: 'agent2' }
+      )) as Array<unknown>
+
+      expect(result).toEqual([])
+    })
+  })
+
+  describe('document_read', () => {
+    test('reads document content', async () => {
+      await provider.writeDocument('# Notes\nSome content')
+
+      const result = await callTool('document_read', {})
+
+      expect(result).toBe('# Notes\nSome content')
+    })
+
+    test('returns placeholder for empty document', async () => {
+      const result = await callTool('document_read', {})
+
+      expect(result).toBe('(empty document)')
+    })
+  })
+
+  describe('document_write', () => {
+    test('writes document content', async () => {
+      const result = await callTool('document_write', {
+        content: '# New Content',
+      })
+
+      expect(result).toBe('Document written successfully')
+
+      const content = await provider.readDocument()
+      expect(content).toBe('# New Content')
+    })
+
+    test('overwrites existing content', async () => {
+      await provider.writeDocument('Old content')
+
+      await callTool('document_write', { content: 'New content' })
+
+      const content = await provider.readDocument()
+      expect(content).toBe('New content')
+    })
+  })
+
+  describe('document_append', () => {
+    test('appends to document', async () => {
+      await provider.writeDocument('First')
+
+      const result = await callTool('document_append', { content: '\nSecond' })
+
+      expect(result).toBe('Content appended successfully')
+
+      const content = await provider.readDocument()
+      expect(content).toBe('First\nSecond')
+    })
+
+    test('appends to empty document', async () => {
+      await callTool('document_append', { content: 'First content' })
+
+      const content = await provider.readDocument()
+      expect(content).toBe('First content')
+    })
+  })
+
+  describe('workflow_agents', () => {
+    test('lists all agents in workflow', async () => {
+      const result = (await callTool('workflow_agents', {})) as {
+        agents: Array<{ name: string; mention: string; isYou: boolean }>
+        count: number
+        hint: string
+      }
+
+      expect(result.count).toBe(3)
+      expect(result.agents).toHaveLength(3)
+      expect(result.agents[0]).toEqual({
+        name: 'agent1',
+        mention: '@agent1',
+        isYou: false,
+      })
+      expect(result.agents[1]).toEqual({
+        name: 'agent2',
+        mention: '@agent2',
+        isYou: false,
+      })
+      expect(result.hint).toContain('@agent')
+    })
+
+    test('marks current agent with isYou', async () => {
+      const result = (await callTool(
+        'workflow_agents',
+        {},
+        { sessionId: 'agent2' }
+      )) as {
+        agents: Array<{ name: string; mention: string; isYou: boolean }>
+      }
+
+      expect(result.agents.find((a) => a.name === 'agent1')?.isYou).toBe(false)
+      expect(result.agents.find((a) => a.name === 'agent2')?.isYou).toBe(true)
+      expect(result.agents.find((a) => a.name === 'agent3')?.isYou).toBe(false)
+    })
+
+    test('uses anonymous when no sessionId', async () => {
+      const result = (await callTool('workflow_agents', {})) as {
+        agents: Array<{ isYou: boolean }>
+      }
+
+      // All agents should have isYou: false when caller is anonymous
+      expect(result.agents.every((a) => a.isYou === false)).toBe(true)
+    })
+  })
+})
+
 // ==================== Transport Tests ====================
 
 describe('getSocketPath', () => {
