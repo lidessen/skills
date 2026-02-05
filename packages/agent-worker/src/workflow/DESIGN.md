@@ -648,7 +648,7 @@ Different CLI backends have different MCP configuration approaches:
 | Backend | Config Method | Isolation |
 |---------|--------------|-----------|
 | Claude CLI | `--mcp-config` flag | ✓ Full runtime isolation |
-| Codex CLI | `~/.codex/config.toml` | ✗ User-level only |
+| Codex CLI | `.codex/config.toml` | ✓ Project-level (trusted projects) |
 | Cursor Agent | `.cursor/mcp.json` file | ✓ Project-level |
 
 **MCP Config File Format** (generated per workflow instance):
@@ -677,17 +677,18 @@ claude -p --strict-mcp-config --mcp-config .workflow/pr-123/mcp.json "your promp
 claude -p --mcp-config '{"mcpServers":{"context":{"type":"stdio","command":"node","args":["server.js"]}}}' "prompt"
 ```
 
-**Codex CLI** (user-level config - requires add/remove):
+**Codex CLI** (project-level config - trusted projects):
 ```bash
-# No runtime flag available - must modify user config
-# Add before workflow
-codex mcp add workflow-context -- node .workflow/pr-123/context-server.js
+# Create project-level config (auto-discovered from project root)
+# File: .codex/config.toml
+[mcp_servers.workflow-context]
+command = "node"
+args = [".workflow/pr-123/context-server.js"]
 
-# Run workflow
+# Run - config is auto-discovered
 codex "your prompt"
 
-# Remove after workflow (cleanup)
-codex mcp remove workflow-context
+# Cleanup: delete or restore .codex/config.toml
 ```
 
 **Cursor Agent** (project-level file discovery):
@@ -728,14 +729,17 @@ async function startClaudeAgent(agentId: string, mcpConfigPath: string, prompt: 
     --system-prompt "You are ${agentId}" "${prompt}"`)
 }
 
-// Codex CLI - requires add/remove (less ideal)
+// Codex CLI - project-level config file
 async function startCodexAgent(agentId: string, serverCmd: string, prompt: string) {
-  const serverName = `workflow-${agentId}`
-  await exec(`codex mcp add ${serverName} -- ${serverCmd}`)
+  const configPath = '.codex/config.toml'
+  const backup = existsSync(configPath) ? readFileSync(configPath) : null
+  const toml = `[mcp_servers.workflow-context]\ncommand = "node"\nargs = ["${serverCmd}"]`
+  mkdirSync('.codex', { recursive: true })
+  writeFileSync(configPath, toml)
   try {
     await exec(`codex "${prompt}"`)
   } finally {
-    await exec(`codex mcp remove ${serverName}`)  // Cleanup
+    backup ? writeFileSync(configPath, backup) : unlinkSync(configPath)  // Restore
   }
 }
 
@@ -756,7 +760,7 @@ async function startCursorAgent(agentId: string, mcpConfig: object, prompt: stri
 | Backend | Isolation | Cleanup Required |
 |---------|-----------|------------------|
 | Claude CLI | ✓ Full (runtime flag) | None |
-| Codex CLI | ✗ User-level pollution | `codex mcp remove` |
+| Codex CLI | ✓ Project-level | Restore `.codex/config.toml` |
 | Cursor Agent | ✓ Project-level | Restore `.cursor/mcp.json` |
 
 ### Workflow Startup Flow
@@ -1099,9 +1103,9 @@ agent-worker send "Check the notes in the document"
 
 ### Phase 6: Agent MCP Integration
 - [ ] SDK backend: inject MCP client with Unix socket
-- [ ] Generate per-instance mcp.json config file
+- [ ] Generate per-instance MCP config files
 - [ ] Claude CLI: pass `--mcp-config` and `--strict-mcp-config` at runtime
-- [ ] Codex CLI: use `codex mcp add/remove` with cleanup handling
+- [ ] Codex CLI: manage `.codex/config.toml` with backup/restore
 - [ ] Cursor Agent: manage `.cursor/mcp.json` with backup/restore
 - [ ] Fallback: `agent-worker context` CLI wrapper for unsupported backends
 
