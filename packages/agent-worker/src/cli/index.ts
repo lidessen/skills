@@ -887,4 +887,81 @@ program
     console.log('Tool management (add, mock, import) is only supported with SDK backend.')
   })
 
+// ============================================================================
+// Workflow commands
+// ============================================================================
+
+// Run workflow
+program
+  .command('run <file>')
+  .description('Execute workflow tasks and exit')
+  .option('--instance <name>', 'Instance name', 'default')
+  .option('--lazy', 'Lazy agent startup')
+  .option('--verbose', 'Show detailed progress')
+  .option('--json', 'Output results as JSON')
+  .action(async (file, options) => {
+    const { parseWorkflowFile, runWorkflow } = await import('../workflow/index.ts')
+
+    try {
+      // Parse workflow
+      const workflow = await parseWorkflowFile(file)
+
+      if (options.verbose) {
+        console.log(`Running workflow: ${workflow.name}`)
+        console.log(`Agents: ${Object.keys(workflow.agents).join(', ')}`)
+        console.log(`Tasks: ${workflow.tasks.length}`)
+        console.log('')
+      }
+
+      // TODO: Implement full agent management
+      // For now, print workflow info
+      console.log(`Workflow: ${workflow.name}`)
+      console.log(`Instance: ${options.instance}`)
+      console.log(`Agents: ${Object.keys(workflow.agents).join(', ')}`)
+      console.log(`Tasks: ${workflow.tasks.length}`)
+      console.log('')
+      console.log('Note: Full workflow execution not yet implemented.')
+      console.log('This command will execute tasks using managed agents.')
+
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : String(error))
+      process.exit(1)
+    }
+  })
+
+// List running workflows/agents (ps)
+program
+  .command('ps')
+  .description('List running agents from workflows')
+  .option('--json', 'Output as JSON')
+  .action((options) => {
+    const sessions = listSessions()
+
+    if (sessions.length === 0) {
+      console.log('No running agents')
+      return
+    }
+
+    if (options.json) {
+      console.log(JSON.stringify(sessions.map(s => ({
+        name: s.name,
+        model: s.model,
+        backend: s.backend,
+        running: isSessionRunning(s.id),
+      })), null, 2))
+      return
+    }
+
+    // Table header
+    console.log('NAME'.padEnd(25) + 'MODEL'.padEnd(35) + 'STATUS')
+    console.log('-'.repeat(70))
+
+    for (const s of sessions) {
+      const running = isSessionRunning(s.id)
+      const status = running ? 'running' : 'stopped'
+      const name = s.name || s.id.slice(0, 8)
+      console.log(name.padEnd(25) + s.model.padEnd(35) + status)
+    }
+  })
+
 program.parse()
