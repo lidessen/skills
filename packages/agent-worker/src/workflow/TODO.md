@@ -47,12 +47,12 @@ Implementation tasks for the workflow v2 design. See [DESIGN.md](./DESIGN.md) fo
 
 ## Phase 6: Agent MCP Integration
 
-- [ ] SDK backend: inject MCP client with Unix socket
-- [ ] Generate per-instance MCP config files
-- [ ] Claude CLI: pass `--mcp-config` and `--strict-mcp-config` at runtime
-- [ ] Codex CLI: manage `.codex/config.toml` with backup/restore
-- [ ] Cursor Agent: manage `.cursor/mcp.json` with backup/restore
-- [ ] Fallback: `agent-worker context` CLI wrapper for unsupported backends
+- [x] SDK backend: inject MCP client with Unix socket (via env vars)
+- [x] Generate per-instance MCP config files (mcp-config.ts)
+- [x] Claude CLI: pass `--mcp-config` with generated config
+- [x] Codex CLI: manage `.codex/config.toml` with backup/restore
+- [x] Cursor Agent: manage `.cursor/mcp.json` with backup/restore
+- [x] Fallback: `agent-worker context mcp-stdio` bridge command
 
 ---
 
@@ -65,4 +65,4 @@ Implementation tasks for the workflow v2 design. See [DESIGN.md](./DESIGN.md) fo
 | 3. Kickoff Model | ✅ Complete | runner-v2 with setup + kickoff execution |
 | 4. CLI Updates | ✅ Complete | start/stop/list commands + context subcommand |
 | 5. Run/Start Modes | Not started | |
-| 6. Agent MCP Integration | Not started | |
+| 6. Agent MCP Integration | ✅ Complete | mcp-config.ts + mcp-stdio bridge |

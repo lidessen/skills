@@ -1556,4 +1556,38 @@ documentCmd
     console.log('Content appended')
   })
 
+// MCP stdio bridge (for external CLI tools)
+contextCmd
+  .command('mcp-stdio')
+  .description('Bridge MCP over stdio (for external CLI tools)')
+  .requiredOption('--socket <path>', 'Unix socket path to connect to')
+  .requiredOption('--agent <name>', 'Agent identity for the connection')
+  .action(async (options) => {
+    const { createConnection } = await import('node:net')
+
+    // Connect to the Unix socket
+    const socket = createConnection(options.socket)
+
+    // Send agent ID header
+    socket.write(`X-Agent-Id: ${options.agent}\n\n`)
+
+    // Bridge stdio to socket
+    process.stdin.pipe(socket)
+    socket.pipe(process.stdout)
+
+    socket.on('error', (err) => {
+      console.error('Socket error:', err.message)
+      process.exit(1)
+    })
+
+    socket.on('close', () => {
+      process.exit(0)
+    })
+
+    // Handle stdin close
+    process.stdin.on('end', () => {
+      socket.end()
+    })
+  })
+
 program.parse()
