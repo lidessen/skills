@@ -8,6 +8,7 @@ import {
   MemoryContextProvider,
   FileContextProvider,
   createFileContextProvider,
+  createContextMCPServer,
 } from '../src/workflow/context/index.ts'
 
 // ==================== extractMentions Tests ====================
@@ -347,5 +348,53 @@ describe('createFileContextProvider', () => {
 
     expect(existsSync(join(testDir, 'custom-channel.md'))).toBe(true)
     expect(existsSync(join(testDir, 'custom-notes.md'))).toBe(true)
+  })
+})
+
+// ==================== createContextMCPServer Tests ====================
+
+describe('createContextMCPServer', () => {
+  let provider: MemoryContextProvider
+
+  beforeEach(() => {
+    provider = new MemoryContextProvider(['agent1', 'agent2', 'agent3'])
+  })
+
+  test('creates server with correct name and version', () => {
+    const { server } = createContextMCPServer({
+      provider,
+      validAgents: ['agent1', 'agent2'],
+      name: 'test-context',
+      version: '2.0.0',
+    })
+
+    expect(server).toBeDefined()
+  })
+
+  test('creates server with default name and version', () => {
+    const { server } = createContextMCPServer({
+      provider,
+      validAgents: ['agent1'],
+    })
+
+    expect(server).toBeDefined()
+  })
+
+  test('tracks valid agents', () => {
+    const { validAgents } = createContextMCPServer({
+      provider,
+      validAgents: ['agent1', 'agent2', 'agent3'],
+    })
+
+    expect(validAgents).toEqual(['agent1', 'agent2', 'agent3'])
+  })
+
+  test('initializes empty agent connections', () => {
+    const { agentConnections } = createContextMCPServer({
+      provider,
+      validAgents: ['agent1'],
+    })
+
+    expect(agentConnections.size).toBe(0)
   })
 })

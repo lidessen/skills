@@ -14,11 +14,11 @@ Implementation tasks for the workflow v2 design. See [DESIGN.md](./DESIGN.md) fo
 
 ## Phase 2: Context MCP Server
 
-- [ ] Add `@modelcontextprotocol/sdk` dependency
-- [ ] Create `createContextMCPServer()` function
-- [ ] Implement tools: `channel_send`, `channel_read`, `channel_peek`
-- [ ] Implement tools: `document_read`, `document_write`, `document_append`
-- [ ] Implement `notifications/mention` for @mention push
+- [x] Add `@modelcontextprotocol/sdk` dependency
+- [x] Create `createContextMCPServer()` function
+- [x] Implement tools: `channel_send`, `channel_read`, `channel_peek`
+- [x] Implement tools: `document_read`, `document_write`, `document_append`
+- [ ] Implement `notifications/mention` for @mention push (pending MCP SDK support)
 - [ ] Unix socket transport (primary)
 - [ ] HTTP transport (fallback, with dynamic port allocation)
 - [ ] stdio transport (testing)
@@ -61,7 +61,7 @@ Implementation tasks for the workflow v2 design. See [DESIGN.md](./DESIGN.md) fo
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 1. Context Provider | ✅ Complete | `context/` module with Memory + File providers |
-| 2. Context MCP Server | Not started | |
+| 2. Context MCP Server | 🔄 In Progress | MCP tools done, transports pending |
 | 3. Kickoff Model | Not started | |
 | 4. CLI Updates | Not started | |
 | 5. Run/Start Modes | Not started | |
