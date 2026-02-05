@@ -353,9 +353,10 @@ async function handleRequest(req: Request): Promise<Response> {
         }
 
       case 'send': {
-        const { message, options } = req.payload as {
+        const { message, options, async } = req.payload as {
           message: string
           options?: { autoApprove?: boolean }
+          async?: boolean
         }
 
         // CLI backend path
@@ -363,6 +364,43 @@ async function handleRequest(req: Request): Promise<Response> {
           const timestamp = new Date().toISOString()
           state.cliHistory.push({ role: 'user', content: message, timestamp })
 
+          // Async mode: return immediately, process in background
+          if (async) {
+            // Add placeholder for assistant response
+            state.cliHistory.push({
+              role: 'assistant',
+              content: '(processing...)',
+              timestamp: new Date().toISOString(),
+            })
+
+            // Process in background
+            backend.send(message, { system: info.system })
+              .then((result) => {
+                // Update the last message (which is the placeholder)
+                const lastMsg = state.cliHistory[state.cliHistory.length - 1]
+                if (lastMsg && lastMsg.content === '(processing...)') {
+                  lastMsg.content = result.content
+                  lastMsg.timestamp = new Date().toISOString()
+                }
+              })
+              .catch((error) => {
+                const lastMsg = state.cliHistory[state.cliHistory.length - 1]
+                if (lastMsg && lastMsg.content === '(processing...)') {
+                  lastMsg.content = `Error: ${error instanceof Error ? error.message : String(error)}`
+                  lastMsg.timestamp = new Date().toISOString()
+                }
+              })
+
+            return {
+              success: true,
+              data: {
+                async: true,
+                message: 'Message sent. Use "history" command to view response.',
+              },
+            }
+          }
+
+          // Sync mode: wait for response
           const result = await backend.send(message, { system: info.system })
           state.cliHistory.push({
             role: 'assistant',
@@ -384,6 +422,24 @@ async function handleRequest(req: Request): Promise<Response> {
 
         // SDK backend path
         if (session) {
+          // Async mode for SDK backend
+          if (async) {
+            // Process in background, return immediately
+            session.send(message, options)
+              .catch((error) => {
+                console.error('Background send error:', error)
+              })
+
+            return {
+              success: true,
+              data: {
+                async: true,
+                message: 'Message sent. Use "history" command to view response.',
+              },
+            }
+          }
+
+          // Sync mode
           const response = await session.send(message, options)
           return { success: true, data: response }
         }

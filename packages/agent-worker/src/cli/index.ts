@@ -193,6 +193,8 @@ program
   .option('--json', 'Output full JSON response')
   .option('--auto-approve', 'Auto-approve all tool calls (default)')
   .option('--no-auto-approve', 'Require manual approval')
+  .option('--async', 'Send message asynchronously (return immediately, view response via history)')
+  .option('--debug', 'Show debug information')
   .action(async (message, options) => {
     const target = options.to
 
@@ -208,12 +210,19 @@ program
     const autoApprove = options.autoApprove !== false
     const res = await sendRequest({
       action: 'send',
-      payload: { message, options: { autoApprove } },
-    }, target)
+      payload: { message, options: { autoApprove }, async: options.async },
+    }, target, { debug: options.debug })
 
     if (!res.success) {
       console.error('Error:', res.error)
       process.exit(1)
+    }
+
+    // Handle async response
+    if (options.async) {
+      const asyncData = res.data as { async: boolean; message: string }
+      console.log(asyncData.message)
+      return
     }
 
     const response = res.data as {
