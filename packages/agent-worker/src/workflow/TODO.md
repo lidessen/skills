@@ -27,8 +27,8 @@ Implementation tasks for the workflow v2 design. See [DESIGN.md](./DESIGN.md) fo
 
 - [x] Update workflow schema: `setup` + `kickoff` (replace `tasks`)
 - [x] Parse and validate new schema
-- [ ] Send kickoff to channel on workflow start
-- [ ] Trigger agents on @mention via MCP notification
+- [x] Send kickoff to channel on workflow start (via runner-v2)
+- [ ] Trigger agents on @mention via MCP notification (requires polling or notification)
 
 ## Phase 4: CLI Updates
 
@@ -62,7 +62,7 @@ Implementation tasks for the workflow v2 design. See [DESIGN.md](./DESIGN.md) fo
 |-------|--------|-------|
 | 1. Context Provider | ✅ Complete | `context/` module with Memory + File providers |
 | 2. Context MCP Server | ✅ Complete | MCP tools + stdio/Unix socket transports |
-| 3. Kickoff Model | 🔄 In Progress | Schema + parser done, runtime pending |
+| 3. Kickoff Model | ✅ Complete | runner-v2 with setup + kickoff execution |
 | 4. CLI Updates | ✅ Complete | start/stop/list commands + context subcommand |
 | 5. Run/Start Modes | Not started | |
 | 6. Agent MCP Integration | Not started | |
