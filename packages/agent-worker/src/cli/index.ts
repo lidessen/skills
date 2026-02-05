@@ -19,16 +19,262 @@ const program = new Command()
 
 program
   .name('agent-worker')
-  .description('CLI for creating and testing agent workers')
+  .description('CLI for creating and managing AI agents')
   .version('0.0.1')
 
-// Session commands
-const sessionCmd = program.command('session').description('Manage sessions')
+// Helper to show deprecation warning
+function deprecationWarning(oldCmd: string, newCmd: string) {
+  console.error(`\x1b[33mWarning: '${oldCmd}' is deprecated. Use '${newCmd}' instead.\x1b[0m\n`)
+}
+
+// Common action for creating new agent
+async function createAgentAction(name: string | undefined, options: {
+  model?: string
+  backend?: string
+  system?: string
+  systemFile?: string
+  idleTimeout?: string
+  skill?: string[]
+  skillDir?: string[]
+  importSkill?: string[]
+  foreground?: boolean
+  instance?: string
+}) {
+  let system = options.system ?? 'You are a helpful assistant.'
+  if (options.systemFile) {
+    system = readFileSync(options.systemFile, 'utf-8')
+  }
+
+  const backend = (options.backend ?? 'sdk') as BackendType
+  const model = options.model || getDefaultModel()
+  const idleTimeout = parseInt(options.idleTimeout ?? '1800000', 10)
+
+  if (options.foreground) {
+    startServer({
+      model,
+      system,
+      name,
+      idleTimeout,
+      backend,
+      skills: options.skill,
+      skillDirs: options.skillDir,
+      importSkills: options.importSkill,
+    })
+  } else {
+    const args = [process.argv[1], 'new', '-m', model, '-b', backend, '-s', system, '--foreground']
+    if (name) {
+      args.splice(2, 0, name)
+    }
+    args.push('--idle-timeout', String(idleTimeout))
+    if (options.skill) {
+      for (const skillPath of options.skill) {
+        args.push('--skill', skillPath)
+      }
+    }
+    if (options.skillDir) {
+      for (const dir of options.skillDir) {
+        args.push('--skill-dir', dir)
+      }
+    }
+    if (options.importSkill) {
+      for (const spec of options.importSkill) {
+        args.push('--import-skill', spec)
+      }
+    }
+
+    const child = spawn(process.execPath, args, {
+      detached: true,
+      stdio: 'ignore',
+    })
+    child.unref()
+
+    // Wait for ready signal instead of blind timeout
+    const info = await waitForReady(name, 5000)
+    if (info) {
+      const nameStr = name ? ` (${name})` : ''
+      console.log(`Agent started: ${info.id}${nameStr}`)
+      console.log(`Model: ${info.model}`)
+      console.log(`Backend: ${backend}`)
+    } else {
+      console.error('Failed to start agent')
+      process.exit(1)
+    }
+  }
+}
+
+// Common action for listing agents
+function listAgentsAction() {
+  const sessions = listSessions()
+  if (sessions.length === 0) {
+    console.log('No active agents')
+    return
+  }
+
+  for (const s of sessions) {
+    const running = isSessionRunning(s.id)
+    const status = running ? 'running' : 'stopped'
+    const nameStr = s.name ? ` (${s.name})` : ''
+    console.log(`  ${s.id.slice(0, 8)}${nameStr} - ${s.model} [${status}]`)
+  }
+}
+
+// ============================================================================
+// Agent commands (new)
+// ============================================================================
+const agentCmd = program.command('agent').description('Manage agents')
+
+agentCmd
+  .command('new [name]')
+  .description('Create a new agent')
+  .option('-m, --model <model>', `Model identifier (default: ${getDefaultModel()})`)
+  .addOption(
+    new Option('-b, --backend <type>', 'Backend type')
+      .choices(['sdk', 'claude', 'codex', 'cursor'])
+      .default('sdk')
+  )
+  .option('-s, --system <prompt>', 'System prompt', 'You are a helpful assistant.')
+  .option('-f, --system-file <file>', 'Read system prompt from file')
+  .option('--idle-timeout <ms>', 'Idle timeout in ms (0 = no timeout)', '1800000')
+  .option('--skill <path...>', 'Add individual skill directories')
+  .option('--skill-dir <path...>', 'Scan directories for skills')
+  .option('--import-skill <spec...>', 'Import skills from Git (owner/repo:{skill1,skill2})')
+  .option('--instance <name>', 'Instance name')
+  .option('--foreground', 'Run in foreground')
+  .action(createAgentAction)
+
+agentCmd
+  .command('list')
+  .description('List all agents')
+  .action(listAgentsAction)
+
+agentCmd
+  .command('status [target]')
+  .description('Check agent status')
+  .action(async (target) => {
+    if (!isSessionRunning(target)) {
+      console.log(target ? `Agent not found: ${target}` : 'No active agent')
+      return
+    }
+
+    const res = await sendRequest({ action: 'ping' }, target)
+    if (res.success && res.data) {
+      const { id, model, name } = res.data as { id: string; model: string; name?: string }
+      const nameStr = name ? ` (${name})` : ''
+      console.log(`Agent: ${id}${nameStr}`)
+      console.log(`Model: ${model}`)
+    }
+  })
+
+agentCmd
+  .command('use <target>')
+  .description('Set default agent')
+  .action((target) => {
+    if (setDefaultSession(target)) {
+      console.log(`Default agent set to: ${target}`)
+    } else {
+      console.error(`Agent not found: ${target}`)
+      process.exit(1)
+    }
+  })
+
+agentCmd
+  .command('end [target]')
+  .description('End an agent (or all with --all)')
+  .option('--all', 'End all agents')
+  .action(async (target, options) => {
+    if (options.all) {
+      const sessions = listSessions()
+      for (const s of sessions) {
+        if (isSessionRunning(s.id)) {
+          await sendRequest({ action: 'shutdown' }, s.id)
+          console.log(`Ended: ${s.name || s.id}`)
+        }
+      }
+      return
+    }
+
+    if (!isSessionRunning(target)) {
+      console.log(target ? `Agent not found: ${target}` : 'No active agent')
+      return
+    }
+
+    const res = await sendRequest({ action: 'shutdown' }, target)
+    if (res.success) {
+      console.log('Agent ended')
+    } else {
+      console.error('Error:', res.error)
+    }
+  })
+
+// ============================================================================
+// Top-level shortcuts
+// ============================================================================
+
+// `new` as shorthand for `agent new`
+program
+  .command('new [name]')
+  .description('Create a new agent (shorthand for "agent new")')
+  .option('-m, --model <model>', `Model identifier (default: ${getDefaultModel()})`)
+  .addOption(
+    new Option('-b, --backend <type>', 'Backend type')
+      .choices(['sdk', 'claude', 'codex', 'cursor'])
+      .default('sdk')
+  )
+  .option('-s, --system <prompt>', 'System prompt', 'You are a helpful assistant.')
+  .option('-f, --system-file <file>', 'Read system prompt from file')
+  .option('--idle-timeout <ms>', 'Idle timeout in ms (0 = no timeout)', '1800000')
+  .option('--skill <path...>', 'Add individual skill directories')
+  .option('--skill-dir <path...>', 'Scan directories for skills')
+  .option('--import-skill <spec...>', 'Import skills from Git (owner/repo:{skill1,skill2})')
+  .option('--instance <name>', 'Instance name')
+  .option('--foreground', 'Run in foreground')
+  .action(createAgentAction)
+
+// `ls` as alias for `agent list`
+program
+  .command('ls')
+  .description('List all agents (alias for "agent list")')
+  .action(listAgentsAction)
+
+// `down` as alias for `agent end`
+program
+  .command('down [target]')
+  .description('Stop an agent (alias for "agent end")')
+  .option('--all', 'Stop all agents')
+  .action(async (target, options) => {
+    if (options.all) {
+      const sessions = listSessions()
+      for (const s of sessions) {
+        if (isSessionRunning(s.id)) {
+          await sendRequest({ action: 'shutdown' }, s.id)
+          console.log(`Stopped: ${s.name || s.id}`)
+        }
+      }
+      return
+    }
+
+    if (!isSessionRunning(target)) {
+      console.log(target ? `Agent not found: ${target}` : 'No active agent')
+      return
+    }
+
+    const res = await sendRequest({ action: 'shutdown' }, target)
+    if (res.success) {
+      console.log('Agent stopped')
+    } else {
+      console.error('Error:', res.error)
+    }
+  })
+
+// ============================================================================
+// Deprecated session commands (aliases with warnings)
+// ============================================================================
+const sessionCmd = program.command('session').description('Manage sessions (deprecated, use "agent")')
 
 sessionCmd
   .command('new')
-  .description('Create a new session')
-  .option('-m, --model <model>', `Model identifier (default: ${getDefaultModel()})`)
+  .description('Create a new session (deprecated)')
+  .option('-m, --model <model>', `Model identifier`)
   .addOption(
     new Option('-b, --backend <type>', 'Backend type')
       .choices(['sdk', 'claude', 'codex', 'cursor'])
@@ -43,95 +289,25 @@ sessionCmd
   .option('--import-skill <spec...>', 'Import skills from Git (owner/repo:{skill1,skill2})')
   .option('--foreground', 'Run in foreground')
   .action(async (options) => {
-    let system = options.system
-    if (options.systemFile) {
-      system = readFileSync(options.systemFile, 'utf-8')
-    }
-
-    const backend = options.backend as BackendType
-
-    // Use default model if not specified
-    const model = options.model || getDefaultModel()
-
-    const idleTimeout = parseInt(options.idleTimeout, 10)
-
-    if (options.foreground) {
-      startServer({
-        model,
-        system,
-        name: options.name,
-        idleTimeout,
-        backend,
-        skills: options.skill,
-        skillDirs: options.skillDir,
-        importSkills: options.importSkill,
-      })
-    } else {
-      const args = [process.argv[1], 'session', 'new', '-m', model, '-b', backend, '-s', system, '--foreground']
-      if (options.name) {
-        args.push('-n', options.name)
-      }
-      args.push('--idle-timeout', String(idleTimeout))
-      if (options.skill) {
-        for (const skillPath of options.skill) {
-          args.push('--skill', skillPath)
-        }
-      }
-      if (options.skillDir) {
-        for (const dir of options.skillDir) {
-          args.push('--skill-dir', dir)
-        }
-      }
-      if (options.importSkill) {
-        for (const spec of options.importSkill) {
-          args.push('--import-skill', spec)
-        }
-      }
-
-      const child = spawn(process.execPath, args, {
-        detached: true,
-        stdio: 'ignore',
-      })
-      child.unref()
-
-      // Wait for ready signal instead of blind timeout
-      const info = await waitForReady(options.name, 5000)
-      if (info) {
-        const nameStr = options.name ? ` (${options.name})` : ''
-        console.log(`Session started: ${info.id}${nameStr}`)
-        console.log(`Model: ${info.model}`)
-        console.log(`Backend: ${backend}`)
-      } else {
-        console.error('Failed to start session')
-        process.exit(1)
-      }
-    }
+    deprecationWarning('session new', 'new <name> or agent new')
+    await createAgentAction(options.name, options)
   })
 
 sessionCmd
   .command('list')
-  .description('List all sessions')
+  .description('List all sessions (deprecated)')
   .action(() => {
-    const sessions = listSessions()
-    if (sessions.length === 0) {
-      console.log('No active sessions')
-      return
-    }
-
-    for (const s of sessions) {
-      const running = isSessionRunning(s.id)
-      const status = running ? 'running' : 'stopped'
-      const nameStr = s.name ? ` (${s.name})` : ''
-      console.log(`  ${s.id.slice(0, 8)}${nameStr} - ${s.model} [${status}]`)
-    }
+    deprecationWarning('session list', 'ls or agent list')
+    listAgentsAction()
   })
 
 sessionCmd
   .command('status [target]')
-  .description('Check session status')
+  .description('Check session status (deprecated)')
   .action(async (target) => {
+    deprecationWarning('session status', 'agent status')
     if (!isSessionRunning(target)) {
-      console.log(target ? `Session not found: ${target}` : 'No active session')
+      console.log(target ? `Agent not found: ${target}` : 'No active agent')
       return
     }
 
@@ -139,28 +315,30 @@ sessionCmd
     if (res.success && res.data) {
       const { id, model, name } = res.data as { id: string; model: string; name?: string }
       const nameStr = name ? ` (${name})` : ''
-      console.log(`Session: ${id}${nameStr}`)
+      console.log(`Agent: ${id}${nameStr}`)
       console.log(`Model: ${model}`)
     }
   })
 
 sessionCmd
   .command('use <target>')
-  .description('Set default session')
+  .description('Set default session (deprecated)')
   .action((target) => {
+    deprecationWarning('session use', 'agent use')
     if (setDefaultSession(target)) {
-      console.log(`Default session set to: ${target}`)
+      console.log(`Default agent set to: ${target}`)
     } else {
-      console.error(`Session not found: ${target}`)
+      console.error(`Agent not found: ${target}`)
       process.exit(1)
     }
   })
 
 sessionCmd
   .command('end [target]')
-  .description('End a session (or all with --all)')
+  .description('End a session (deprecated)')
   .option('--all', 'End all sessions')
   .action(async (target, options) => {
+    deprecationWarning('session end', 'down or agent end')
     if (options.all) {
       const sessions = listSessions()
       for (const s of sessions) {
@@ -173,13 +351,13 @@ sessionCmd
     }
 
     if (!isSessionRunning(target)) {
-      console.log(target ? `Session not found: ${target}` : 'No active session')
+      console.log(target ? `Agent not found: ${target}` : 'No active agent')
       return
     }
 
     const res = await sendRequest({ action: 'shutdown' }, target)
     if (res.success) {
-      console.log('Session ended')
+      console.log('Agent ended')
     } else {
       console.error('Error:', res.error)
     }
@@ -189,7 +367,7 @@ sessionCmd
 program
   .command('send <message>')
   .description('Send a message (async by default, use --wait to wait for response)')
-  .option('--to <target>', 'Target session (name or ID)')
+  .option('--to <target>', 'Target agent (name or name@instance)')
   .option('--json', 'Output full JSON response')
   .option('--auto-approve', 'Auto-approve all tool calls (default)')
   .option('--no-auto-approve', 'Require manual approval')
@@ -200,9 +378,9 @@ program
 
     if (!isSessionActive(target)) {
       if (target) {
-        console.error(`Session not found: ${target}`)
+        console.error(`Agent not found: ${target}`)
       } else {
-        console.error('No active session. Create one with: agent-worker session new -m <model>')
+        console.error('No active agent. Create one with: agent-worker new <name> -m <model>')
       }
       process.exit(1)
     }
@@ -259,7 +437,7 @@ const toolCmd = program.command('tool').description('Manage tools')
 toolCmd
   .command('add <name>')
   .description('Add a tool')
-  .option('--to <target>', 'Target session')
+  .option('--to <target>', 'Target agent')
   .requiredOption('-d, --desc <description>', 'Tool description')
   .option('-p, --param <params...>', 'Parameters (name:type:description)')
   .option('--needs-approval', 'Require approval')
@@ -267,7 +445,7 @@ toolCmd
     const target = options.to
 
     if (!isSessionActive(target)) {
-      console.error(target ? `Session not found: ${target}` : 'No active session')
+      console.error(target ? `Agent not found: ${target}` : 'No active agent')
       process.exit(1)
     }
 
@@ -303,12 +481,12 @@ toolCmd
 toolCmd
   .command('import <file>')
   .description('Import tools from JS/TS file')
-  .option('--to <target>', 'Target session')
+  .option('--to <target>', 'Target agent')
   .action(async (file, options) => {
     const target = options.to
 
     if (!isSessionActive(target)) {
-      console.error(target ? `Session not found: ${target}` : 'No active session')
+      console.error(target ? `Agent not found: ${target}` : 'No active agent')
       process.exit(1)
     }
 
@@ -341,12 +519,12 @@ toolCmd
 toolCmd
   .command('mock <name> <response>')
   .description('Set mock response')
-  .option('--to <target>', 'Target session')
+  .option('--to <target>', 'Target agent')
   .action(async (name, response, options) => {
     const target = options.to
 
     if (!isSessionActive(target)) {
-      console.error(target ? `Session not found: ${target}` : 'No active session')
+      console.error(target ? `Agent not found: ${target}` : 'No active agent')
       process.exit(1)
     }
 
@@ -372,12 +550,12 @@ toolCmd
 toolCmd
   .command('list')
   .description('List tools')
-  .option('--to <target>', 'Target session')
+  .option('--to <target>', 'Target agent')
   .action(async (options) => {
     const target = options.to
 
     if (!isSessionActive(target)) {
-      console.error(target ? `Session not found: ${target}` : 'No active session')
+      console.error(target ? `Agent not found: ${target}` : 'No active agent')
       process.exit(1)
     }
 
@@ -403,7 +581,7 @@ toolCmd
 program
   .command('peek')
   .description('View conversation messages (default: last 10)')
-  .option('--to <target>', 'Target session')
+  .option('--to <target>', 'Target agent')
   .option('--json', 'Output as JSON')
   .option('--all', 'Show all messages')
   .option('-n, --last <count>', 'Show last N messages', parseInt)
@@ -412,7 +590,7 @@ program
     const target = options.to
 
     if (!isSessionActive(target)) {
-      console.error(target ? `Session not found: ${target}` : 'No active session')
+      console.error(target ? `Agent not found: ${target}` : 'No active agent')
       process.exit(1)
     }
 
@@ -454,13 +632,13 @@ program
 // Stats command
 program
   .command('stats')
-  .description('Show session statistics')
-  .option('--to <target>', 'Target session')
+  .description('Show agent statistics')
+  .option('--to <target>', 'Target agent')
   .action(async (options) => {
     const target = options.to
 
     if (!isSessionActive(target)) {
-      console.error(target ? `Session not found: ${target}` : 'No active session')
+      console.error(target ? `Agent not found: ${target}` : 'No active agent')
       process.exit(1)
     }
 
@@ -478,13 +656,13 @@ program
 // Export command
 program
   .command('export')
-  .description('Export session transcript')
-  .option('--to <target>', 'Target session')
+  .description('Export agent transcript')
+  .option('--to <target>', 'Target agent')
   .action(async (options) => {
     const target = options.to
 
     if (!isSessionActive(target)) {
-      console.error(target ? `Session not found: ${target}` : 'No active session')
+      console.error(target ? `Agent not found: ${target}` : 'No active agent')
       process.exit(1)
     }
 
@@ -501,12 +679,12 @@ program
 program
   .command('clear')
   .description('Clear conversation history')
-  .option('--to <target>', 'Target session')
+  .option('--to <target>', 'Target agent')
   .action(async (options) => {
     const target = options.to
 
     if (!isSessionActive(target)) {
-      console.error(target ? `Session not found: ${target}` : 'No active session')
+      console.error(target ? `Agent not found: ${target}` : 'No active agent')
       process.exit(1)
     }
 
@@ -522,13 +700,13 @@ program
 program
   .command('pending')
   .description('List pending tool approvals')
-  .option('--to <target>', 'Target session')
+  .option('--to <target>', 'Target agent')
   .option('--json', 'Output as JSON')
   .action(async (options) => {
     const target = options.to
 
     if (!isSessionActive(target)) {
-      console.error(target ? `Session not found: ${target}` : 'No active session')
+      console.error(target ? `Agent not found: ${target}` : 'No active agent')
       process.exit(1)
     }
 
@@ -565,13 +743,13 @@ program
 program
   .command('approve <id>')
   .description('Approve a pending tool call')
-  .option('--to <target>', 'Target session')
+  .option('--to <target>', 'Target agent')
   .option('--json', 'Output as JSON')
   .action(async (id, options) => {
     const target = options.to
 
     if (!isSessionActive(target)) {
-      console.error(target ? `Session not found: ${target}` : 'No active session')
+      console.error(target ? `Agent not found: ${target}` : 'No active agent')
       process.exit(1)
     }
 
@@ -593,13 +771,13 @@ program
 program
   .command('deny <id>')
   .description('Deny a pending tool call')
-  .option('--to <target>', 'Target session')
+  .option('--to <target>', 'Target agent')
   .option('-r, --reason <reason>', 'Reason for denial')
   .action(async (id, options) => {
     const target = options.to
 
     if (!isSessionActive(target)) {
-      console.error(target ? `Session not found: ${target}` : 'No active session')
+      console.error(target ? `Agent not found: ${target}` : 'No active agent')
       process.exit(1)
     }
 
@@ -677,11 +855,11 @@ program
     }
 
     console.log('\nUsage:')
-    console.log('  SDK backend:    agent-worker session new -m openai/gpt-5.2')
-    console.log('  SDK backend:    agent-worker session new -m anthropic/claude-sonnet-4-5')
-    console.log('  Claude CLI:     agent-worker session new -b claude')
-    console.log('  Codex CLI:      agent-worker session new -b codex')
-    console.log('  Cursor CLI:     agent-worker session new -b cursor')
+    console.log('  SDK backend:    agent-worker new myagent -m openai/gpt-5.2')
+    console.log('  SDK backend:    agent-worker new myagent -m anthropic/claude-sonnet-4-5')
+    console.log('  Claude CLI:     agent-worker new myagent -b claude')
+    console.log('  Codex CLI:      agent-worker new myagent -b codex')
+    console.log('  Cursor CLI:     agent-worker new myagent -b cursor')
     console.log('')
     console.log('Note: CLI backends use their own model selection. The -m flag is optional.')
     console.log('Tool management (add, mock, import) is only supported with SDK backend.')
