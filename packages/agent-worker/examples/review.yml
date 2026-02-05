@@ -1,0 +1,33 @@
+# Example workflow file
+name: code-review
+
+agents:
+  reviewer:
+    model: anthropic/claude-sonnet-4-5
+    system_prompt: |
+      You are a code reviewer. Review code changes and provide feedback.
+      Focus on code quality, potential bugs, and best practices.
+    tools:
+      - read_file
+
+  generator:
+    model: anthropic/claude-sonnet-4-5
+    system_prompt: You generate changesets in the standard format.
+
+tasks:
+  - shell: git diff --cached
+    as: diff
+
+  - send: |
+      Review these changes:
+      ${{ diff }}
+    to: reviewer
+    as: review
+
+  - send: |
+      Based on this review:
+      ${{ review }}
+
+      Generate a changeset.
+    to: generator
+    as: changeset
