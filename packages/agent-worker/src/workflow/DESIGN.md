@@ -265,6 +265,211 @@ document: {
 
 ---
 
+## Context MCP Server
+
+Context is provided to agents via an MCP server, not direct file access.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   Workflow Runner                        │
+│                                                          │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │              Context MCP Server                     │ │
+│  │                                                     │ │
+│  │  Tools:                Notifications:              │ │
+│  │   - channel_send        - mention                  │ │
+│  │   - channel_read                                   │ │
+│  │   - channel_peek                                   │ │
+│  │   - document_read                                  │ │
+│  │   - document_write                                 │ │
+│  │                                                     │ │
+│  │  Provider: FileProvider | MemoryProvider           │ │
+│  └─────────────────────┬───────────────────────────────┘ │
+│                        │                                 │
+└────────────────────────┼─────────────────────────────────┘
+                         │ MCP Protocol (stdio / HTTP)
+           ┌─────────────┼─────────────┐
+           │             │             │
+           ▼             ▼             ▼
+      ┌────────┐   ┌────────┐    ┌────────┐
+      │ Agent  │   │ Agent  │    │ Agent  │
+      │ (SDK)  │   │(Claude)│    │(Codex) │
+      └────────┘   └────────┘    └────────┘
+```
+
+### Implementation
+
+Using official MCP SDK (`@modelcontextprotocol/sdk`):
+
+```typescript
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { z } from 'zod'
+
+// Context Provider interface (storage abstraction)
+interface ContextProvider {
+  appendChannel(from: string, message: string): Promise<void>
+  readChannel(since?: string, limit?: number): Promise<ChannelEntry[]>
+  readDocument(): Promise<string>
+  writeDocument(content: string): Promise<void>
+}
+
+// MCP Server for Context
+function createContextMCPServer(
+  provider: ContextProvider,
+  validAgents: string[]
+) {
+  const server = new McpServer({
+    name: 'workflow-context',
+    version: '1.0.0',
+  })
+
+  // Channel tools
+  server.tool('channel_send', {
+    message: z.string().describe('Message to send, can include @mentions'),
+  }, async ({ message }, extra) => {
+    const from = extra.meta?.agentId as string
+    const mentions = extractMentions(message, validAgents)
+
+    await provider.appendChannel(from, message)
+
+    // Notify mentioned agents
+    for (const agent of mentions) {
+      await server.notification({
+        method: 'notifications/mention',
+        params: { from, target: agent, message },
+      })
+    }
+
+    return { content: [{ type: 'text', text: 'sent' }] }
+  })
+
+  server.tool('channel_read', {
+    since: z.string().optional(),
+    limit: z.number().optional(),
+  }, async ({ since, limit }) => {
+    const entries = await provider.readChannel(since, limit)
+    return { content: [{ type: 'text', text: JSON.stringify(entries) }] }
+  })
+
+  server.tool('channel_peek', {
+    limit: z.number().optional(),
+  }, async ({ limit }) => {
+    const entries = await provider.readChannel(undefined, limit)
+    return { content: [{ type: 'text', text: JSON.stringify(entries) }] }
+  })
+
+  // Document tools
+  server.tool('document_read', {}, async () => {
+    const content = await provider.readDocument()
+    return { content: [{ type: 'text', text: content }] }
+  })
+
+  server.tool('document_write', {
+    content: z.string(),
+  }, async ({ content }) => {
+    await provider.writeDocument(content)
+    return { content: [{ type: 'text', text: 'written' }] }
+  })
+
+  return server
+}
+```
+
+### Provider Implementations
+
+```typescript
+// File-based provider (production)
+class FileContextProvider implements ContextProvider {
+  constructor(
+    private channelPath: string,
+    private documentPath: string
+  ) {}
+
+  async appendChannel(from: string, message: string) {
+    const timestamp = new Date().toISOString().slice(11, 19)
+    const entry = `\n### ${timestamp} [${from}]\n${message}\n`
+    await fs.appendFile(this.channelPath, entry)
+  }
+
+  async readChannel(since?: string, limit?: number) {
+    const content = await fs.readFile(this.channelPath, 'utf-8')
+    return parseChannelMarkdown(content, since, limit)
+  }
+
+  async readDocument() {
+    return fs.readFile(this.documentPath, 'utf-8')
+  }
+
+  async writeDocument(content: string) {
+    await fs.writeFile(this.documentPath, content)
+  }
+}
+
+// Memory provider (testing)
+class MemoryContextProvider implements ContextProvider {
+  private channel: ChannelEntry[] = []
+  private document: string = ''
+  // ...
+}
+```
+
+### Transport Options
+
+```typescript
+// Option 1: stdio (same process)
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+const transport = new StdioServerTransport()
+await server.connect(transport)
+
+// Option 2: HTTP + SSE (remote)
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
+const transport = new StreamableHTTPServerTransport({ endpoint: '/mcp' })
+await server.connect(transport)
+
+// Option 3: Hono adapter
+import { Hono } from 'hono'
+import { toFetchHandler } from '@modelcontextprotocol/sdk/server/hono.js'
+
+const app = new Hono()
+app.all('/mcp/*', toFetchHandler(server))
+```
+
+### Agent Connection
+
+Workflow runner passes MCP connection info to agents:
+
+```typescript
+// For SDK backend - direct MCP client
+import { McpClient } from '@modelcontextprotocol/sdk/client/mcp.js'
+const client = new McpClient()
+await client.connect(transport)
+
+// For Claude CLI - via --mcp flag
+claude --mcp "http://localhost:3000/mcp"
+
+// For unsupported backends - CLI wrapper
+agent-worker context send "message"
+agent-worker context read
+```
+
+### Workflow Startup Flow
+
+```
+1. Parse workflow file
+2. Create ContextProvider (file or memory)
+3. Start Context MCP Server
+4. For each agent:
+   a. Start agent process
+   b. Connect agent to MCP server
+5. Send kickoff message to channel
+6. Agents collaborate via MCP tools
+7. On completion/stop: cleanup
+```
+
+---
+
 ## CLI Commands
 
 ### Unified Agent Namespace
@@ -551,27 +756,44 @@ agent-worker send "Check the notes in the document"
 
 ## Implementation Phases
 
-### Phase 1: Context System
-- [ ] Implement SharedContext class
-- [ ] Channel (append-only log with @mention detection)
-- [ ] Document (read/write workspace)
-- [ ] Context tools for agents
+### Phase 1: Context Provider
+- [ ] Define `ContextProvider` interface
+- [ ] Implement `FileContextProvider` (markdown storage)
+- [ ] Implement `MemoryContextProvider` (testing)
+- [ ] Channel: append-only with @mention extraction
+- [ ] Document: read/write workspace
 
-### Phase 2: Kickoff Model
-- [ ] Replace tasks with setup + kickoff
-- [ ] Implement @mention notification
-- [ ] Agent trigger on @mention
+### Phase 2: Context MCP Server
+- [ ] Add `@modelcontextprotocol/sdk` dependency
+- [ ] Create `createContextMCPServer()` function
+- [ ] Implement tools: `channel_send`, `channel_read`, `channel_peek`
+- [ ] Implement tools: `document_read`, `document_write`
+- [ ] Implement `notifications/mention` for @mention push
+- [ ] Support stdio and HTTP transports
 
-### Phase 3: CLI Updates
+### Phase 3: Kickoff Model
+- [ ] Update workflow schema: `setup` + `kickoff` (replace `tasks`)
+- [ ] Parse and validate new schema
+- [ ] Send kickoff to channel on workflow start
+- [ ] Trigger agents on @mention via MCP notification
+
+### Phase 4: CLI Updates
 - [ ] Rename `up` → `start`
 - [ ] Rename `down` → `stop`
 - [ ] Rename `ps` → `list`
 - [ ] Unify standalone and workflow agent listing
+- [ ] Add `context` subcommand for CLI fallback
 
-### Phase 4: Run/Start Modes
+### Phase 5: Run/Start Modes
 - [ ] Run mode: exit when all agents idle
 - [ ] Start mode: persistent until stop
 - [ ] Background mode for start
+- [ ] Integrate MCP server lifecycle with workflow
+
+### Phase 6: Agent MCP Integration
+- [ ] SDK backend: inject MCP client
+- [ ] Claude CLI: pass `--mcp` flag
+- [ ] Fallback: `agent-worker context` CLI wrapper
 
 ---
 
