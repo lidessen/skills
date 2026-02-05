@@ -1,0 +1,68 @@
+# Agent Worker v2 Implementation Plan
+
+Implementation tasks for the workflow v2 design. See [DESIGN.md](./DESIGN.md) for full specification.
+
+---
+
+## Phase 1: Context Provider
+
+- [ ] Define `ContextProvider` interface
+- [ ] Implement `FileContextProvider` (markdown storage)
+- [ ] Implement `MemoryContextProvider` (testing)
+- [ ] Channel: append-only with @mention extraction
+- [ ] Document: read/write workspace
+
+## Phase 2: Context MCP Server
+
+- [ ] Add `@modelcontextprotocol/sdk` dependency
+- [ ] Create `createContextMCPServer()` function
+- [ ] Implement tools: `channel_send`, `channel_read`, `channel_peek`
+- [ ] Implement tools: `document_read`, `document_write`, `document_append`
+- [ ] Implement `notifications/mention` for @mention push
+- [ ] Unix socket transport (primary)
+- [ ] HTTP transport (fallback, with dynamic port allocation)
+- [ ] stdio transport (testing)
+
+## Phase 3: Kickoff Model
+
+- [ ] Update workflow schema: `setup` + `kickoff` (replace `tasks`)
+- [ ] Parse and validate new schema
+- [ ] Send kickoff to channel on workflow start
+- [ ] Trigger agents on @mention via MCP notification
+
+## Phase 4: CLI Updates
+
+- [ ] Rename `up` → `start`
+- [ ] Rename `down` → `stop`
+- [ ] Rename `ps` → `list`
+- [ ] Unify standalone and workflow agent listing
+- [ ] Add `context` subcommand for CLI fallback
+
+## Phase 5: Run/Start Modes
+
+- [ ] Run mode: exit when all agents idle
+- [ ] Start mode: persistent until stop
+- [ ] Background mode for start
+- [ ] Integrate MCP server lifecycle with workflow
+
+## Phase 6: Agent MCP Integration
+
+- [ ] SDK backend: inject MCP client with Unix socket
+- [ ] Generate per-instance MCP config files
+- [ ] Claude CLI: pass `--mcp-config` and `--strict-mcp-config` at runtime
+- [ ] Codex CLI: manage `.codex/config.toml` with backup/restore
+- [ ] Cursor Agent: manage `.cursor/mcp.json` with backup/restore
+- [ ] Fallback: `agent-worker context` CLI wrapper for unsupported backends
+
+---
+
+## Progress
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| 1. Context Provider | Not started | |
+| 2. Context MCP Server | Not started | |
+| 3. Kickoff Model | Not started | |
+| 4. CLI Updates | Not started | |
+| 5. Run/Start Modes | Not started | |
+| 6. Agent MCP Integration | Not started | |
