@@ -1,6 +1,10 @@
 /**
  * Cursor CLI backend
- * Uses `cursor-agent -p` or `agent chat` for non-interactive mode
+ * Uses `cursor-agent -p` for non-interactive mode
+ *
+ * NOTE: cursor-agent does NOT support per-invocation MCP config.
+ * MCP servers must be registered at project level before running:
+ *   cursor agent mcp add workflow-context stdio -- agent-worker context mcp-stdio --socket <path>
  *
  * @see https://cursor.com/docs/cli/headless
  */
@@ -13,12 +17,8 @@ export interface CursorOptions {
   model?: string
   /** Working directory */
   cwd?: string
-  /** Use 'agent' command instead of 'cursor-agent' */
-  useAgentCommand?: boolean
   /** Timeout in milliseconds */
   timeout?: number
-  /** MCP config file path (for workflow context) */
-  mcpConfigPath?: string
 }
 
 export class CursorBackend implements Backend {
@@ -80,15 +80,6 @@ export class CursorBackend implements Backend {
   }
 
   private buildCommand(message: string): { command: string; args: string[] } {
-    if (this.options.useAgentCommand) {
-      // Use 'agent chat' command
-      const args = ['chat', message]
-      if (this.options.mcpConfigPath) {
-        args.push('--mcp-config', this.options.mcpConfigPath)
-      }
-      return { command: 'agent', args }
-    }
-
     // Use 'cursor-agent -p' command
     const args: string[] = ['-p', message]
 
@@ -96,17 +87,6 @@ export class CursorBackend implements Backend {
       args.push('--model', this.options.model)
     }
 
-    if (this.options.mcpConfigPath) {
-      args.push('--mcp-config', this.options.mcpConfigPath)
-    }
-
     return { command: 'cursor-agent', args }
-  }
-
-  /**
-   * Set MCP config path (for workflow integration)
-   */
-  setMcpConfigPath(path: string): void {
-    this.options.mcpConfigPath = path
   }
 }

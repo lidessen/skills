@@ -2,6 +2,9 @@
  * OpenAI Codex CLI backend
  * Uses `codex exec` for non-interactive mode
  *
+ * NOTE: codex does NOT support per-invocation MCP config.
+ * MCP servers must be configured in ~/.codex/config.toml or via `codex mcp` commands.
+ *
  * @see https://developers.openai.com/codex/noninteractive/
  */
 

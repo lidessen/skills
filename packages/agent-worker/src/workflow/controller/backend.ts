@@ -376,7 +376,7 @@ export function getBackendForModel(
 // ==================== CLI Adapter Backends ====================
 
 /**
- * CLI backend interface with MCP config support
+ * CLI backend interface with optional MCP config support
  */
 interface CLIWithMcp {
   send: (message: string, options?: { system?: string }) => Promise<{ content: string }>
@@ -385,11 +385,16 @@ interface CLIWithMcp {
 
 /**
  * Adapter that wraps new CLI backends for workflow controller
+ *
+ * MCP support:
+ * - Claude CLI: Supports --mcp-config, automatically configured
+ * - Cursor/Codex: Require project-level MCP config (see backend docs)
  */
 class CLIAdapterBackend implements AgentBackend {
   constructor(
     public readonly name: string,
-    private cli: CLIWithMcp
+    private cli: CLIWithMcp,
+    private supportsMcpConfig: boolean = false
   ) {}
 
   async run(ctx: AgentRunContext): Promise<AgentRunResult> {
@@ -397,13 +402,11 @@ class CLIAdapterBackend implements AgentBackend {
     let mcpConfigPath: string | undefined
 
     try {
-      // Generate MCP config file for this run
-      mcpConfigPath = join(tmpdir(), `agent-${ctx.name}-${Date.now()}-mcp.json`)
-      const mcpConfig = generateWorkflowMCPConfig(ctx.mcpSocketPath)
-      writeFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 2))
-
-      // Set MCP config on CLI backend
-      if (this.cli.setMcpConfigPath) {
+      // Generate MCP config file for backends that support it (currently only Claude)
+      if (this.supportsMcpConfig && this.cli.setMcpConfigPath) {
+        mcpConfigPath = join(tmpdir(), `agent-${ctx.name}-${Date.now()}-mcp.json`)
+        const mcpConfig = generateWorkflowMCPConfig(ctx.mcpSocketPath)
+        writeFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 2))
         this.cli.setMcpConfigPath(mcpConfigPath)
       }
 
@@ -432,27 +435,30 @@ class CLIAdapterBackend implements AgentBackend {
 
 /**
  * Create a Cursor backend using cursor-agent CLI
+ * Note: cursor-agent doesn't support per-invocation MCP config
  */
 function createCursorBackend(model?: string): AgentBackend {
   const translatedModel = model ? getModelForBackend(model, 'cursor') : undefined
   const cli = new CursorCLI({ model: translatedModel, cwd: process.cwd() })
-  return new CLIAdapterBackend('cursor', cli)
+  return new CLIAdapterBackend('cursor', cli, false)
 }
 
 /**
  * Create a Claude Code backend using claude CLI
+ * Supports --mcp-config for workflow context
  */
 function createClaudeCodeBackend(model?: string): AgentBackend {
   const translatedModel = model ? getModelForBackend(model, 'claude') : undefined
   const cli = new ClaudeCLI({ model: translatedModel, cwd: process.cwd() })
-  return new CLIAdapterBackend('claude', cli)
+  return new CLIAdapterBackend('claude', cli, true) // Claude supports --mcp-config
 }
 
 /**
  * Create a Codex backend using codex CLI
+ * Note: codex doesn't support per-invocation MCP config
  */
 function createCodexBackend(model?: string): AgentBackend {
   const translatedModel = model ? getModelForBackend(model, 'codex') : undefined
   const cli = new CodexCLI({ model: translatedModel, cwd: process.cwd() })
-  return new CLIAdapterBackend('codex', cli)
+  return new CLIAdapterBackend('codex', cli, false)
 }
