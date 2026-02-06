@@ -7,7 +7,6 @@ import { promisify } from 'node:util'
 import type { ParsedWorkflow, Task, ResolvedAgent } from './types.ts'
 import { isShellTask, isSendTask, isConditionalTask, isParallelTask } from './types.ts'
 import { interpolate, createContext, evaluateCondition, type VariableContext } from './interpolate.ts'
-import { buildAgentId } from '../cli/instance.ts'
 
 const execAsync = promisify(exec)
 

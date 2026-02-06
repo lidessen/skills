@@ -3,7 +3,7 @@
  * Generates MCP configuration files for different backends
  */
 
-import { writeFileSync, readFileSync, existsSync, mkdirSync, renameSync } from 'node:fs'
+import { writeFileSync, readFileSync, existsSync, mkdirSync, renameSync, unlinkSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import type { BackendType } from '../backends/types.ts'
 
@@ -156,8 +156,6 @@ args = ["context", "mcp-stdio", "--socket", "${socketEscaped}", "--agent", "${co
       if (backupPath && existsSync(backupPath)) {
         renameSync(backupPath, configPath)
       } else if (existsSync(configPath)) {
-        // Remove generated config
-        const { unlinkSync } = require('node:fs')
         unlinkSync(configPath)
       }
     },
@@ -214,7 +212,6 @@ function generateCursorMCPConfig(config: MCPServerConfig, workingDir: string): M
       if (backupPath && existsSync(backupPath)) {
         renameSync(backupPath, configPath)
       } else if (existsSync(configPath)) {
-        const { unlinkSync } = require('node:fs')
         unlinkSync(configPath)
       }
     },

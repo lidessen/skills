@@ -971,3 +971,327 @@ describe('runWorkflow', () => {
     expect(result.results.response).toBe('Sent!')
   })
 })
+
+// ==================== Runner V2 Tests ====================
+
+import { initWorkflowV2, runWorkflowV2 } from '../src/workflow/runner-v2.ts'
+import { isV2Workflow, type ParsedWorkflow } from '../src/workflow/types.ts'
+
+describe('isV2Workflow', () => {
+  test('returns true for workflow with context and kickoff', () => {
+    const workflow = {
+      name: 'test',
+      filePath: 'test.yml',
+      agents: {},
+      tasks: [],
+      context: { dir: '.workflow' },
+      kickoff: '@agent1 start',
+    } as ParsedWorkflow
+
+    expect(isV2Workflow(workflow)).toBe(true)
+  })
+
+  test('returns true for workflow with only context', () => {
+    const workflow = {
+      name: 'test',
+      filePath: 'test.yml',
+      agents: {},
+      tasks: [],
+      context: { dir: '.workflow' },
+    } as ParsedWorkflow
+
+    expect(isV2Workflow(workflow)).toBe(true)
+  })
+
+  test('returns false for v1 workflow without context', () => {
+    const workflow = {
+      name: 'test',
+      filePath: 'test.yml',
+      agents: {},
+      tasks: [{ shell: 'echo hi' }],
+    } as ParsedWorkflow
+
+    expect(isV2Workflow(workflow)).toBe(false)
+  })
+})
+
+describe('runWorkflowV2', () => {
+  let testDir: string
+
+  beforeEach(() => {
+    testDir = join(tmpdir(), `workflow-v2-test-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    mkdirSync(testDir, { recursive: true })
+  })
+
+  afterEach(() => {
+    rmSync(testDir, { recursive: true, force: true })
+  })
+
+  test('initializes v2 workflow with context', async () => {
+    const contextDir = join(testDir, 'context')
+    const workflow: ParsedWorkflow = {
+      name: 'test-workflow',
+      filePath: 'test.yml',
+      agents: {
+        agent1: {
+          model: 'test',
+          resolvedSystemPrompt: 'You are a test agent',
+        },
+      },
+      tasks: [],
+      context: { dir: contextDir },
+      kickoff: '@agent1 please start working',
+    }
+
+    const startedAgents: string[] = []
+    const result = await runWorkflowV2({
+      workflow,
+      instance: 'test',
+      startAgent: async (name) => {
+        startedAgents.push(name)
+      },
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.mcpSocketPath).toBeDefined()
+    expect(result.contextProvider).toBeDefined()
+    expect(result.agentNames).toEqual(['agent1'])
+    expect(startedAgents).toEqual(['agent1'])
+
+    // Cleanup
+    if (result.shutdown) {
+      await result.shutdown()
+    }
+  })
+
+  test('runs setup tasks before kickoff', async () => {
+    const contextDir = join(testDir, 'context')
+    const workflow: ParsedWorkflow = {
+      name: 'setup-test',
+      filePath: 'test.yml',
+      agents: { agent1: { model: 'test', resolvedSystemPrompt: 'test' } },
+      tasks: [],
+      context: { dir: contextDir },
+      setup: [
+        { shell: 'echo hello', as: 'greeting' },
+        { shell: 'echo ${{ greeting }} world', as: 'full' },
+      ],
+      kickoff: 'Start with ${{ full }}',
+    }
+
+    const result = await runWorkflowV2({
+      workflow,
+      instance: 'test',
+      startAgent: async () => {},
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.setupResults.greeting).toBe('hello')
+    expect(result.setupResults.full).toBe('hello world')
+
+    if (result.shutdown) {
+      await result.shutdown()
+    }
+  })
+
+  test('fails gracefully on setup error', async () => {
+    const contextDir = join(testDir, 'context')
+    const workflow: ParsedWorkflow = {
+      name: 'setup-fail-test',
+      filePath: 'test.yml',
+      agents: { agent1: { model: 'test', resolvedSystemPrompt: 'test' } },
+      tasks: [],
+      context: { dir: contextDir },
+      setup: [{ shell: 'exit 1', as: 'fail' }],
+      kickoff: 'This should not run',
+    }
+
+    const result = await runWorkflowV2({
+      workflow,
+      instance: 'test',
+      startAgent: async () => {},
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('Setup failed')
+  })
+
+  test('fails when context is not configured', async () => {
+    const workflow: ParsedWorkflow = {
+      name: 'no-context-test',
+      filePath: 'test.yml',
+      agents: { agent1: { model: 'test', resolvedSystemPrompt: 'test' } },
+      tasks: [],
+      // No context configured
+    }
+
+    const result = await runWorkflowV2({
+      workflow,
+      instance: 'test',
+      startAgent: async () => {},
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('context configuration')
+  })
+})
+
+// ==================== MCP Config Tests ====================
+
+import { generateMCPConfig, cleanupMCPConfigs, type MCPConfigResult } from '../src/workflow/mcp-config.ts'
+import { existsSync, readFileSync } from 'node:fs'
+
+describe('generateMCPConfig', () => {
+  let testDir: string
+
+  beforeEach(() => {
+    testDir = join(tmpdir(), `mcp-config-test-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    mkdirSync(testDir, { recursive: true })
+  })
+
+  afterEach(() => {
+    rmSync(testDir, { recursive: true, force: true })
+  })
+
+  describe('SDK backend', () => {
+    test('returns environment variables', () => {
+      const result = generateMCPConfig('sdk', {
+        socketPath: '/tmp/test.sock',
+        agentId: 'agent1',
+      }, testDir)
+
+      expect(result.type).toBe('env')
+      expect(result.env).toEqual({
+        MCP_SOCKET_PATH: '/tmp/test.sock',
+        MCP_AGENT_ID: 'agent1',
+      })
+    })
+  })
+
+  describe('Claude CLI backend', () => {
+    test('generates config file with flags', () => {
+      const result = generateMCPConfig('claude', {
+        socketPath: '/tmp/test.sock',
+        agentId: 'agent1',
+      }, testDir)
+
+      expect(result.type).toBe('flags')
+      expect(result.flags).toContain('--mcp-config')
+      expect(result.configPath).toBeDefined()
+      expect(existsSync(result.configPath!)).toBe(true)
+
+      const content = JSON.parse(readFileSync(result.configPath!, 'utf-8'))
+      expect(content.mcpServers.context.command).toBe('agent-worker')
+      expect(content.mcpServers.context.args).toContain('/tmp/test.sock')
+    })
+  })
+
+  describe('Codex CLI backend', () => {
+    test('generates TOML config file', () => {
+      const result = generateMCPConfig('codex', {
+        socketPath: '/tmp/test.sock',
+        agentId: 'agent1',
+      }, testDir)
+
+      expect(result.type).toBe('file')
+      expect(result.configPath).toBeDefined()
+      expect(existsSync(result.configPath!)).toBe(true)
+
+      const content = readFileSync(result.configPath!, 'utf-8')
+      expect(content).toContain('[mcp_servers.context]')
+      expect(content).toContain('agent-worker')
+      expect(content).toContain('/tmp/test.sock')
+    })
+
+    test('restores backup on cleanup', () => {
+      // Create existing config
+      const codexDir = join(testDir, '.codex')
+      mkdirSync(codexDir, { recursive: true })
+      const configPath = join(codexDir, 'config.toml')
+      writeFileSync(configPath, '# Original config\n[existing]\nkey = "value"')
+
+      const result = generateMCPConfig('codex', {
+        socketPath: '/tmp/test.sock',
+        agentId: 'agent1',
+      }, testDir)
+
+      expect(result.backupPath).toBeDefined()
+      expect(existsSync(result.backupPath!)).toBe(true)
+
+      // Cleanup
+      if (result.restore) {
+        result.restore()
+      }
+
+      // Original should be restored
+      const restored = readFileSync(configPath, 'utf-8')
+      expect(restored).toContain('# Original config')
+    })
+  })
+
+  describe('Cursor backend', () => {
+    test('generates JSON config file', () => {
+      const result = generateMCPConfig('cursor', {
+        socketPath: '/tmp/test.sock',
+        agentId: 'agent1',
+      }, testDir)
+
+      expect(result.type).toBe('file')
+      expect(result.configPath).toBeDefined()
+      expect(existsSync(result.configPath!)).toBe(true)
+
+      const content = JSON.parse(readFileSync(result.configPath!, 'utf-8'))
+      expect(content.mcpServers.context.command).toBe('agent-worker')
+    })
+
+    test('merges with existing config', () => {
+      // Create existing config
+      const cursorDir = join(testDir, '.cursor')
+      mkdirSync(cursorDir, { recursive: true })
+      const configPath = join(cursorDir, 'mcp.json')
+      writeFileSync(configPath, JSON.stringify({
+        existingKey: 'existingValue',
+        mcpServers: { other: { command: 'other' } },
+      }))
+
+      const result = generateMCPConfig('cursor', {
+        socketPath: '/tmp/test.sock',
+        agentId: 'agent1',
+      }, testDir)
+
+      const content = JSON.parse(readFileSync(result.configPath!, 'utf-8'))
+      expect(content.existingKey).toBe('existingValue')
+      expect(content.mcpServers.other).toBeDefined()
+      expect(content.mcpServers.context).toBeDefined()
+
+      // Cleanup
+      if (result.restore) {
+        result.restore()
+      }
+    })
+  })
+
+  test('throws for unsupported backend', () => {
+    expect(() => {
+      generateMCPConfig('unsupported' as any, {
+        socketPath: '/tmp/test.sock',
+        agentId: 'agent1',
+      }, testDir)
+    }).toThrow('Unsupported backend')
+  })
+})
+
+describe('cleanupMCPConfigs', () => {
+  test('calls restore on all configs', () => {
+    let restoreCalled = 0
+    const configs: MCPConfigResult[] = [
+      { type: 'file', restore: () => { restoreCalled++ } },
+      { type: 'file', restore: () => { restoreCalled++ } },
+      { type: 'env' }, // No restore function
+    ]
+
+    cleanupMCPConfigs(configs)
+
+    expect(restoreCalled).toBe(2)
+  })
+})
