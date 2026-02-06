@@ -901,197 +901,52 @@ program
   .option('-v, --verbose', 'Show detailed progress')
   .option('-d, --debug', 'Show debug information (alias for --verbose)')
   .option('--json', 'Output results as JSON')
-  .option('--idle-timeout <ms>', 'Exit after agents idle for this duration', '5000')
   .action(async (file, options) => {
     // --debug is an alias for --verbose
     if (options.debug) options.verbose = true
-    const { parseWorkflowFile, runWorkflow, generateMCPConfig } = await import('../workflow/index.ts')
-    type ResolvedAgent = Awaited<ReturnType<typeof parseWorkflowFile>>['agents'][string]
-
-    const startedAgents: string[] = []
-    let shutdownFn: (() => Promise<void>) | undefined
-
-    // Cleanup helper
-    const cleanup = async () => {
-      for (const agentName of startedAgents) {
-        try {
-          await sendRequest({ action: 'shutdown' }, agentName)
-          if (options.verbose) {
-            console.log(`Stopped agent: ${agentName}`)
-          }
-        } catch {
-          // Ignore cleanup errors
-        }
-      }
-      if (shutdownFn) {
-        await shutdownFn()
-      }
-    }
+    const { parseWorkflowFile, runWorkflowWithControllers } = await import('../workflow/index.ts')
 
     try {
       // Parse workflow
       const workflow = await parseWorkflowFile(file, { instance: options.instance })
 
-      if (options.verbose) {
-        console.log(`Running workflow: ${workflow.name}`)
-        console.log(`Agents: ${Object.keys(workflow.agents).join(', ')}`)
-        console.log('')
-      }
+      console.log(`Running workflow: ${workflow.name}`)
+      console.log(`Agents: ${Object.keys(workflow.agents).join(', ')}\n`)
 
-      const result = await runWorkflow({
+      const result = await runWorkflowWithControllers({
         workflow,
         instance: options.instance,
         verbose: options.verbose,
-        log: console.log, // Always log channel output
-        startAgent: async (agentName: string, config: ResolvedAgent, mcpSocketPath: string) => {
-          const fullName = buildAgentId(agentName, options.instance)
-
-          // Generate MCP config for agent
-          generateMCPConfig('sdk', {
-            socketPath: mcpSocketPath,
-            agentId: agentName,
-          }, process.cwd())
-
-          if (options.verbose) {
-            console.log(`Starting agent: ${fullName}`)
-          }
-
-          await createAgentAction(fullName, {
-            model: config.model,
-            system: config.resolvedSystemPrompt,
-            backend: config.backend || 'sdk',
-          })
-
-          startedAgents.push(fullName)
-        },
+        log: console.log,
+        mode: 'run', // Exit when all agents idle
       })
 
       if (!result.success) {
         console.error('Workflow failed:', result.error)
-        await cleanup()
         process.exit(1)
       }
 
-      shutdownFn = result.shutdown
-
-      // Wait for agents to become idle (no unread mentions)
       if (options.verbose) {
-        console.log('\nWaiting for agents to complete...')
-      }
-
-      const idleTimeout = parseInt(options.idleTimeout, 10)
-
-      // Reuse context provider and agent names from runWorkflow result
-      const provider = result.contextProvider!
-      const agentNames = result.agentNames!
-
-      // Channel watching state
-      let lastChannelTimestamp: string | undefined
-
-      // Color codes for agent output
-      const agentColors = [
-        '\x1b[36m', // cyan
-        '\x1b[33m', // yellow
-        '\x1b[35m', // magenta
-        '\x1b[32m', // green
-        '\x1b[34m', // blue
-        '\x1b[91m', // bright red
-      ]
-      const resetColor = '\x1b[0m'
-      const dimColor = '\x1b[2m'
-      const grayColor = '\x1b[90m'
-
-      const getAgentColor = (name: string) => {
-        if (name === 'system' || name === 'user') return grayColor
-        const idx = agentNames.indexOf(name)
-        return agentColors[idx % agentColors.length]!
-      }
-
-      const formatTime = (ts: string) => new Date(ts).toTimeString().slice(0, 8)
-
-      let idleSince: number | null = null
-      const startTime = Date.now()
-
-      while (true) {
-        // Poll channel for new messages
-        try {
-          const entries = await provider.readChannel(lastChannelTimestamp)
-          for (const entry of entries) {
-            if (lastChannelTimestamp && entry.timestamp <= lastChannelTimestamp) continue
-
-            const time = formatTime(entry.timestamp)
-            const color = getAgentColor(entry.from)
-            const name = entry.from.padEnd(12)
-
-            // Handle multi-line messages
-            const lines = entry.message.split('\n')
-            console.log(`${dimColor}${time}${resetColor} ${color}${name}${resetColor} │ ${lines[0]}`)
-            for (let i = 1; i < lines.length; i++) {
-              console.log(' '.repeat(22) + '│ ' + lines[i])
-            }
-
-            lastChannelTimestamp = entry.timestamp
-          }
-        } catch {
-          // Ignore channel read errors
-        }
-
-        // Check if any agent has unread mentions
-        let hasUnread = false
-        for (const agent of agentNames) {
-          const mentions = await provider.getInbox(agent)
-          if (mentions.length > 0) {
-            hasUnread = true
-            idleSince = null
-            break
-          }
-        }
-
-        if (!hasUnread) {
-          if (idleSince === null) {
-            idleSince = Date.now()
-            if (options.verbose) {
-              console.log('All agents idle, waiting for timeout...')
-            }
-          } else if (Date.now() - idleSince >= idleTimeout) {
-            // Idle timeout reached
-            break
-          }
-        }
-
-        // Timeout after 10 minutes max
-        if (Date.now() - startTime > 600000) {
-          console.log('Workflow timed out after 10 minutes')
-          break
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 1000))
-      }
-
-      if (options.verbose) {
-        console.log(`\nWorkflow completed in ${Date.now() - startTime}ms`)
+        console.log(`\nWorkflow completed in ${result.duration}ms`)
       }
 
       // Read final document content as result
-      const finalDoc = await provider.readDocument()
-      if (options.json) {
-        console.log(JSON.stringify({
-          success: true,
-          duration: Date.now() - startTime,
-          document: finalDoc,
-        }, null, 2))
-      } else {
-        if (finalDoc) {
+      if (result.contextProvider) {
+        const finalDoc = await result.contextProvider.readDocument()
+        if (options.json) {
+          console.log(JSON.stringify({
+            success: true,
+            duration: result.duration,
+            document: finalDoc,
+          }, null, 2))
+        } else if (finalDoc) {
           console.log('\n--- Document ---')
           console.log(finalDoc)
         }
       }
 
-      await cleanup()
-
     } catch (error) {
       console.error('Error:', error instanceof Error ? error.message : String(error))
-      await cleanup()
       process.exit(1)
     }
   })
@@ -1107,12 +962,12 @@ program
   .action(async (file, options) => {
     // --debug is an alias for --verbose
     if (options.debug) options.verbose = true
-    const { parseWorkflowFile, runWorkflow, generateMCPConfig } = await import('../workflow/index.ts')
-    type ResolvedAgent = Awaited<ReturnType<typeof parseWorkflowFile>>['agents'][string]
+    const { parseWorkflowFile, runWorkflowWithControllers } = await import('../workflow/index.ts')
 
     // Background mode: spawn detached process
     if (options.background) {
-      const args = [process.argv[1], 'start', file, '--instance', options.instance]
+      const scriptPath = process.argv[1] ?? ''
+      const args = [scriptPath, 'start', file, '--instance', options.instance]
       if (options.verbose) args.push('--verbose')
 
       const child = spawn(process.execPath, args, {
@@ -1122,27 +977,15 @@ program
       child.unref()
 
       console.log(`Workflow started in background (PID: ${child.pid})`)
-      console.log(`Use \`agent-worker list\` to see running agents.`)
       console.log(`Use \`agent-worker stop --instance ${options.instance}\` to stop.`)
       return
     }
 
-    const startedAgents: string[] = []
     let shutdownFn: (() => Promise<void>) | undefined
 
     // Setup graceful shutdown
     const cleanup = async () => {
       console.log('\nShutting down...')
-      // Stop all agents
-      for (const agentName of startedAgents) {
-        try {
-          await sendRequest({ action: 'shutdown' }, agentName)
-          if (options.verbose) console.log(`Stopped: ${agentName}`)
-        } catch {
-          // Ignore
-        }
-      }
-      // Shutdown MCP server
       if (shutdownFn) {
         await shutdownFn()
       }
@@ -1157,34 +1000,14 @@ program
       const workflow = await parseWorkflowFile(file, { instance: options.instance })
 
       console.log(`Starting workflow: ${workflow.name}`)
-      console.log(`Instance: ${options.instance}`)
+      console.log(`Agents: ${Object.keys(workflow.agents).join(', ')}\n`)
 
-      const result = await runWorkflow({
+      const result = await runWorkflowWithControllers({
         workflow,
         instance: options.instance,
         verbose: options.verbose,
-        log: console.log, // Always log channel output
-        startAgent: async (agentName: string, config: ResolvedAgent, mcpSocketPath: string) => {
-          const fullName = buildAgentId(agentName, options.instance)
-
-          // Generate MCP config for agent
-          generateMCPConfig('sdk', {
-            socketPath: mcpSocketPath,
-            agentId: agentName,
-          }, process.cwd())
-
-          if (options.verbose) {
-            console.log(`Starting agent: ${fullName}`)
-          }
-
-          await createAgentAction(fullName, {
-            model: config.model,
-            system: config.resolvedSystemPrompt,
-            backend: config.backend || 'sdk',
-          })
-
-          startedAgents.push(fullName)
-        },
+        log: console.log,
+        mode: 'start', // Keep running until stopped
       })
 
       if (!result.success) {
@@ -1194,57 +1017,10 @@ program
 
       shutdownFn = result.shutdown
 
-      // Print status
-      console.log('\nWorkflow started successfully.')
-      if (result.mcpSocketPath) {
-        console.log(`MCP Socket: ${result.mcpSocketPath}`)
-      }
-      console.log(`\nAgents running: ${startedAgents.join(', ')}`)
-      console.log('\nPress Ctrl+C to stop workflow.\n')
+      console.log('\nWorkflow started. Press Ctrl+C to stop.\n')
 
-      // Start channel watching
-      const agentNames = result.agentNames!
-      const provider = result.contextProvider!
-      let lastChannelTimestamp: string | undefined
-
-      const agentColors = [
-        '\x1b[36m', '\x1b[33m', '\x1b[35m', '\x1b[32m', '\x1b[34m', '\x1b[91m',
-      ]
-      const resetColor = '\x1b[0m'
-      const dimColor = '\x1b[2m'
-      const grayColor = '\x1b[90m'
-
-      const getAgentColor = (name: string) => {
-        if (name === 'system' || name === 'user') return grayColor
-        const idx = agentNames.indexOf(name)
-        return agentColors[idx % agentColors.length]!
-      }
-      const formatTime = (ts: string) => new Date(ts).toTimeString().slice(0, 8)
-
-      // Poll channel forever
-      while (true) {
-        try {
-          const entries = await provider.readChannel(lastChannelTimestamp)
-          for (const entry of entries) {
-            if (lastChannelTimestamp && entry.timestamp <= lastChannelTimestamp) continue
-
-            const time = formatTime(entry.timestamp)
-            const color = getAgentColor(entry.from)
-            const name = entry.from.padEnd(12)
-
-            const lines = entry.message.split('\n')
-            console.log(`${dimColor}${time}${resetColor} ${color}${name}${resetColor} │ ${lines[0]}`)
-            for (let i = 1; i < lines.length; i++) {
-              console.log(' '.repeat(22) + '│ ' + lines[i])
-            }
-
-            lastChannelTimestamp = entry.timestamp
-          }
-        } catch {
-          // Ignore errors
-        }
-        await new Promise(resolve => setTimeout(resolve, 500))
-      }
+      // Keep process alive
+      await new Promise(() => {})
 
     } catch (error) {
       console.error('Error:', error instanceof Error ? error.message : String(error))

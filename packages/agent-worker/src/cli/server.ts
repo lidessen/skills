@@ -305,7 +305,22 @@ export function getSessionInfo(idOrName?: string): SessionInfo | null {
     }
     return null
   }
-  return registry.sessions[idOrName] || null
+
+  // Try exact match first (by id or name)
+  if (registry.sessions[idOrName]) {
+    return registry.sessions[idOrName]!
+  }
+
+  // Try prefix match on IDs (supports short IDs like "e8ab33e7")
+  const sessions = Object.values(registry.sessions)
+  const matches = sessions.filter(s => s.id.startsWith(idOrName))
+  // Dedupe and return if exactly one match
+  const unique = matches.filter((s, i, arr) => arr.findIndex(x => x.id === s.id) === i)
+  if (unique.length === 1) {
+    return unique[0]!
+  }
+
+  return null
 }
 
 export function listSessions(): SessionInfo[] {
