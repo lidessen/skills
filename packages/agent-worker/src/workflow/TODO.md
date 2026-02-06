@@ -67,3 +67,35 @@ Implementation tasks for the workflow v2 design. See [DESIGN.md](./DESIGN.md) fo
 | 4. CLI Updates | ✅ Complete | start/stop/list commands + context subcommand |
 | 5. Run/Start Modes | ✅ Complete | run idle detection + start --background + graceful shutdown |
 | 6. Agent MCP Integration | ✅ Complete | mcp-config.ts + mcp-stdio bridge |
+
+---
+
+## Future Improvements
+
+Ideas for future enhancements (not currently planned):
+
+### Dynamic Tool Loading
+
+Allow adding custom tools to the MCP server at runtime via CLI:
+
+```bash
+# Add a custom tool
+agent-worker context tool add <name> --handler ./handler.js
+
+# List registered tools
+agent-worker context tool list
+
+# Remove a tool
+agent-worker context tool remove <name>
+```
+
+**Implementation approach**:
+1. CLI sends IPC message to running MCP server
+2. MCP server registers tool dynamically: `server.tool(name, desc, schema, handler)`
+3. Call `server.sendToolListChanged()` to notify connected clients
+4. Clients (Claude, etc.) auto-refresh tool list
+
+**Use cases**:
+- Project-specific tools (build, deploy, etc.)
+- Integration with external services
+- Workflow-specific actions beyond channel/document
