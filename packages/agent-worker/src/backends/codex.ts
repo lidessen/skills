@@ -125,7 +125,9 @@ export class CodexBackend implements Backend {
   }
 
   private buildArgs(message: string): string[] {
-    const args: string[] = ['exec', message]
+    // exec: non-interactive mode
+    // --dangerously-bypass-approvals-and-sandbox: auto-approve all operations (required for workflow MCP tools)
+    const args: string[] = ['exec', '--dangerously-bypass-approvals-and-sandbox', message]
 
     if (this.options.model) {
       args.push('--model', this.options.model)

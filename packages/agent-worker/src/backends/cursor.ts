@@ -105,7 +105,9 @@ export class CursorBackend implements Backend {
 
   private buildCommand(message: string): { command: string; args: string[] } {
     // Use 'cursor-agent -p' command
-    const args: string[] = ['-p', message]
+    // --force: auto-approve all operations (required for non-interactive)
+    // --approve-mcps: auto-approve MCP servers (required for workflow MCP tools)
+    const args: string[] = ['-p', '--force', '--approve-mcps', message]
 
     if (this.options.model) {
       args.push('--model', this.options.model)

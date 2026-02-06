@@ -118,7 +118,9 @@ export class ClaudeCodeBackend implements Backend {
   }
 
   private buildArgs(message: string, options?: { system?: string }): string[] {
-    const args: string[] = ['-p', message]
+    // -p: non-interactive print mode
+    // --dangerously-skip-permissions: auto-approve all operations (required for workflow MCP tools)
+    const args: string[] = ['-p', '--dangerously-skip-permissions', message]
 
     if (this.options.model) {
       args.push('--model', this.options.model)
