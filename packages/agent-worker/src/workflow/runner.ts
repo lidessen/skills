@@ -13,6 +13,13 @@ import { createMemoryContextProvider } from './context/memory-provider.ts'
 import { createContextMCPServer } from './context/mcp-server.ts'
 import { runWithUnixSocket, getSocketPath, type UnixSocketServer } from './context/transport.ts'
 import type { ContextProvider } from './context/provider.ts'
+import {
+  createAgentController,
+  checkWorkflowIdle,
+  getBackendForModel,
+  type AgentController,
+  type AgentBackend,
+} from './controller/index.ts'
 
 const execAsync = promisify(exec)
 
@@ -294,4 +301,321 @@ export async function runWorkflow(config: RunConfig): Promise<RunResult> {
       duration: Date.now() - startTime,
     }
   }
+}
+
+// ==================== Controller-based Runner ====================
+
+/**
+ * Controller-based run configuration
+ */
+export interface ControllerRunConfig {
+  /** Workflow to run */
+  workflow: ParsedWorkflow
+  /** Instance name */
+  instance?: string
+  /** Verbose output */
+  verbose?: boolean
+  /** Log function */
+  log?: (message: string) => void
+  /** Run mode: 'run' exits when idle, 'start' runs until stopped */
+  mode?: 'run' | 'start'
+  /** Poll interval for controllers (ms) */
+  pollInterval?: number
+  /** Custom backend factory (optional, defaults to getBackendForModel) */
+  createBackend?: (agentName: string, agent: ResolvedAgent) => AgentBackend
+}
+
+/**
+ * Controller-based run result
+ */
+export interface ControllerRunResult {
+  /** Success flag */
+  success: boolean
+  /** Error if failed */
+  error?: string
+  /** Setup variable results */
+  setupResults: Record<string, string>
+  /** Execution time in ms */
+  duration: number
+  /** MCP socket path */
+  mcpSocketPath?: string
+  /** Context provider */
+  contextProvider?: ContextProvider
+  /** Agent controllers */
+  controllers?: Map<string, AgentController>
+  /** Shutdown function */
+  shutdown?: () => Promise<void>
+}
+
+/**
+ * Run a workflow with agent controllers
+ *
+ * This is the controller-based alternative to runWorkflow().
+ * Uses AgentController for lifecycle management and automatic retry.
+ *
+ * @param config Controller run configuration
+ */
+export async function runWorkflowWithControllers(config: ControllerRunConfig): Promise<ControllerRunResult> {
+  const {
+    workflow,
+    instance = 'default',
+    verbose = false,
+    log = console.log,
+    mode = 'run',
+    pollInterval = 5000,
+    createBackend,
+  } = config
+  const startTime = Date.now()
+
+  try {
+    // Create controllers map for wake() on mention
+    const controllers = new Map<string, AgentController>()
+
+    // Initialize runtime with onMention callback
+    const runtime = await initWorkflowWithMentions({
+      workflow,
+      instance,
+      verbose,
+      log,
+      onMention: (from, target, _entry) => {
+        const controller = controllers.get(target)
+        if (controller) {
+          if (verbose) log(`[${from}] mentioned @${target}, waking controller`)
+          controller.wake()
+        }
+      },
+    })
+
+    // Create and start controllers for each agent
+    if (verbose) log('\nStarting agent controllers...')
+
+    for (const agentName of runtime.agentNames) {
+      const agentDef = workflow.agents[agentName]!
+
+      // Get backend for this agent
+      const backend = createBackend
+        ? createBackend(agentName, agentDef)
+        : getBackendForModel(agentDef.model)
+
+      const controller = createAgentController({
+        name: agentName,
+        agent: agentDef,
+        contextProvider: runtime.contextProvider,
+        mcpSocketPath: runtime.mcpSocketPath,
+        backend,
+        pollInterval,
+        log: verbose ? log : undefined,
+      })
+
+      controllers.set(agentName, controller)
+      await controller.start()
+
+      if (verbose) log(`  Started controller: ${agentName}`)
+    }
+
+    // Send kickoff
+    await runtime.sendKickoff()
+
+    // Handle run mode vs start mode
+    if (mode === 'run') {
+      // Wait for workflow to complete
+      if (verbose) log('\nWaiting for workflow to complete...')
+
+      while (true) {
+        const isIdle = await checkWorkflowIdle(controllers, runtime.contextProvider)
+        if (isIdle) {
+          if (verbose) log('\nWorkflow complete (all agents idle)')
+          break
+        }
+        // Check every second
+        await sleep(1000)
+      }
+
+      // Shutdown all controllers
+      await shutdownControllers(controllers, verbose, log)
+      await runtime.shutdown()
+
+      return {
+        success: true,
+        setupResults: runtime.setupResults,
+        duration: Date.now() - startTime,
+        mcpSocketPath: runtime.mcpSocketPath,
+        contextProvider: runtime.contextProvider,
+      }
+    }
+
+    // Start mode: return immediately, caller manages lifecycle
+    return {
+      success: true,
+      setupResults: runtime.setupResults,
+      duration: Date.now() - startTime,
+      mcpSocketPath: runtime.mcpSocketPath,
+      contextProvider: runtime.contextProvider,
+      controllers,
+      shutdown: async () => {
+        await shutdownControllers(controllers, verbose, log)
+        await runtime.shutdown()
+      },
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+      setupResults: {},
+      duration: Date.now() - startTime,
+    }
+  }
+}
+
+/**
+ * Initialize workflow with onMention callback
+ */
+interface InitWithMentionsConfig {
+  workflow: ParsedWorkflow
+  instance: string
+  verbose: boolean
+  log: (message: string) => void
+  onMention: (from: string, target: string, entry: import('./context/types.ts').ChannelEntry) => void
+}
+
+async function initWorkflowWithMentions(config: InitWithMentionsConfig): Promise<WorkflowRuntime> {
+  const { workflow, instance, verbose, log, onMention } = config
+  const startTime = Date.now()
+
+  const agentNames = Object.keys(workflow.agents)
+
+  if (!workflow.context) {
+    throw new Error('Workflow context is disabled. Remove "context: false" to enable agent collaboration.')
+  }
+
+  const resolvedContext = workflow.context as ResolvedContext
+
+  // Create context provider
+  let contextProvider: ContextProvider
+
+  if (resolvedContext.provider === 'memory') {
+    if (verbose) log('Using memory context provider')
+    contextProvider = createMemoryContextProvider(agentNames)
+  } else {
+    const fileContext = resolvedContext as ResolvedFileContext
+
+    if (!existsSync(fileContext.dir)) {
+      mkdirSync(fileContext.dir, { recursive: true })
+    }
+
+    if (verbose) log(`Context directory: ${fileContext.dir}`)
+
+    contextProvider = createFileContextProvider(fileContext.dir, agentNames, {
+      channelFile: fileContext.channel,
+      documentDir: fileContext.documentDir,
+    })
+  }
+
+  // Create MCP server with onMention callback
+  const mcpSocketPath = getSocketPath(workflow.name, instance)
+  if (verbose) log(`MCP socket: ${mcpSocketPath}`)
+
+  const mcpServer = await runWithUnixSocket(
+    () =>
+      createContextMCPServer({
+        provider: contextProvider,
+        validAgents: agentNames,
+        name: `${workflow.name}-context`,
+        version: '1.0.0',
+        onMention, // Wire up the callback
+      }).server,
+    mcpSocketPath,
+    {
+      onConnect: (agentId, connId) => {
+        if (verbose) log(`Agent connected: ${agentId} (${connId.slice(0, 8)})`)
+      },
+      onDisconnect: (agentId, connId) => {
+        if (verbose) log(`Agent disconnected: ${agentId} (${connId.slice(0, 8)})`)
+      },
+    }
+  )
+
+  // Run setup commands
+  const setupResults: Record<string, string> = {}
+  const context = createContext(workflow.name, instance, setupResults)
+
+  if (workflow.setup && workflow.setup.length > 0) {
+    if (verbose) log('\nRunning setup...')
+    for (const task of workflow.setup) {
+      try {
+        const result = await runSetupTask(task, context, verbose, log)
+        if (task.as) {
+          setupResults[task.as] = result
+          context[task.as] = result
+        }
+      } catch (error) {
+        await mcpServer.close()
+        throw new Error(
+          `Setup failed: ${error instanceof Error ? error.message : String(error)}`
+        )
+      }
+    }
+  }
+
+  // Interpolate kickoff
+  const interpolatedKickoff = workflow.kickoff
+    ? interpolate(workflow.kickoff, context)
+    : undefined
+
+  const runtime: WorkflowRuntime = {
+    name: workflow.name,
+    instance,
+    contextProvider,
+    mcpServer,
+    mcpSocketPath,
+    agentNames,
+    setupResults,
+
+    async sendKickoff() {
+      if (!interpolatedKickoff) {
+        if (verbose) log('No kickoff message configured')
+        return
+      }
+
+      if (verbose) log(`\nKickoff: ${interpolatedKickoff.slice(0, 100)}...`)
+      await contextProvider.appendChannel('orchestrator', interpolatedKickoff)
+    },
+
+    async shutdown() {
+      if (verbose) log('\nShutting down workflow...')
+      await mcpServer.close()
+    },
+  }
+
+  if (verbose) {
+    log(`\nWorkflow initialized in ${Date.now() - startTime}ms`)
+    log(`Agents: ${agentNames.join(', ')}`)
+  }
+
+  return runtime
+}
+
+/**
+ * Gracefully shutdown all controllers
+ */
+async function shutdownControllers(
+  controllers: Map<string, AgentController>,
+  verbose: boolean,
+  log: (message: string) => void
+): Promise<void> {
+  if (verbose) log('\nStopping controllers...')
+
+  const stopPromises = [...controllers.values()].map(async (controller) => {
+    await controller.stop()
+    if (verbose) log(`  Stopped: ${controller.name}`)
+  })
+
+  await Promise.all(stopPromises)
+}
+
+/**
+ * Sleep helper
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }

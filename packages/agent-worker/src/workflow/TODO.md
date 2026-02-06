@@ -206,7 +206,7 @@ Tool updates:
 | 5. Run/Start Modes | ✅ Complete | run idle detection + start --background + graceful shutdown |
 | 6. Agent MCP Integration | ✅ Complete | mcp-config.ts + mcp-stdio bridge |
 | 7. Inbox Model | ✅ Complete | Priority detection implemented and tested |
-| 8. Agent Controller | 🔄 In Progress | Core controller + backends implemented, CLI send pending |
+| 8. Agent Controller | ✅ Complete | Controller + backends + runWorkflowWithControllers |
 | 9. Multi-File Documents | 🔄 Pending | Nested dirs (core merged into Phase 0) |
 | 10. Document Ownership | 🔄 Pending | Optional, requires Phase 11 for election |
 | 11. Proposal & Voting | 🔄 Pending | Generic decision-making system |
@@ -292,9 +292,11 @@ Phase 0 (Migration)
 - [x] Mark user messages with `[user]` sender in channel
 
 ### Integration
-- [ ] Update `runWorkflow()` to use controllers
-- [ ] Add graceful shutdown for controllers
-- [ ] Add backend configuration to workflow YAML (optional override)
+- [x] Add `runWorkflowWithControllers()` - controller-based runner
+- [x] Add graceful shutdown for controllers (`shutdownControllers()`)
+- [x] Support run mode (exit when idle) and start mode (persistent)
+- [x] Wire `onMention` callback to wake controllers
+- [ ] Add backend configuration to workflow YAML (optional override) - deferred
 
 ### Validation (Phase 8)
 
