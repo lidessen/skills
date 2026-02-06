@@ -1,5 +1,5 @@
 /**
- * Context types for workflow v2
+ * Context types for workflow
  * Shared context for agent collaboration via channel + document
  */
 

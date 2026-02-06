@@ -1,6 +1,6 @@
-# Agent Worker v2 Implementation Plan
+# Agent Worker Workflow Implementation
 
-Implementation tasks for the workflow v2 design. See [DESIGN.md](./DESIGN.md) for full specification.
+Implementation tasks for the workflow design. See [DESIGN.md](./DESIGN.md) for full specification.
 
 ---
 
@@ -63,7 +63,7 @@ Implementation tasks for the workflow v2 design. See [DESIGN.md](./DESIGN.md) fo
 |-------|--------|-------|
 | 1. Context Provider | ✅ Complete | `context/` module with Memory + File providers |
 | 2. Context MCP Server | ✅ Complete | MCP tools + stdio/Unix socket transports |
-| 3. Kickoff Model | ✅ Complete | runner-v2 with setup + kickoff execution |
+| 3. Kickoff Model | ✅ Complete | runner with setup + kickoff execution |
 | 4. CLI Updates | ✅ Complete | start/stop/list commands + context subcommand |
 | 5. Run/Start Modes | ✅ Complete | run idle detection + start --background + graceful shutdown |
 | 6. Agent MCP Integration | ✅ Complete | mcp-config.ts + mcp-stdio bridge |

@@ -429,16 +429,16 @@ kickoff: "@assistant start working"
   })
 })
 
-// ==================== Runner V2 Tests ====================
+// ==================== Runner Tests ====================
 
-import { initWorkflowV2, runWorkflowV2 } from '../src/workflow/runner-v2.ts'
+import { initWorkflow, runWorkflow } from '../src/workflow/runner.ts'
 import type { ParsedWorkflow } from '../src/workflow/types.ts'
 
-describe('runWorkflowV2', () => {
+describe('runWorkflow', () => {
   let testDir: string
 
   beforeEach(() => {
-    testDir = join(tmpdir(), `workflow-v2-test-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    testDir = join(tmpdir(), `workflow-runner-test-${Date.now()}-${Math.random().toString(36).slice(2)}`)
     mkdirSync(testDir, { recursive: true })
   })
 
@@ -463,7 +463,7 @@ describe('runWorkflowV2', () => {
     }
 
     const startedAgents: string[] = []
-    const result = await runWorkflowV2({
+    const result = await runWorkflow({
       workflow,
       instance: 'test',
       startAgent: async (name) => {
@@ -497,7 +497,7 @@ describe('runWorkflowV2', () => {
       kickoff: 'Start with ${{ full }}',
     }
 
-    const result = await runWorkflowV2({
+    const result = await runWorkflow({
       workflow,
       instance: 'test',
       startAgent: async () => {},
@@ -523,7 +523,7 @@ describe('runWorkflowV2', () => {
       kickoff: 'This should not run',
     }
 
-    const result = await runWorkflowV2({
+    const result = await runWorkflow({
       workflow,
       instance: 'test',
       startAgent: async () => {},
@@ -542,7 +542,7 @@ describe('runWorkflowV2', () => {
       // No context configured
     }
 
-    const result = await runWorkflowV2({
+    const result = await runWorkflow({
       workflow,
       instance: 'test',
       startAgent: async () => {},

@@ -1,5 +1,5 @@
 /**
- * Context module for workflow v2
+ * Context module for workflow
  * Provides shared context (channel + document) for agent collaboration
  */
 

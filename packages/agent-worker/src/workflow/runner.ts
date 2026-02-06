@@ -1,5 +1,5 @@
 /**
- * Workflow Runner v2
+ * Workflow Runner
  * Supports setup + kickoff model with shared context
  */
 
@@ -16,9 +16,9 @@ import type { ContextProvider } from './context/provider.ts'
 const execAsync = promisify(exec)
 
 /**
- * V2 Workflow run configuration
+ * Workflow run configuration
  */
-export interface RunConfigV2 {
+export interface RunConfig {
   /** Workflow to run */
   workflow: ParsedWorkflow
   /** Instance name */
@@ -32,9 +32,9 @@ export interface RunConfigV2 {
 }
 
 /**
- * V2 Workflow run result
+ * Workflow run result
  */
-export interface RunResultV2 {
+export interface RunResult {
   /** Success flag */
   success: boolean
   /** Error if failed */
@@ -54,7 +54,7 @@ export interface RunResultV2 {
 }
 
 /**
- * V2 Workflow runtime instance
+ * Workflow runtime instance
  */
 export interface WorkflowRuntime {
   /** Workflow name */
@@ -78,7 +78,7 @@ export interface WorkflowRuntime {
 }
 
 /**
- * Initialize v2 workflow runtime
+ * Initialize workflow runtime
  *
  * This sets up:
  * 1. Context directory
@@ -86,7 +86,7 @@ export interface WorkflowRuntime {
  * 3. MCP server (Unix socket)
  * 4. Runs setup commands
  */
-export async function initWorkflowV2(config: RunConfigV2): Promise<WorkflowRuntime> {
+export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> {
   const { workflow, instance = 'default', verbose = false, log = console.log } = config
   const startTime = Date.now()
 
@@ -94,7 +94,7 @@ export async function initWorkflowV2(config: RunConfigV2): Promise<WorkflowRunti
 
   // Ensure context is configured
   if (!workflow.context) {
-    throw new Error('V2 workflow requires context configuration')
+    throw new Error('Workflow requires context configuration')
   }
 
   const resolvedContext = workflow.context as ResolvedContext
@@ -230,18 +230,18 @@ async function runSetupTask(
 }
 
 /**
- * Run a v2 workflow (start mode)
+ * Run a workflow (start mode)
  *
  * This initializes the runtime, starts agents, and sends kickoff.
  * Agents remain running until explicitly stopped.
  */
-export async function runWorkflowV2(config: RunConfigV2): Promise<RunResultV2> {
+export async function runWorkflow(config: RunConfig): Promise<RunResult> {
   const { workflow, instance = 'default', verbose = false, log = console.log } = config
   const startTime = Date.now()
 
   try {
     // Initialize runtime
-    const runtime = await initWorkflowV2(config)
+    const runtime = await initWorkflow(config)
 
     // Start all agents with MCP config
     if (verbose) log('\nStarting agents...')

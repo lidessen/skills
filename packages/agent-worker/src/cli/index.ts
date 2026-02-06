@@ -901,7 +901,7 @@ program
   .option('--json', 'Output results as JSON')
   .option('--idle-timeout <ms>', 'Exit after agents idle for this duration', '5000')
   .action(async (file, options) => {
-    const { parseWorkflowFile, runWorkflowV2, generateMCPConfig } = await import('../workflow/index.ts')
+    const { parseWorkflowFile, runWorkflow, generateMCPConfig } = await import('../workflow/index.ts')
     type ResolvedAgent = Awaited<ReturnType<typeof parseWorkflowFile>>['agents'][string]
 
     const startedAgents: string[] = []
@@ -934,7 +934,7 @@ program
         console.log('')
       }
 
-      const result = await runWorkflowV2({
+      const result = await runWorkflow({
         workflow,
         instance: options.instance,
         verbose: options.verbose,
@@ -977,7 +977,7 @@ program
 
       const idleTimeout = parseInt(options.idleTimeout, 10)
 
-      // Reuse context provider and agent names from runWorkflowV2 result
+      // Reuse context provider and agent names from runWorkflow result
       const provider = result.contextProvider!
       const agentNames = result.agentNames!
 
@@ -1053,7 +1053,7 @@ program
   .option('--verbose', 'Show detailed progress')
   .option('--background', 'Run in background (daemonize)')
   .action(async (file, options) => {
-    const { parseWorkflowFile, runWorkflowV2, generateMCPConfig } = await import('../workflow/index.ts')
+    const { parseWorkflowFile, runWorkflow, generateMCPConfig } = await import('../workflow/index.ts')
     type ResolvedAgent = Awaited<ReturnType<typeof parseWorkflowFile>>['agents'][string]
 
     // Background mode: spawn detached process
@@ -1105,7 +1105,7 @@ program
       console.log(`Starting workflow: ${workflow.name}`)
       console.log(`Instance: ${options.instance}`)
 
-      const result = await runWorkflowV2({
+      const result = await runWorkflow({
         workflow,
         instance: options.instance,
         verbose: options.verbose,
@@ -1170,7 +1170,7 @@ program
     console.log(`Example: agent-worker start ${file} --instance ${options.instance}`)
   })
 
-// Stop workflow/agents (v2)
+// Stop workflow/agents
 program
   .command('stop [target]')
   .description('Stop workflow agents')
@@ -1218,7 +1218,7 @@ program
     }
   })
 
-// List running workflows/agents (v2)
+// List running workflows/agents
 program
   .command('list')
   .description('List running agents')

@@ -1,8 +1,8 @@
-# Agent Worker v2 Design
+# Agent Worker Workflow Design
 
 ## Overview
 
-This document defines the design for agent-worker v2, introducing workflow-based orchestration with shared context and @mention-driven collaboration.
+This document defines the design for agent-worker workflows, enabling multi-agent orchestration with shared context and @mention-driven collaboration.
 
 ### Key Concepts
 
@@ -1063,63 +1063,16 @@ agent-worker send "Check the notes in the document"
 
 ---
 
-## Migration from v1
-
-### CLI Changes
-
-```bash
-# Before (v1)
-agent-worker up workflow.yaml
-agent-worker down
-agent-worker ps
-
-# After (v2)
-agent-worker start workflow.yaml
-agent-worker stop
-agent-worker list
-```
-
-### Workflow Changes
-
-```yaml
-# Before (v1) - tasks-based
-tasks:
-  - shell: gh pr diff
-    as: diff
-  - send: "Review: ${{ diff }}"
-    to: reviewer
-    as: review
-  - send: "Fix issues: ${{ review }}"
-    to: coder
-
-# After (v2) - kickoff-based
-setup:
-  - shell: gh pr diff
-    as: diff
-
-kickoff: |
-  PR diff:
-  ${{ diff }}
-
-  @reviewer please review.
-  When done, @coder for fixes.
-```
-
----
-
 ## Design Decisions
 
-### 1. Why Kickoff Instead of Tasks?
+### 1. Why Kickoff Model?
 
-**Tasks** (v1) were procedural - explicit sequence of steps:
-- Rigid execution order
-- Manual `wait_mention` for coordination
-- Poor fit for autonomous agent collaboration
-
-**Kickoff** (v2) is declarative - describe goal, let agents coordinate:
+The kickoff model is declarative - describe the goal and let agents coordinate:
 - Natural language work description
 - @mention for automatic coordination
 - Agents decide their own actions
+
+This is preferable to procedural task sequences because it allows autonomous agent collaboration without rigid execution order.
 
 ### 2. Why Separate Channel and Document?
 

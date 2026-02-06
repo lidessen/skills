@@ -67,7 +67,7 @@ export async function parseWorkflowFile(
     agents[agentName] = await resolveAgent(agentDef, workflowDir)
   }
 
-  // Resolve context configuration (v2)
+  // Resolve context configuration
   const context = resolveContext(raw.context, workflowDir, instance)
 
   return {
@@ -184,12 +184,12 @@ export function validateWorkflow(workflow: unknown): ValidationResult {
     }
   }
 
-  // Validate context (v2, optional)
+  // Validate context (optional)
   if (w.context !== undefined && w.context !== null) {
     validateContext(w.context, errors)
   }
 
-  // Validate setup (v2, optional)
+  // Validate setup (optional)
   if (w.setup !== undefined) {
     if (!Array.isArray(w.setup)) {
       errors.push({ path: 'setup', message: 'Setup must be an array' })
