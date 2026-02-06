@@ -56,9 +56,9 @@ export class FileContextProvider implements ContextProvider {
     const mentions = extractMentions(message, this.validAgents)
     const entry: ChannelEntry = { timestamp, from, message, mentions }
 
-    // Format: ### HH:MM:SS [agent]\nmessage\n
-    const timeStr = timestamp.slice(11, 19) // Extract HH:MM:SS
-    const markdown = `\n### ${timeStr} [${from}]\n${message}\n`
+    // Format: ### YYYY-MM-DDTHH:MM:SS.sssZ [agent]\nmessage\n
+    // Using full ISO timestamp to preserve millisecond precision for filtering
+    const markdown = `\n### ${timestamp} [${from}]\n${message}\n`
 
     appendFileSync(this.channelPath, markdown)
 
@@ -88,28 +88,29 @@ export class FileContextProvider implements ContextProvider {
   /**
    * Parse channel markdown into structured entries
    *
-   * Format:
-   * ### HH:MM:SS [agent]
+   * Format (current - full ISO timestamp):
+   * ### 2026-02-05T14:30:22.123Z [agent]
    * message content
    * possibly multiple lines
    *
-   * ### HH:MM:SS [another-agent]
-   * another message
+   * Format (legacy - time only, assumes today):
+   * ### HH:MM:SS [agent]
+   * message content
    */
   private parseChannelMarkdown(content: string): ChannelEntry[] {
     const entries: ChannelEntry[] = []
-
-    // Match: ### HH:MM:SS [agent]
-    const headerPattern = /^### (\d{2}:\d{2}:\d{2}) \[([^\]]+)\]$/gm
     const lines = content.split('\n')
 
     let currentEntry: Partial<ChannelEntry> | null = null
     let messageLines: string[] = []
 
     for (const line of lines) {
-      const headerMatch = line.match(/^### (\d{2}:\d{2}:\d{2}) \[([^\]]+)\]$/)
+      // Try full ISO format first: ### 2026-02-05T14:30:22.123Z [agent]
+      const isoMatch = line.match(/^### (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z) \[([^\]]+)\]$/)
+      // Fallback to legacy format: ### HH:MM:SS [agent]
+      const legacyMatch = !isoMatch && line.match(/^### (\d{2}:\d{2}:\d{2}) \[([^\]]+)\]$/)
 
-      if (headerMatch) {
+      if (isoMatch || legacyMatch) {
         // Save previous entry
         if (currentEntry && currentEntry.timestamp && currentEntry.from) {
           const message = messageLines.join('\n').trim()
@@ -122,12 +123,20 @@ export class FileContextProvider implements ContextProvider {
         }
 
         // Start new entry
-        const timeStr = headerMatch[1]
-        const from = headerMatch[2]
+        let timestamp: string
+        let from: string
 
-        // Construct ISO timestamp (using today's date as base)
-        const today = new Date().toISOString().slice(0, 10)
-        const timestamp = `${today}T${timeStr}.000Z`
+        if (isoMatch) {
+          const [, isoTimestamp, agentName] = isoMatch
+          timestamp = isoTimestamp
+          from = agentName
+        } else {
+          const [, timeStr, agentName] = legacyMatch!
+          // Legacy format: use today's date
+          const today = new Date().toISOString().slice(0, 10)
+          timestamp = `${today}T${timeStr}.000Z`
+          from = agentName
+        }
 
         currentEntry = { timestamp, from }
         messageLines = []
@@ -153,6 +162,19 @@ export class FileContextProvider implements ContextProvider {
   async getUnreadMentions(agent: string): Promise<MentionNotification[]> {
     const lastAck = this.mentionState.get(agent) || ''
     const entries = await this.readChannel(lastAck)
+
+    return entries
+      .filter((e) => e.mentions.includes(agent))
+      .map((e) => ({
+        from: e.from,
+        target: agent,
+        message: e.message,
+        timestamp: e.timestamp,
+      }))
+  }
+
+  async getAllMentions(agent: string): Promise<MentionNotification[]> {
+    const entries = await this.readChannel()
 
     return entries
       .filter((e) => e.mentions.includes(agent))

@@ -37,6 +37,13 @@ export interface ContextProvider {
   getUnreadMentions(agent: string): Promise<MentionNotification[]>
 
   /**
+   * Get all mentions for an agent (including acknowledged)
+   * @param agent - Agent name to get mentions for
+   * @returns Array of all mention notifications
+   */
+  getAllMentions(agent: string): Promise<MentionNotification[]>
+
+  /**
    * Acknowledge mentions up to a timestamp
    * @param agent - Agent name acknowledging
    * @param until - Timestamp to acknowledge up to

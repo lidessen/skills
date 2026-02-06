@@ -63,6 +63,17 @@ export class MemoryContextProvider implements ContextProvider {
       }))
   }
 
+  async getAllMentions(agent: string): Promise<MentionNotification[]> {
+    return this.channel
+      .filter((e) => e.mentions.includes(agent))
+      .map((e) => ({
+        from: e.from,
+        target: agent,
+        message: e.message,
+        timestamp: e.timestamp,
+      }))
+  }
+
   async acknowledgeMentions(agent: string, until: string): Promise<void> {
     this.mentionState.set(agent, until)
   }

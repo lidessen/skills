@@ -45,6 +45,10 @@ export interface RunResultV2 {
   duration: number
   /** MCP socket path (for external agents) */
   mcpSocketPath?: string
+  /** Context provider for polling/reading state */
+  contextProvider?: ContextProvider
+  /** Agent names in the workflow */
+  agentNames?: string[]
   /** Shutdown function */
   shutdown?: () => Promise<void>
 }
@@ -266,6 +270,8 @@ export async function runWorkflowV2(config: RunConfigV2): Promise<RunResultV2> {
       setupResults: runtime.setupResults,
       duration: Date.now() - startTime,
       mcpSocketPath: runtime.mcpSocketPath,
+      contextProvider: runtime.contextProvider,
+      agentNames: runtime.agentNames,
       shutdown: () => runtime.shutdown(),
     }
   } catch (error) {

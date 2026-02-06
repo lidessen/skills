@@ -138,6 +138,19 @@ describe('MemoryContextProvider', () => {
       const mentions = await provider.getUnreadMentions('agent2')
       expect(mentions).toEqual([])
     })
+
+    test('gets all mentions including acknowledged', async () => {
+      const entry = await provider.appendChannel('agent1', '@agent2 first')
+      await provider.appendChannel('agent3', '@agent2 second')
+
+      await provider.acknowledgeMentions('agent2', entry.timestamp)
+
+      const allMentions = await provider.getAllMentions('agent2')
+      const unreadMentions = await provider.getUnreadMentions('agent2')
+
+      expect(allMentions).toHaveLength(2)
+      expect(unreadMentions).toHaveLength(1)
+    })
   })
 
   describe('document operations', () => {
@@ -210,7 +223,7 @@ describe('FileContextProvider', () => {
   })
 
   describe('channel operations', () => {
-    test('appends to channel file', async () => {
+    test('appends to channel file with ISO timestamp format', async () => {
       await provider.appendChannel('agent1', 'Hello world')
 
       const channelPath = join(testDir, 'channel.md')
@@ -219,6 +232,8 @@ describe('FileContextProvider', () => {
       const content = readFileSync(channelPath, 'utf-8')
       expect(content).toContain('[agent1]')
       expect(content).toContain('Hello world')
+      // Verify format: ### 2026-02-05T14:30:22.123Z [agent]
+      expect(content).toMatch(/### \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z \[agent1\]/)
     })
 
     test('reads channel entries from file', async () => {
@@ -286,6 +301,23 @@ describe('FileContextProvider', () => {
 
       const mentions = await newProvider.getUnreadMentions('agent2')
       expect(mentions).toEqual([])
+    })
+
+    test('gets all mentions including acknowledged', async () => {
+      const entry = await provider.appendChannel('agent1', '@agent2 first mention')
+      // Small delay to ensure different timestamps
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      await provider.appendChannel('agent3', '@agent2 second mention')
+
+      // Acknowledge first mention
+      await provider.acknowledgeMentions('agent2', entry.timestamp)
+
+      // getAllMentions returns all, getUnreadMentions returns only unread
+      const allMentions = await provider.getAllMentions('agent2')
+      const unreadMentions = await provider.getUnreadMentions('agent2')
+
+      expect(allMentions).toHaveLength(2)
+      expect(unreadMentions).toHaveLength(1)
     })
   })
 
@@ -588,6 +620,31 @@ describe('MCP Server Tools', () => {
       )) as Array<unknown>
 
       expect(result).toEqual([])
+    })
+
+    test('gets all mentions when unread_only is false', async () => {
+      const entry = await provider.appendChannel('agent1', '@agent2 first mention')
+      await provider.appendChannel('agent3', '@agent2 second mention')
+
+      // Acknowledge first mention
+      await provider.acknowledgeMentions('agent2', entry.timestamp)
+
+      // Get all mentions (including acknowledged)
+      const allResult = (await callTool(
+        'channel_mentions',
+        { unread_only: false },
+        { sessionId: 'agent2' }
+      )) as Array<{ from: string }>
+
+      // Get only unread mentions
+      const unreadResult = (await callTool(
+        'channel_mentions',
+        { unread_only: true },
+        { sessionId: 'agent2' }
+      )) as Array<{ from: string }>
+
+      expect(allResult).toHaveLength(2)
+      expect(unreadResult).toHaveLength(1)
     })
   })
 

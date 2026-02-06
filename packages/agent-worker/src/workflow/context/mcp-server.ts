@@ -42,7 +42,9 @@ export function createContextMCPServer(options: ContextMCPServerOptions) {
     version,
   })
 
-  // Track connected agents for notifications
+  // Track connected agents for notifications (placeholder for future MCP notification support)
+  // Currently unused - MCP SDK doesn't support custom notifications yet
+  // When supported, the transport layer will populate this map on agent connect
   const agentConnections = new Map<string, unknown>()
 
   // ==================== Channel Tools ====================
@@ -138,14 +140,16 @@ export function createContextMCPServer(options: ContextMCPServerOptions) {
 
   server.tool(
     'channel_mentions',
-    'Get unread mentions for you.',
+    'Get mentions for you.',
     {
       unread_only: z.boolean().optional().describe('Only return unread mentions (default: true)'),
     },
     async ({ unread_only = true }, extra) => {
       const agent = getAgentId(extra) || 'anonymous'
 
-      const mentions = unread_only ? await provider.getUnreadMentions(agent) : []
+      const mentions = unread_only
+        ? await provider.getUnreadMentions(agent)
+        : await provider.getAllMentions(agent)
 
       return {
         content: [

@@ -980,12 +980,10 @@ program
         }
 
         const idleTimeout = parseInt(options.idleTimeout, 10)
-        const { createFileContextProvider } = await import('../workflow/context/index.ts')
 
-        // Poll for idle state
-        const agentNames = Object.keys(workflow.agents)
-        const contextDir = workflow.context?.dir || `.workflow/${options.instance}`
-        const provider = createFileContextProvider(contextDir, agentNames)
+        // Reuse context provider and agent names from runWorkflowV2 result
+        const provider = result.contextProvider!
+        const agentNames = result.agentNames!
 
         let idleSince: number | null = null
         const startTime = Date.now()
