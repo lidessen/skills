@@ -901,24 +901,25 @@ program
   .description('Execute workflow and exit when complete')
   .option('--instance <name>', 'Instance name', 'default')
   .option('-v, --verbose', 'Show detailed progress')
-  .option('-d, --debug', 'Show debug information (alias for --verbose)')
+  .option('-d, --debug', 'Show debug logs (internal details, no channel output)')
   .option('--json', 'Output results as JSON')
   .action(async (file, options) => {
-    // --debug is an alias for --verbose
-    if (options.debug) options.verbose = true
     const { parseWorkflowFile, runWorkflowWithControllers } = await import('../workflow/index.ts')
 
     try {
       // Parse workflow
       const workflow = await parseWorkflowFile(file, { instance: options.instance })
 
-      console.log(`Running workflow: ${workflow.name}`)
-      console.log(`Agents: ${Object.keys(workflow.agents).join(', ')}\n`)
+      if (!options.debug) {
+        console.log(`Running workflow: ${workflow.name}`)
+        console.log(`Agents: ${Object.keys(workflow.agents).join(', ')}\n`)
+      }
 
       const result = await runWorkflowWithControllers({
         workflow,
         instance: options.instance,
         verbose: options.verbose,
+        debug: options.debug,
         log: console.log,
         mode: 'run', // Exit when all agents idle
       })
@@ -928,12 +929,12 @@ program
         process.exit(1)
       }
 
-      if (options.verbose) {
+      if (options.verbose && !options.debug) {
         console.log(`\nWorkflow completed in ${result.duration}ms`)
       }
 
       // Read final document content as result
-      if (result.contextProvider) {
+      if (result.contextProvider && !options.debug) {
         const finalDoc = await result.contextProvider.readDocument()
         if (options.json) {
           console.log(JSON.stringify({
@@ -959,11 +960,9 @@ program
   .description('Start workflow and keep agents running')
   .option('--instance <name>', 'Instance name', 'default')
   .option('-v, --verbose', 'Show detailed progress')
-  .option('-d, --debug', 'Show debug information (alias for --verbose)')
+  .option('-d, --debug', 'Show debug logs (internal details, no channel output)')
   .option('--background', 'Run in background (daemonize)')
   .action(async (file, options) => {
-    // --debug is an alias for --verbose
-    if (options.debug) options.verbose = true
     const { parseWorkflowFile, runWorkflowWithControllers } = await import('../workflow/index.ts')
 
     // Background mode: spawn detached process
@@ -1001,13 +1000,16 @@ program
       // Parse workflow
       const workflow = await parseWorkflowFile(file, { instance: options.instance })
 
-      console.log(`Starting workflow: ${workflow.name}`)
-      console.log(`Agents: ${Object.keys(workflow.agents).join(', ')}\n`)
+      if (!options.debug) {
+        console.log(`Starting workflow: ${workflow.name}`)
+        console.log(`Agents: ${Object.keys(workflow.agents).join(', ')}\n`)
+      }
 
       const result = await runWorkflowWithControllers({
         workflow,
         instance: options.instance,
         verbose: options.verbose,
+        debug: options.debug,
         log: console.log,
         mode: 'start', // Keep running until stopped
       })
@@ -1019,7 +1021,9 @@ program
 
       shutdownFn = result.shutdown
 
-      console.log('\nWorkflow started. Press Ctrl+C to stop.\n')
+      if (!options.debug) {
+        console.log('\nWorkflow started. Press Ctrl+C to stop.\n')
+      }
 
       // Keep process alive
       await new Promise(() => {})

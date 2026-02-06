@@ -22,6 +22,7 @@ import {
   type AgentBackend,
 } from './controller/index.ts'
 import type { ChannelEntry } from './context/types.ts'
+import { createLogger, createSilentLogger, type Logger } from './logger.ts'
 
 const execAsync = promisify(exec)
 
@@ -415,8 +416,10 @@ export interface ControllerRunConfig {
   workflow: ParsedWorkflow
   /** Instance name */
   instance?: string
-  /** Verbose output */
+  /** Verbose output (show channel in real-time) */
   verbose?: boolean
+  /** Debug mode (show detailed internal logs, no channel output) */
+  debug?: boolean
   /** Log function */
   log?: (message: string) => void
   /** Run mode: 'run' exits when idle, 'start' runs until stopped */
@@ -462,6 +465,7 @@ export async function runWorkflowWithControllers(config: ControllerRunConfig): P
     workflow,
     instance = 'default',
     verbose = false,
+    debug = false,
     log = console.log,
     mode = 'run',
     pollInterval = 5000,
@@ -469,30 +473,48 @@ export async function runWorkflowWithControllers(config: ControllerRunConfig): P
   } = config
   const startTime = Date.now()
 
+  // Create logger
+  const logger = createLogger({ debug, log, prefix: 'workflow' })
+
+  logger.debug('Starting workflow with controllers', { mode, instance, pollInterval })
+
   try {
     // Create controllers map for wake() on mention
     const controllers = new Map<string, AgentController>()
+
+    logger.debug('Initializing workflow runtime...')
 
     // Initialize runtime with onMention callback
     const runtime = await initWorkflowWithMentions({
       workflow,
       instance,
-      verbose,
+      verbose: debug, // Use debug for internal verbose logging
       log,
       onMention: (from, target, _entry) => {
         const controller = controllers.get(target)
         if (controller) {
-          if (verbose) log(`[${from}] mentioned @${target}, waking controller`)
+          logger.debug(`Mention detected: ${from} → @${target}, waking controller`)
           controller.wake()
         }
       },
     })
 
+    logger.debug('Runtime initialized', {
+      agentNames: runtime.agentNames,
+      mcpSocketPath: runtime.mcpSocketPath,
+    })
+
     // Create and start controllers for each agent
-    if (verbose) log('\nStarting agent controllers...')
+    logger.debug('Starting agent controllers...')
+    if (!debug && verbose) log('Starting agents...')
 
     for (const agentName of runtime.agentNames) {
       const agentDef = workflow.agents[agentName]!
+
+      logger.debug(`Creating controller for ${agentName}`, {
+        backend: agentDef.backend,
+        model: agentDef.model,
+      })
 
       // Get backend for this agent
       // Priority: 1. Custom createBackend, 2. Explicit backend field, 3. Infer from model
@@ -507,6 +529,9 @@ export async function runWorkflowWithControllers(config: ControllerRunConfig): P
         throw new Error(`Agent "${agentName}" requires either a backend or model field`)
       }
 
+      logger.debug(`Using backend: ${backend.name} for ${agentName}`)
+
+      const controllerLogger = logger.child(agentName)
       const controller = createAgentController({
         name: agentName,
         agent: agentDef,
@@ -514,35 +539,49 @@ export async function runWorkflowWithControllers(config: ControllerRunConfig): P
         mcpSocketPath: runtime.mcpSocketPath,
         backend,
         pollInterval,
-        log: verbose ? log : undefined,
+        log: debug ? (msg) => controllerLogger.debug(msg) : undefined,
       })
 
       controllers.set(agentName, controller)
       await controller.start()
 
-      if (verbose) log(`  Started controller: ${agentName}`)
+      logger.debug(`Controller started: ${agentName}`)
     }
 
     // Send kickoff
+    logger.debug('Sending kickoff message...')
     await runtime.sendKickoff()
+    logger.debug('Kickoff sent')
 
-    // Start channel watcher for real-time output (always on, not just verbose)
-    const channelWatcher = startChannelWatcher(
-      runtime.contextProvider,
-      runtime.agentNames,
-      log,
-      250 // Fast polling for responsive output
-    )
+    // Start channel watcher for real-time output (only if not debug mode)
+    let channelWatcher: ChannelWatcher | null = null
+    if (!debug) {
+      channelWatcher = startChannelWatcher(
+        runtime.contextProvider,
+        runtime.agentNames,
+        log,
+        250 // Fast polling for responsive output
+      )
+    }
 
     // Handle run mode vs start mode
     if (mode === 'run') {
-      // Wait for workflow to complete
-      if (verbose) log('\nWaiting for workflow to complete...')
+      logger.debug('Running in "run" mode, waiting for completion...')
 
+      let idleCheckCount = 0
       while (true) {
         const isIdle = await checkWorkflowIdle(controllers, runtime.contextProvider)
+        idleCheckCount++
+
+        if (idleCheckCount % 10 === 0) {
+          // Log every 10 seconds
+          const states = [...controllers.entries()].map(([n, c]) => `${n}=${c.state}`).join(', ')
+          logger.debug(`Idle check #${idleCheckCount}: ${states}`)
+        }
+
         if (isIdle) {
-          if (verbose) log('\nWorkflow complete (all agents idle)')
+          logger.debug('Workflow complete - all agents idle')
+          if (!debug && verbose) log('\nWorkflow complete')
           break
         }
         // Check every second
@@ -550,9 +589,11 @@ export async function runWorkflowWithControllers(config: ControllerRunConfig): P
       }
 
       // Stop channel watcher and shutdown
-      channelWatcher.stop()
-      await shutdownControllers(controllers, verbose, log)
+      channelWatcher?.stop()
+      await shutdownControllers(controllers, debug, logger)
       await runtime.shutdown()
+
+      logger.debug(`Workflow finished in ${Date.now() - startTime}ms`)
 
       return {
         success: true,
@@ -564,6 +605,8 @@ export async function runWorkflowWithControllers(config: ControllerRunConfig): P
     }
 
     // Start mode: return immediately, caller manages lifecycle
+    logger.debug('Running in "start" mode, returning control to caller')
+
     return {
       success: true,
       setupResults: runtime.setupResults,
@@ -572,12 +615,13 @@ export async function runWorkflowWithControllers(config: ControllerRunConfig): P
       contextProvider: runtime.contextProvider,
       controllers,
       shutdown: async () => {
-        channelWatcher.stop()
-        await shutdownControllers(controllers, verbose, log)
+        channelWatcher?.stop()
+        await shutdownControllers(controllers, debug, logger)
         await runtime.shutdown()
       },
     }
   } catch (error) {
+    logger.error('Workflow failed', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),
@@ -720,17 +764,18 @@ async function initWorkflowWithMentions(config: InitWithMentionsConfig): Promise
  */
 async function shutdownControllers(
   controllers: Map<string, AgentController>,
-  verbose: boolean,
-  log: (message: string) => void
+  debug: boolean,
+  logger: Logger
 ): Promise<void> {
-  if (verbose) log('\nStopping controllers...')
+  logger.debug('Stopping controllers...')
 
   const stopPromises = [...controllers.values()].map(async (controller) => {
     await controller.stop()
-    if (verbose) log(`  Stopped: ${controller.name}`)
+    logger.debug(`Stopped controller: ${controller.name}`)
   })
 
   await Promise.all(stopPromises)
+  logger.debug('All controllers stopped')
 }
 
 /**
