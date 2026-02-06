@@ -63,10 +63,33 @@ agent-worker send "What is 2+2?" --wait
 
 # Send with debug logging (useful for troubleshooting)
 agent-worker send "Debug this" --debug
+```
 
-# View conversation history
-agent-worker history
-agent-worker history --last 5
+### Viewing Messages
+
+```bash
+# Peek at recent messages (shows last 10 by default)
+agent-worker peek
+
+# Show last N messages
+agent-worker peek --last 5
+agent-worker peek -n 3
+
+# Show all messages
+agent-worker peek --all
+
+# Search for messages containing keyword
+agent-worker peek --find "error"
+agent-worker peek --search "success"
+
+# Combine search with limit
+agent-worker peek --find "TODO" --all
+
+# Peek at specific session
+agent-worker peek --to my-session
+
+# View as JSON
+agent-worker peek --json
 
 # View token usage
 agent-worker stats
@@ -82,14 +105,14 @@ agent-worker clear
 
 The CLI supports two modes for sending messages:
 
-1. **Asynchronous (default)**: The command returns immediately after sending. The agent processes in the background. Use `history` to view the response.
+1. **Asynchronous (default)**: The command returns immediately after sending. The agent processes in the background. Use `peek` to view the response.
    ```bash
    # Send message (returns immediately)
    agent-worker send "Analyze this large codebase"
-   # Output: "Message sent. Use 'history' command to view response."
+   # Output: "Message sent. Use 'peek' command to view response."
 
    # View response later
-   agent-worker history --last 2
+   agent-worker peek
    ```
 
 2. **Synchronous (`--wait`)**: The command waits for the agent to fully process the message and return a response. This is best for quick questions when you need immediate results.
@@ -397,7 +420,7 @@ process.on('exit', async () => {
 agent-worker session new -f ./my-prompt.txt -n test
 agent-worker send "Test case 1: ..." --to test
 agent-worker send "Test case 2: ..." --to test
-agent-worker history --to test
+agent-worker peek --to test
 agent-worker session end test
 ```
 

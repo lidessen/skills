@@ -399,13 +399,16 @@ toolCmd
     }
   })
 
-// History command
+// Peek command (view messages)
 program
-  .command('history')
-  .description('Show conversation history')
+  .command('peek')
+  .description('View conversation messages (shows recent 10 by default)')
   .option('--to <target>', 'Target session')
   .option('--json', 'Output as JSON')
   .option('-n, --last <count>', 'Show last N messages', parseInt)
+  .option('--all', 'Show all messages')
+  .option('--find <keyword>', 'Search for messages containing keyword')
+  .option('--search <keyword>', 'Alias for --find')
   .action(async (options) => {
     const target = options.to
 
@@ -420,17 +423,35 @@ program
       process.exit(1)
     }
 
-    let history = res.data as Array<{ role: string; content: string; status?: string }>
+    let history = res.data as Array<{ role: string; content: string; status?: string; timestamp?: string }>
 
-    if (options.last && options.last > 0) {
+    // Apply search filter if specified
+    const keyword = options.find || options.search
+    if (keyword) {
+      history = history.filter(msg =>
+        msg.content.toLowerCase().includes(keyword.toLowerCase())
+      )
+    }
+
+    // Determine how many messages to show
+    if (options.all) {
+      // Show all messages
+    } else if (options.last && options.last > 0) {
       history = history.slice(-options.last)
+    } else {
+      // Default: show last 10 messages
+      history = history.slice(-10)
     }
 
     if (options.json) {
       console.log(JSON.stringify(history, null, 2))
     } else {
       if (history.length === 0) {
-        console.log('No messages')
+        if (keyword) {
+          console.log(`No messages found matching: ${keyword}`)
+        } else {
+          console.log('No messages')
+        }
         return
       }
       for (const msg of history) {
