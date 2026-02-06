@@ -129,7 +129,7 @@ export interface MemoryContextConfig {
 
 /** Configuration for file provider */
 export interface FileProviderConfig {
-  /** Context directory (default: .workflow/${{ workflow.name }}/${{ instance }}/) */
+  /** Context directory (default: ~/.agent-worker/workflows/${{ workflow.name }}/${{ instance }}/) */
   dir?: string
   /** Channel file name (default: channel.md) */
   channel?: string
@@ -141,7 +141,7 @@ export interface FileProviderConfig {
 
 /** Default context configuration values */
 export const CONTEXT_DEFAULTS = {
-  dir: '.workflow/${{ workflow.name }}/${{ instance }}/',
+  dir: '~/.agent-worker/workflows/${{ workflow.name }}/${{ instance }}/',
   channel: 'channel.md',
   stateDir: '_state/',
   documentDir: 'documents/',

@@ -3,7 +3,8 @@
  */
 
 import { readFileSync, existsSync } from 'node:fs'
-import { basename, dirname, join, resolve } from 'node:path'
+import { homedir } from 'node:os'
+import { basename, dirname, join, resolve, isAbsolute } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import type {
   WorkflowFile,
@@ -68,7 +69,7 @@ export async function parseWorkflowFile(
   }
 
   // Resolve context configuration
-  const context = resolveContext(raw.context, workflowDir, instance)
+  const context = resolveContext(raw.context, workflowDir, name, instance)
 
   return {
     name,
@@ -78,6 +79,40 @@ export async function parseWorkflowFile(
     setup: raw.setup || [],
     kickoff: raw.kickoff,
   }
+}
+
+/**
+ * Resolve context directory path with template substitution
+ *
+ * Handles:
+ * - ~ expansion to home directory
+ * - ${{ workflow.name }} substitution
+ * - ${{ instance }} substitution
+ * - Relative paths (resolved relative to workflowDir)
+ * - Absolute paths (used as-is)
+ */
+function resolveContextDir(
+  dirTemplate: string,
+  workflowDir: string,
+  workflowName: string,
+  instance: string
+): string {
+  // Substitute templates
+  let dir = dirTemplate
+    .replace('${{ workflow.name }}', workflowName)
+    .replace('${{ instance }}', instance)
+
+  // Expand tilde to home directory
+  if (dir.startsWith('~/')) {
+    dir = join(homedir(), dir.slice(2))
+  } else if (dir === '~') {
+    dir = homedir()
+  } else if (!isAbsolute(dir)) {
+    // Relative path - resolve relative to workflow directory
+    dir = join(workflowDir, dir)
+  }
+
+  return dir
 }
 
 /**
@@ -92,6 +127,7 @@ export async function parseWorkflowFile(
 function resolveContext(
   config: WorkflowFile['context'] | null,
   workflowDir: string,
+  workflowName: string,
   instance: string
 ): ResolvedContext | undefined {
   // false = explicitly disabled
@@ -101,7 +137,7 @@ function resolveContext(
 
   // undefined or null = default file provider enabled
   if (config === undefined || config === null) {
-    const dir = join(workflowDir, CONTEXT_DEFAULTS.dir.replace('${{ instance }}', instance))
+    const dir = resolveContextDir(CONTEXT_DEFAULTS.dir, workflowDir, workflowName, instance)
     return {
       provider: 'file',
       dir,
@@ -121,7 +157,7 @@ function resolveContext(
   // File provider with custom config
   const fileConfig = config.config || {}
   const dirTemplate = fileConfig.dir || CONTEXT_DEFAULTS.dir
-  const dir = join(workflowDir, dirTemplate.replace('${{ instance }}', instance))
+  const dir = resolveContextDir(dirTemplate, workflowDir, workflowName, instance)
 
   return {
     provider: 'file',
