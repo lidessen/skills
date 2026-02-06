@@ -8,6 +8,125 @@ Implementation tasks for the workflow design.
 
 ---
 
+## Phase 0: Migration (Refactor Existing Code)
+
+Refactor existing Phase 1-6 implementation to align with new design.
+
+### Storage Structure Migration
+
+Current structure:
+```
+.workflow/instance/
+├── .mention-state.json    # Flat in context dir
+├── channel.md
+└── notes.md               # Single document file
+```
+
+Target structure:
+```
+.workflow/instance/
+├── _state/                # Internal state directory
+│   └── inbox-state.json   # Renamed from .mention-state.json
+├── channel.md
+└── documents/             # Multi-file document directory
+    └── notes.md           # Default entry point
+```
+
+### Types Changes (`context/types.ts`)
+
+- [ ] Rename `MentionNotification` → `InboxMessage`
+- [ ] Add `priority` field to `InboxMessage` (normal | high)
+- [ ] Add `InboxState` interface
+- [ ] Update `CONTEXT_DEFAULTS`:
+  - [ ] Keep `channel: 'channel.md'`
+  - [ ] Change `document: 'notes.md'` → `documentDir: 'documents/'`
+  - [ ] Add `defaultDocument: 'notes.md'`
+  - [ ] Add `stateDir: '_state/'`
+
+### Provider Interface Changes (`context/provider.ts`)
+
+- [ ] Rename method: `getUnreadMentions()` → `getInbox()`
+- [ ] Rename method: `acknowledgeMentions()` → `ackInbox()`
+- [ ] Remove `getAllMentions()` (not needed with new inbox model)
+- [ ] Update `readDocument()` signature: add optional `file?: string` parameter
+- [ ] Update `writeDocument()` signature: add optional `file?: string` parameter
+- [ ] Update `appendDocument()` signature: add optional `file?: string` parameter
+- [ ] Add `listDocuments()` method
+- [ ] Add `createDocument(file: string, content: string)` method
+
+### FileContextProvider Changes (`context/file-provider.ts`)
+
+- [ ] Update constructor: accept `documentDir` instead of `documentPath`
+- [ ] Update `mentionStatePath` → `_state/inbox-state.json`
+- [ ] Rename `mentionState` → `inboxState`
+- [ ] Rename `loadMentionState()` → `loadInboxState()`
+- [ ] Rename `saveMentionState()` → `saveInboxState()`
+- [ ] Rename `getUnreadMentions()` → `getInbox()`
+- [ ] Rename `acknowledgeMentions()` → `ackInbox()`
+- [ ] Remove `getAllMentions()` method
+- [ ] Update document methods for multi-file support:
+  - [ ] `readDocument(file?)` - default to `notes.md`
+  - [ ] `writeDocument(file?, content)` - default to `notes.md`
+  - [ ] `appendDocument(file?, content)` - default to `notes.md`
+- [ ] Add `listDocuments()` implementation
+- [ ] Add `createDocument(file, content)` implementation
+- [ ] Update `createFileContextProvider()` factory function
+
+### MemoryContextProvider Changes (`context/memory-provider.ts`)
+
+- [ ] Rename `mentionState` → `inboxState`
+- [ ] Change `document` string → `documents` Map<string, string>
+- [ ] Rename `getUnreadMentions()` → `getInbox()`
+- [ ] Rename `acknowledgeMentions()` → `ackInbox()`
+- [ ] Remove `getAllMentions()` method
+- [ ] Update document methods for multi-file support
+- [ ] Add `listDocuments()` implementation
+- [ ] Add `createDocument(file, content)` implementation
+- [ ] Update `getMentionState()` → `getInboxState()` (test helper)
+
+### MCP Server Changes (`context/mcp-server.ts`)
+
+**Breaking Change:**
+- [ ] **Remove auto-acknowledge from `channel_read`** (lines 104-107)
+
+Tool updates:
+- [ ] Update `channel_mentions` → `inbox_check` (rename only)
+- [ ] Add `inbox_ack` tool (explicit acknowledgment)
+- [ ] Add `file` parameter to `document_read`
+- [ ] Add `file` parameter to `document_write`
+- [ ] Add `file` parameter to `document_append`
+- [ ] Add `document_list` tool
+- [ ] Add `document_create` tool
+- [ ] Add `onMention` callback option to `ContextMCPServerOptions`
+- [ ] Call `onMention` in `channel_send` for each @mention
+
+### Workflow Types Changes (`workflow/types.ts`)
+
+- [ ] Update `ResolvedFileContext`:
+  - [ ] Rename `document: string` → `documentDir: string`
+- [ ] Add `documentOwner?: string` to context config types
+- [ ] Update `FileContextConfig` for documentOwner at context level
+
+### Runner Changes (`workflow/runner.ts`)
+
+- [ ] Update `createFileContextProvider()` call: pass `documentDir` instead of `documentFile`
+- [ ] Ensure `_state/` directory is created
+- [ ] Ensure `documents/` directory is created
+
+### Parser Changes (`workflow/parser.ts`)
+
+- [ ] Update context resolution: `document` → `documentDir`
+- [ ] Add `documentOwner` parsing and validation
+
+### Test Updates
+
+- [ ] Update any tests using old method names
+- [ ] Update any tests using old storage paths
+
+> **Note**: No backward compatibility with old storage structure. Clean break - new design only.
+
+---
+
 ## Phase 1: Context Provider
 
 - [x] Define `ContextProvider` interface
@@ -67,24 +186,26 @@ Implementation tasks for the workflow design.
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| 1. Context Provider | ✅ Complete | `context/` module with Memory + File providers |
-| 2. Context MCP Server | ✅ Complete | MCP tools + stdio/Unix socket transports |
+| **0. Migration** | 🔄 Pending | Refactor existing code to align with new design |
+| 1. Context Provider | ⚠️ Needs Migration | `context/` module - update for inbox/multi-doc |
+| 2. Context MCP Server | ⚠️ Needs Migration | Remove auto-ack, add inbox/doc tools |
 | 3. Kickoff Model | ✅ Complete | runner with setup + kickoff execution |
 | 4. CLI Updates | ✅ Complete | start/stop/list commands + context subcommand |
 | 5. Run/Start Modes | ✅ Complete | run idle detection + start --background + graceful shutdown |
 | 6. Agent MCP Integration | ✅ Complete | mcp-config.ts + mcp-stdio bridge |
+| 7. Inbox Model | 🔄 Pending | Merged into Phase 0 migration |
+| 8. Agent Controller | 🔄 Pending | Controller + backend abstraction |
+| 9. Multi-File Documents | 🔄 Pending | Merged into Phase 0 migration |
+| 10. Document Ownership | 🔄 Pending | Optional single-writer model |
+| 11. Proposal & Voting | 🔄 Pending | Generic decision-making system |
 
 ---
 
 ## Phase 7: Inbox Model
 
-- [ ] Add `InboxMessage` and `InboxState` types
-- [ ] Add inbox methods to `ContextProvider` interface
-- [ ] Implement `getInbox()` - get unread @mentions for agent (**does NOT acknowledge**)
-- [ ] Implement `ackInbox()` - acknowledge messages up to timestamp
+> **Note**: Core inbox changes are in Phase 0 Migration. This phase covers remaining work.
+
 - [ ] Add priority detection (multiple mentions, urgent keywords)
-- [ ] Add MCP tools: `inbox_check`, `inbox_ack`
-- [ ] **Remove auto-acknowledge from `channel_read`** (breaking change)
 - [ ] Update agent system prompts with work loop guidance
 
 > **Design Decision**: `inbox_check` and `channel_read` do NOT acknowledge messages.
@@ -140,13 +261,10 @@ Implementation tasks for the workflow design.
 
 ## Phase 9: Multi-File Documents
 
-- [ ] Add `documents` config option for additional document files
-- [ ] Add `file` parameter to `document_read`, `document_write`, `document_append`
-- [ ] Implement `listDocuments()` - list all document files
-- [ ] Implement `createDocument()` - create new document file
-- [ ] Implement `deleteDocument()` - remove document file
-- [ ] Add MCP tools: `document_list`, `document_create`
+> **Note**: Core multi-file changes are in Phase 0 Migration. This phase covers remaining work.
+
 - [ ] Support nested document directories (e.g., `findings/auth.md`)
+- [ ] Implement `deleteDocument()` - remove document file (optional, may not be needed)
 
 ## Phase 10: Document Ownership (Optional)
 
