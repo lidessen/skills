@@ -99,6 +99,30 @@ Implementation tasks for the workflow design. See [DESIGN.md](./DESIGN.md) for f
 
 Ideas for future enhancements (not currently planned):
 
+### Sub-Channels (Deferred)
+
+Main channel + optional sub-channels for large workflows:
+
+```yaml
+context:
+  provider: file
+  config:
+    channel: main.md
+    subchannels:
+      - security      # security.channel.md
+      - performance   # performance.channel.md
+```
+
+**Potential use cases**:
+- Large workflows with many agents (main channel too noisy)
+- Private discussions (security review details)
+- Parallel workstreams (different sub-teams)
+
+**Why deferred**:
+- Document multi-file already handles topic separation
+- Instance isolation handles truly separate workflows
+- Wait for real usage patterns before adding complexity
+
 ### Dynamic Tool Loading
 
 Allow adding custom tools to the MCP server at runtime via CLI:

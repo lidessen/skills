@@ -1445,6 +1445,83 @@ No need for explicit `completion:` config - the command choice determines behavi
 
 ---
 
+## Implementation Guide
+
+### Current State vs Design
+
+The current implementation (Phase 1-6) provides a working foundation. Phase 7-8 extends it with inbox and multi-file documents.
+
+**ContextProvider Interface Changes:**
+
+| Current Method | Phase 7-8 Change |
+|----------------|------------------|
+| `getUnreadMentions(agent)` | → `getInbox(agent): InboxMessage[]` (add priority) |
+| `getAllMentions(agent)` | → Remove (not needed) |
+| `acknowledgeMentions(agent, until)` | → `ackInbox(agent, until)` |
+| - | → `peekInbox(agent): InboxMessage[]` (new) |
+| `readDocument()` | → `readDocument(file?)` (add optional file) |
+| `writeDocument(content)` | → `writeDocument(content, file?)` |
+| `appendDocument(content)` | → `appendDocument(content, file?)` |
+| - | → `listDocuments(): string[]` (new) |
+| - | → `createDocument(file, content)` (new) |
+| - | → `deleteDocument(file)` (new) |
+
+**MCP Tool Changes:**
+
+| Current Tool | Phase 7-8 Change |
+|--------------|------------------|
+| `channel_mentions` | → Replace with `inbox_check` |
+| - | → `inbox_ack` (new) |
+| - | → `inbox_peek` (new) |
+| `document_read` | → Add `file` parameter |
+| `document_write` | → Add `file` parameter |
+| `document_append` | → Add `file` parameter |
+| - | → `document_list` (new) |
+| - | → `document_create` (new) |
+
+**New Types:**
+
+```typescript
+// Add to context/types.ts
+interface InboxMessage {
+  entry: ChannelEntry
+  unread: boolean
+  priority: 'normal' | 'high'
+}
+
+// Priority calculation
+function calculatePriority(entry: ChannelEntry): 'normal' | 'high' {
+  if (entry.mentions.length > 1) return 'high'
+  if (/\b(urgent|asap|blocked|critical)\b/i.test(entry.message)) return 'high'
+  return 'normal'
+}
+```
+
+### Implementation Order
+
+**Phase 7: Inbox Model**
+1. Add `InboxMessage` type to `context/types.ts`
+2. Add inbox methods to `ContextProvider` interface
+3. Implement in `MemoryContextProvider` (easiest to test)
+4. Implement in `FileContextProvider`
+5. Add MCP tools: `inbox_check`, `inbox_ack`, `inbox_peek`
+6. Update tests
+
+**Phase 8: Multi-File Documents**
+1. Add `file` parameter to document methods in interface
+2. Implement in both providers (file resolution logic)
+3. Add `listDocuments`, `createDocument`, `deleteDocument`
+4. Add MCP tools
+5. Update tests
+
+### Backward Compatibility
+
+- Existing `channel_mentions` tool can remain as alias for `inbox_check`
+- Document methods without `file` parameter default to entry point
+- No breaking changes to workflow YAML schema
+
+---
+
 ## References
 
 - [Docker Compose](https://docs.docker.com/compose/) - Service orchestration inspiration
