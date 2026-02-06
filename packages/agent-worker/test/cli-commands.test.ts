@@ -135,44 +135,12 @@ describe('Client Module', () => {
   })
 })
 
-// ==================== Workflow CLI Command Logic Tests ====================
-
-// These tests verify the logic that CLI commands use, without spawning actual processes
+// ==================== CLI Command Logic Tests ====================
 
 import { buildAgentId, parseAgentId } from '../src/cli/instance.ts'
-import { parseWorkflowFile, runWorkflow } from '../src/workflow/index.ts'
-import type { ParsedWorkflow, ResolvedAgent } from '../src/workflow/types.ts'
 
-describe('Workflow CLI Command Logic', () => {
-  const testDir = join(tmpdir(), `workflow-cli-test-${Date.now()}`)
-
-  beforeEach(() => {
-    mkdirSync(testDir, { recursive: true })
-  })
-
-  afterEach(() => {
-    rmSync(testDir, { recursive: true, force: true })
-  })
-
-  describe('workflow run command logic', () => {
-    test('parses workflow file correctly', async () => {
-      const workflowPath = join(testDir, 'test.yaml')
-      writeFileSync(workflowPath, `
-name: test-workflow
-agents:
-  helper:
-    model: test-model
-    system_prompt: You are helpful
-tasks:
-  - shell: echo "hello"
-    as: greeting
-`)
-      const workflow = await parseWorkflowFile(workflowPath)
-      expect(workflow.name).toBe('test-workflow')
-      expect(workflow.agents.helper).toBeDefined()
-      expect(workflow.tasks.length).toBe(1)
-    })
-
+describe('CLI Command Logic', () => {
+  describe('agent ID handling', () => {
     test('builds agent IDs with instance', () => {
       const agentId = buildAgentId('reviewer', 'pr-123')
       expect(agentId).toBe('reviewer@pr-123')
@@ -182,121 +150,16 @@ tasks:
       expect(parsed.instance).toBe('pr-123')
     })
 
-    test('runs shell-only workflow without agents', async () => {
-      const workflowPath = join(testDir, 'shell-only.yaml')
-      writeFileSync(workflowPath, `
-name: shell-workflow
-agents: {}
-tasks:
-  - shell: echo "test output"
-    as: result
-`)
-      const workflow = await parseWorkflowFile(workflowPath)
+    test('default instance is used when not specified', () => {
+      const id = buildAgentId('worker', undefined)
+      expect(id).toBe('worker@default')
 
-      const result = await runWorkflow({
-        workflow,
-        instance: 'test',
-        startAgent: async () => {},
-        sendToAgent: async () => '',
-      })
-
-      expect(result.success).toBe(true)
-      expect(result.results.result).toBe('test output')
-    })
-
-    test('handles workflow with verbose logging', async () => {
-      const workflowPath = join(testDir, 'verbose.yaml')
-      writeFileSync(workflowPath, `
-name: verbose-workflow
-agents: {}
-tasks:
-  - shell: echo "step1"
-    as: s1
-  - shell: echo "step2"
-    as: s2
-`)
-      const workflow = await parseWorkflowFile(workflowPath)
-
-      const logs: string[] = []
-      const result = await runWorkflow({
-        workflow,
-        instance: 'test',
-        verbose: true,
-        startAgent: async () => {},
-        sendToAgent: async () => '',
-        log: (msg) => logs.push(msg),
-      })
-
-      expect(result.success).toBe(true)
-      expect(logs.length).toBeGreaterThan(0)
-      expect(logs.some(l => l.includes('Task'))).toBe(true)
+      const parsed = parseAgentId(id)
+      expect(parsed.instance).toBe('default')
     })
   })
 
-  describe('workflow up command logic', () => {
-    test('starts agents from workflow definition', async () => {
-      const workflowPath = join(testDir, 'agents.yaml')
-      writeFileSync(workflowPath, `
-name: multi-agent
-agents:
-  reviewer:
-    model: test-model
-    system_prompt: You review code
-  coder:
-    model: test-model
-    system_prompt: You write code
-tasks: []
-`)
-      const workflow = await parseWorkflowFile(workflowPath)
-
-      const startedAgents: string[] = []
-      const result = await runWorkflow({
-        workflow,
-        instance: 'test',
-        startAgent: async (name) => {
-          startedAgents.push(name)
-        },
-        sendToAgent: async () => '',
-      })
-
-      expect(result.success).toBe(true)
-      expect(startedAgents).toContain('reviewer')
-      expect(startedAgents).toContain('coder')
-    })
-
-    test('supports lazy agent startup', async () => {
-      const workflowPath = join(testDir, 'lazy.yaml')
-      writeFileSync(workflowPath, `
-name: lazy-workflow
-agents:
-  worker:
-    model: test
-    system_prompt: test
-tasks:
-  - send: "do something"
-    to: worker
-    as: result
-`)
-      const workflow = await parseWorkflowFile(workflowPath)
-
-      const startedAgents: string[] = []
-      const result = await runWorkflow({
-        workflow,
-        instance: 'test',
-        lazy: true,
-        startAgent: async (name) => {
-          startedAgents.push(name)
-        },
-        sendToAgent: async () => 'done',
-      })
-
-      expect(result.success).toBe(true)
-      // In lazy mode, agents are started only when needed
-      expect(startedAgents).toContain('worker')
-    })
-  })
-
-  describe('workflow ps command logic', () => {
+  describe('session management', () => {
     test('listSessions returns array', () => {
       const sessions = listSessions()
       expect(Array.isArray(sessions)).toBe(true)
@@ -327,27 +190,7 @@ tasks:
         unregisterSession(testId)
       }
     })
-  })
 
-  describe('down command logic', () => {
-    test('can check if session is running', () => {
-      // For a non-existent session, should return false
-      const running = isSessionActive('nonexistent-session-xyz')
-      expect(running).toBe(false)
-    })
-
-    test('sendRequest handles shutdown action format', async () => {
-      // Verify the shutdown request format is correct
-      const req = { action: 'shutdown' }
-      expect(req.action).toBe('shutdown')
-
-      // Sending to nonexistent session should return error
-      const res = await sendRequest(req, 'nonexistent')
-      expect(res.success).toBe(false)
-    })
-  })
-
-  describe('ls command logic', () => {
     test('lists all registered sessions', () => {
       const id1 = `ls-test-1-${Date.now()}`
       const id2 = `ls-test-2-${Date.now()}`
@@ -385,71 +228,23 @@ tasks:
       }
     })
   })
-})
 
-// ==================== Workflow JSON Output Tests ====================
-
-describe('Workflow Command Output Formats', () => {
-  const testDir = join(tmpdir(), `workflow-output-test-${Date.now()}`)
-
-  beforeEach(() => {
-    mkdirSync(testDir, { recursive: true })
-  })
-
-  afterEach(() => {
-    rmSync(testDir, { recursive: true, force: true })
-  })
-
-  test('runWorkflow result has correct structure for JSON output', async () => {
-    const workflowPath = join(testDir, 'json-test.yaml')
-    writeFileSync(workflowPath, `
-name: json-test
-agents: {}
-tasks:
-  - shell: echo "output1"
-    as: first
-  - shell: echo "output2"
-    as: second
-`)
-    const workflow = await parseWorkflowFile(workflowPath)
-
-    const result = await runWorkflow({
-      workflow,
-      startAgent: async () => {},
-      sendToAgent: async () => '',
+  describe('down command logic', () => {
+    test('can check if session is running', () => {
+      // For a non-existent session, should return false
+      const running = isSessionActive('nonexistent-session-xyz')
+      expect(running).toBe(false)
     })
 
-    // Verify JSON-serializable structure
-    const json = JSON.stringify(result)
-    const parsed = JSON.parse(json)
+    test('sendRequest handles shutdown action format', async () => {
+      // Verify the shutdown request format is correct
+      const req = { action: 'shutdown' }
+      expect(req.action).toBe('shutdown')
 
-    expect(parsed).toHaveProperty('success')
-    expect(parsed).toHaveProperty('output')
-    expect(parsed).toHaveProperty('results')
-    expect(parsed).toHaveProperty('duration')
-    expect(typeof parsed.duration).toBe('number')
-    expect(parsed.results.first).toBe('output1')
-    expect(parsed.results.second).toBe('output2')
-  })
-
-  test('error result has error field', async () => {
-    const workflowPath = join(testDir, 'error-test.yaml')
-    writeFileSync(workflowPath, `
-name: error-test
-agents: {}
-tasks:
-  - shell: "exit 1"
-`)
-    const workflow = await parseWorkflowFile(workflowPath)
-
-    const result = await runWorkflow({
-      workflow,
-      startAgent: async () => {},
-      sendToAgent: async () => '',
+      // Sending to nonexistent session should return error
+      const res = await sendRequest(req, 'nonexistent')
+      expect(res.success).toBe(false)
     })
-
-    expect(result.success).toBe(false)
-    expect(result.error).toBeDefined()
   })
 })
 

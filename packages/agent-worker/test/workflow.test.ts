@@ -219,7 +219,6 @@ describe('createContext', () => {
 
 import {
   validateWorkflow,
-  getReferencedAgents,
   parseWorkflowFile,
 } from '../src/workflow/parser.ts'
 
@@ -286,136 +285,6 @@ describe('validateWorkflow', () => {
     expect(result.valid).toBe(false)
   })
 
-  test('validates tasks must be array', () => {
-    const workflow = {
-      agents: {
-        test: { model: 'test', system_prompt: 'test' },
-      },
-      tasks: 'not an array',
-    }
-    const result = validateWorkflow(workflow)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.path === 'tasks')).toBe(true)
-  })
-
-  test('validates shell task', () => {
-    const workflow = {
-      agents: { a: { model: 'm', system_prompt: 's' } },
-      tasks: [{ shell: 'echo hello' }],
-    }
-    expect(validateWorkflow(workflow).valid).toBe(true)
-  })
-
-  test('validates shell must be string', () => {
-    const workflow = {
-      agents: { a: { model: 'm', system_prompt: 's' } },
-      tasks: [{ shell: 123 }],
-    }
-    const result = validateWorkflow(workflow)
-    expect(result.valid).toBe(false)
-  })
-
-  test('validates send task requires to field', () => {
-    const workflow = {
-      agents: { a: { model: 'm', system_prompt: 's' } },
-      tasks: [{ send: 'message' }],
-    }
-    const result = validateWorkflow(workflow)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.message.includes('to'))).toBe(true)
-  })
-
-  test('validates send task with to field', () => {
-    const workflow = {
-      agents: { a: { model: 'm', system_prompt: 's' } },
-      tasks: [{ send: 'message', to: 'a' }],
-    }
-    expect(validateWorkflow(workflow).valid).toBe(true)
-  })
-
-  test('validates conditional task requires shell or send', () => {
-    const workflow = {
-      agents: { a: { model: 'm', system_prompt: 's' } },
-      tasks: [{ if: 'condition' }],
-    }
-    const result = validateWorkflow(workflow)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.message.includes('shell'))).toBe(true)
-  })
-
-  test('validates conditional task with shell', () => {
-    const workflow = {
-      agents: { a: { model: 'm', system_prompt: 's' } },
-      tasks: [{ if: 'condition', shell: 'echo hi' }],
-    }
-    expect(validateWorkflow(workflow).valid).toBe(true)
-  })
-
-  test('validates conditional task with send', () => {
-    const workflow = {
-      agents: { a: { model: 'm', system_prompt: 's' } },
-      tasks: [{ if: 'condition', send: 'message', to: 'a' }],
-    }
-    expect(validateWorkflow(workflow).valid).toBe(true)
-  })
-
-  test('validates parallel task', () => {
-    const workflow = {
-      agents: { a: { model: 'm', system_prompt: 's' } },
-      tasks: [
-        {
-          parallel: [
-            { shell: 'echo 1' },
-            { shell: 'echo 2' },
-          ],
-        },
-      ],
-    }
-    expect(validateWorkflow(workflow).valid).toBe(true)
-  })
-
-  test('validates parallel must be array', () => {
-    const workflow = {
-      agents: { a: { model: 'm', system_prompt: 's' } },
-      tasks: [{ parallel: 'not array' }],
-    }
-    const result = validateWorkflow(workflow)
-    expect(result.valid).toBe(false)
-  })
-
-  test('validates nested parallel tasks', () => {
-    const workflow = {
-      agents: { a: { model: 'm', system_prompt: 's' } },
-      tasks: [
-        {
-          parallel: [
-            { shell: 123 }, // Invalid
-          ],
-        },
-      ],
-    }
-    const result = validateWorkflow(workflow)
-    expect(result.valid).toBe(false)
-  })
-
-  test('validates task must have type', () => {
-    const workflow = {
-      agents: { a: { model: 'm', system_prompt: 's' } },
-      tasks: [{ as: 'output' }], // No shell, send, if, or parallel
-    }
-    const result = validateWorkflow(workflow)
-    expect(result.valid).toBe(false)
-  })
-
-  test('validates task must be object', () => {
-    const workflow = {
-      agents: { a: { model: 'm', system_prompt: 's' } },
-      tasks: ['not an object'],
-    }
-    const result = validateWorkflow(workflow)
-    expect(result.valid).toBe(false)
-  })
-
   test('validates optional tools must be array', () => {
     const workflow = {
       agents: {
@@ -424,57 +293,6 @@ describe('validateWorkflow', () => {
     }
     const result = validateWorkflow(workflow)
     expect(result.valid).toBe(false)
-  })
-})
-
-describe('getReferencedAgents', () => {
-  test('returns empty set for no tasks', () => {
-    expect(getReferencedAgents([]).size).toBe(0)
-  })
-
-  test('extracts agent from send task', () => {
-    const tasks = [{ send: 'message', to: 'assistant' }]
-    const agents = getReferencedAgents(tasks as any)
-    expect(agents.has('assistant')).toBe(true)
-  })
-
-  test('extracts agents from multiple tasks', () => {
-    const tasks = [
-      { send: 'msg1', to: 'agent1' },
-      { send: 'msg2', to: 'agent2' },
-      { shell: 'echo' },
-      { send: 'msg3', to: 'agent1' }, // Duplicate
-    ]
-    const agents = getReferencedAgents(tasks as any)
-    expect(agents.size).toBe(2)
-    expect(agents.has('agent1')).toBe(true)
-    expect(agents.has('agent2')).toBe(true)
-  })
-
-  test('extracts agents from conditional tasks', () => {
-    const tasks = [{ if: 'condition', send: 'msg', to: 'conditional-agent' }]
-    const agents = getReferencedAgents(tasks as any)
-    expect(agents.has('conditional-agent')).toBe(true)
-  })
-
-  test('extracts agents from parallel tasks', () => {
-    const tasks = [
-      {
-        parallel: [
-          { send: 'msg1', to: 'parallel-agent1' },
-          { send: 'msg2', to: 'parallel-agent2' },
-        ],
-      },
-    ]
-    const agents = getReferencedAgents(tasks as any)
-    expect(agents.has('parallel-agent1')).toBe(true)
-    expect(agents.has('parallel-agent2')).toBe(true)
-  })
-
-  test('ignores shell tasks', () => {
-    const tasks = [{ shell: 'echo hello' }]
-    const agents = getReferencedAgents(tasks as any)
-    expect(agents.size).toBe(0)
   })
 })
 
@@ -499,8 +317,8 @@ agents:
   assistant:
     model: openai/gpt-5.2
     system_prompt: You are helpful.
-tasks:
-  - shell: echo hello
+context: null
+kickoff: "@assistant start working"
 `
     )
 
@@ -508,7 +326,7 @@ tasks:
     expect(workflow.name).toBe('test-workflow')
     expect(workflow.agents.assistant).toBeDefined()
     expect(workflow.agents.assistant.model).toBe('openai/gpt-5.2')
-    expect(workflow.tasks).toHaveLength(1)
+    expect(workflow.kickoff).toBe('@assistant start working')
   })
 
   test('uses filename as name if not specified', async () => {
@@ -595,8 +413,8 @@ tasks:
     expect(workflow.agents.test.resolvedSystemPrompt).toBe('nonexistent.txt')
   })
 
-  test('defaults to empty tasks array', async () => {
-    const workflowPath = join(testDir, 'no-tasks.yml')
+  test('defaults to empty setup array', async () => {
+    const workflowPath = join(testDir, 'no-setup.yml')
     writeFileSync(
       workflowPath,
       `agents:
@@ -607,413 +425,14 @@ tasks:
     )
 
     const workflow = await parseWorkflowFile(workflowPath)
-    expect(workflow.tasks).toEqual([])
-  })
-})
-
-// ==================== Runner Tests ====================
-
-import { runWorkflow, type RunConfig } from '../src/workflow/runner.ts'
-
-describe('runWorkflow', () => {
-  const mockAgent = {
-    model: 'test',
-    system_prompt: 'test',
-    resolvedSystemPrompt: 'test',
-  }
-
-  test('runs empty workflow', async () => {
-    const result = await runWorkflow({
-      workflow: {
-        name: 'empty',
-        filePath: 'test.yml',
-        agents: { a: mockAgent },
-        tasks: [],
-      },
-      startAgent: async () => {},
-      sendToAgent: async () => 'response',
-    })
-
-    expect(result.success).toBe(true)
-    expect(result.output).toBe('')
-  })
-
-  test('runs shell task', async () => {
-    const result = await runWorkflow({
-      workflow: {
-        name: 'shell-test',
-        filePath: 'test.yml',
-        agents: { a: mockAgent },
-        tasks: [{ shell: 'echo hello' }],
-      },
-      startAgent: async () => {},
-      sendToAgent: async () => 'response',
-    })
-
-    expect(result.success).toBe(true)
-    expect(result.output).toBe('hello')
-  })
-
-  test('captures shell output with as', async () => {
-    const result = await runWorkflow({
-      workflow: {
-        name: 'capture-test',
-        filePath: 'test.yml',
-        agents: { a: mockAgent },
-        tasks: [{ shell: 'echo captured', as: 'output' }],
-      },
-      startAgent: async () => {},
-      sendToAgent: async () => 'response',
-    })
-
-    expect(result.success).toBe(true)
-    expect(result.results.output).toBe('captured')
-  })
-
-  test('interpolates variables in shell', async () => {
-    const result = await runWorkflow({
-      workflow: {
-        name: 'interpolate-test',
-        filePath: 'test.yml',
-        agents: { a: mockAgent },
-        tasks: [
-          { shell: 'echo first', as: 'first' },
-          { shell: 'echo ${{ first }}', as: 'second' },
-        ],
-      },
-      startAgent: async () => {},
-      sendToAgent: async () => 'response',
-    })
-
-    expect(result.success).toBe(true)
-    expect(result.results.second).toBe('first')
-  })
-
-  test('runs send task', async () => {
-    let sentMessage = ''
-    const result = await runWorkflow({
-      workflow: {
-        name: 'send-test',
-        filePath: 'test.yml',
-        agents: { assistant: mockAgent },
-        tasks: [{ send: 'Hello agent', to: 'assistant' }],
-      },
-      startAgent: async () => {},
-      sendToAgent: async (agent, msg) => {
-        sentMessage = msg
-        return 'Agent response'
-      },
-    })
-
-    expect(result.success).toBe(true)
-    expect(result.output).toBe('Agent response')
-    expect(sentMessage).toContain('Hello agent')
-    expect(sentMessage).toContain('[Task Mode]')
-  })
-
-  test('captures send output with as', async () => {
-    const result = await runWorkflow({
-      workflow: {
-        name: 'send-capture-test',
-        filePath: 'test.yml',
-        agents: { a: mockAgent },
-        tasks: [{ send: 'Test', to: 'a', as: 'response' }],
-      },
-      startAgent: async () => {},
-      sendToAgent: async () => 'Captured response',
-    })
-
-    expect(result.success).toBe(true)
-    expect(result.results.response).toBe('Captured response')
-  })
-
-  test('handles as object with name and prompt', async () => {
-    let outputPrompt = ''
-    const result = await runWorkflow({
-      workflow: {
-        name: 'as-object-test',
-        filePath: 'test.yml',
-        agents: { a: mockAgent },
-        tasks: [
-          {
-            send: 'Analyze this',
-            to: 'a',
-            as: { name: 'summary', prompt: 'Summarize in one line' },
-          },
-        ],
-      },
-      startAgent: async () => {},
-      sendToAgent: async (agent, msg, prompt) => {
-        outputPrompt = prompt || ''
-        return 'Summary result'
-      },
-    })
-
-    expect(result.success).toBe(true)
-    expect(result.results.summary).toBe('Summary result')
-    expect(outputPrompt).toBe('Summarize in one line')
-  })
-
-  test('runs conditional task when condition true', async () => {
-    const result = await runWorkflow({
-      workflow: {
-        name: 'conditional-true-test',
-        filePath: 'test.yml',
-        agents: { a: mockAgent },
-        tasks: [
-          { shell: 'echo success', as: 'status' },
-          { if: '${{ status }}.contains("success")', shell: 'echo passed', as: 'result' },
-        ],
-      },
-      startAgent: async () => {},
-      sendToAgent: async () => 'response',
-    })
-
-    expect(result.success).toBe(true)
-    expect(result.results.result).toBe('passed')
-  })
-
-  test('skips conditional task when condition false', async () => {
-    const result = await runWorkflow({
-      workflow: {
-        name: 'conditional-false-test',
-        filePath: 'test.yml',
-        agents: { a: mockAgent },
-        tasks: [
-          { shell: 'echo failure', as: 'status' },
-          { if: '${{ status }} == "success"', shell: 'echo should-not-run', as: 'skipped' },
-        ],
-      },
-      startAgent: async () => {},
-      sendToAgent: async () => 'response',
-    })
-
-    expect(result.success).toBe(true)
-    expect(result.results.skipped).toBeUndefined()
-  })
-
-  test('runs parallel tasks', async () => {
-    const startTimes: number[] = []
-    const result = await runWorkflow({
-      workflow: {
-        name: 'parallel-test',
-        filePath: 'test.yml',
-        agents: { a: mockAgent },
-        tasks: [
-          {
-            parallel: [
-              { shell: 'echo one', as: 'p1' },
-              { shell: 'echo two', as: 'p2' },
-            ],
-          },
-        ],
-      },
-      startAgent: async () => {},
-      sendToAgent: async () => 'response',
-    })
-
-    expect(result.success).toBe(true)
-    expect(result.results.p1).toBe('one')
-    expect(result.results.p2).toBe('two')
-  })
-
-  test('starts agents in eager mode', async () => {
-    const startedAgents: string[] = []
-    await runWorkflow({
-      workflow: {
-        name: 'eager-test',
-        filePath: 'test.yml',
-        agents: {
-          a: mockAgent,
-          b: mockAgent,
-        },
-        tasks: [],
-      },
-      lazy: false,
-      startAgent: async (name) => {
-        startedAgents.push(name)
-      },
-      sendToAgent: async () => 'response',
-    })
-
-    expect(startedAgents).toContain('a')
-    expect(startedAgents).toContain('b')
-  })
-
-  test('starts agents lazily when lazy=true', async () => {
-    const startedAgents: string[] = []
-    await runWorkflow({
-      workflow: {
-        name: 'lazy-test',
-        filePath: 'test.yml',
-        agents: {
-          a: mockAgent,
-          b: mockAgent,
-        },
-        tasks: [{ send: 'Hello', to: 'a' }],
-      },
-      lazy: true,
-      startAgent: async (name) => {
-        startedAgents.push(name)
-      },
-      sendToAgent: async () => 'response',
-    })
-
-    expect(startedAgents).toEqual(['a']) // Only 'a' was used
-  })
-
-  test('handles agent start failure', async () => {
-    const result = await runWorkflow({
-      workflow: {
-        name: 'fail-start-test',
-        filePath: 'test.yml',
-        agents: { a: mockAgent },
-        tasks: [],
-      },
-      startAgent: async () => {
-        throw new Error('Start failed')
-      },
-      sendToAgent: async () => 'response',
-    })
-
-    expect(result.success).toBe(false)
-    expect(result.error).toContain('Start failed')
-  })
-
-  test('handles shell command failure', async () => {
-    const result = await runWorkflow({
-      workflow: {
-        name: 'shell-fail-test',
-        filePath: 'test.yml',
-        agents: { a: mockAgent },
-        tasks: [{ shell: 'exit 1' }],
-      },
-      startAgent: async () => {},
-      sendToAgent: async () => 'response',
-    })
-
-    expect(result.success).toBe(false)
-    expect(result.error).toContain('Shell command failed')
-  })
-
-  test('handles undefined agent in send', async () => {
-    const result = await runWorkflow({
-      workflow: {
-        name: 'undefined-agent-test',
-        filePath: 'test.yml',
-        agents: { a: mockAgent },
-        tasks: [{ send: 'Hello', to: 'nonexistent' }],
-      },
-      lazy: true,
-      startAgent: async () => {},
-      sendToAgent: async () => 'response',
-    })
-
-    expect(result.success).toBe(false)
-    expect(result.error).toContain('Agent not defined: nonexistent')
-  })
-
-  test('verbose mode logs output', async () => {
-    const logs: string[] = []
-    await runWorkflow({
-      workflow: {
-        name: 'verbose-test',
-        filePath: 'test.yml',
-        agents: { a: mockAgent },
-        tasks: [{ shell: 'echo test' }],
-      },
-      verbose: true,
-      log: (msg) => logs.push(msg),
-      startAgent: async () => {},
-      sendToAgent: async () => 'response',
-    })
-
-    expect(logs.some(l => l.includes('Starting agents'))).toBe(true)
-    expect(logs.some(l => l.includes('Task 1/1'))).toBe(true)
-  })
-
-  test('returns duration', async () => {
-    const result = await runWorkflow({
-      workflow: {
-        name: 'duration-test',
-        filePath: 'test.yml',
-        agents: { a: mockAgent },
-        tasks: [{ shell: 'echo fast' }],
-      },
-      startAgent: async () => {},
-      sendToAgent: async () => 'response',
-    })
-
-    expect(result.duration).toBeGreaterThanOrEqual(0)
-  })
-
-  test('conditional send task', async () => {
-    let sentTo = ''
-    const result = await runWorkflow({
-      workflow: {
-        name: 'conditional-send-test',
-        filePath: 'test.yml',
-        agents: { a: mockAgent },
-        tasks: [
-          { shell: 'echo yes', as: 'flag' },
-          { if: '${{ flag }} == "yes"', send: 'Conditional message', to: 'a', as: 'response' },
-        ],
-      },
-      startAgent: async () => {},
-      sendToAgent: async (agent) => {
-        sentTo = agent
-        return 'Sent!'
-      },
-    })
-
-    expect(result.success).toBe(true)
-    expect(sentTo).toBe('a')
-    expect(result.results.response).toBe('Sent!')
+    expect(workflow.setup).toEqual([])
   })
 })
 
 // ==================== Runner V2 Tests ====================
 
 import { initWorkflowV2, runWorkflowV2 } from '../src/workflow/runner-v2.ts'
-import { isV2Workflow, type ParsedWorkflow } from '../src/workflow/types.ts'
-
-describe('isV2Workflow', () => {
-  test('returns true for workflow with context and kickoff', () => {
-    const workflow = {
-      name: 'test',
-      filePath: 'test.yml',
-      agents: {},
-      tasks: [],
-      context: { dir: '.workflow' },
-      kickoff: '@agent1 start',
-    } as ParsedWorkflow
-
-    expect(isV2Workflow(workflow)).toBe(true)
-  })
-
-  test('returns true for workflow with only context', () => {
-    const workflow = {
-      name: 'test',
-      filePath: 'test.yml',
-      agents: {},
-      tasks: [],
-      context: { dir: '.workflow' },
-    } as ParsedWorkflow
-
-    expect(isV2Workflow(workflow)).toBe(true)
-  })
-
-  test('returns false for v1 workflow without context', () => {
-    const workflow = {
-      name: 'test',
-      filePath: 'test.yml',
-      agents: {},
-      tasks: [{ shell: 'echo hi' }],
-    } as ParsedWorkflow
-
-    expect(isV2Workflow(workflow)).toBe(false)
-  })
-})
+import type { ParsedWorkflow } from '../src/workflow/types.ts'
 
 describe('runWorkflowV2', () => {
   let testDir: string
@@ -1038,7 +457,7 @@ describe('runWorkflowV2', () => {
           resolvedSystemPrompt: 'You are a test agent',
         },
       },
-      tasks: [],
+      setup: [],
       context: { dir: contextDir },
       kickoff: '@agent1 please start working',
     }
@@ -1070,7 +489,6 @@ describe('runWorkflowV2', () => {
       name: 'setup-test',
       filePath: 'test.yml',
       agents: { agent1: { model: 'test', resolvedSystemPrompt: 'test' } },
-      tasks: [],
       context: { dir: contextDir },
       setup: [
         { shell: 'echo hello', as: 'greeting' },
@@ -1100,7 +518,6 @@ describe('runWorkflowV2', () => {
       name: 'setup-fail-test',
       filePath: 'test.yml',
       agents: { agent1: { model: 'test', resolvedSystemPrompt: 'test' } },
-      tasks: [],
       context: { dir: contextDir },
       setup: [{ shell: 'exit 1', as: 'fail' }],
       kickoff: 'This should not run',
@@ -1121,7 +538,7 @@ describe('runWorkflowV2', () => {
       name: 'no-context-test',
       filePath: 'test.yml',
       agents: { agent1: { model: 'test', resolvedSystemPrompt: 'test' } },
-      tasks: [],
+      setup: [],
       // No context configured
     }
 

@@ -1,6 +1,5 @@
 /**
  * Workflow file parser
- * Supports both v1 (tasks) and v2 (setup + kickoff) formats
  */
 
 import { readFileSync, existsSync } from 'node:fs'
@@ -13,11 +12,9 @@ import type {
   ResolvedContext,
   ValidationResult,
   ValidationError,
-  Task,
   SetupTask,
   AgentDefinition,
 } from './types.ts'
-import { isShellTask, isSendTask, isConditionalTask, isParallelTask } from './types.ts'
 import { CONTEXT_DEFAULTS } from './context/types.js'
 
 /**
@@ -80,7 +77,6 @@ export async function parseWorkflowFile(
     context,
     setup: raw.setup || [],
     kickoff: raw.kickoff,
-    tasks: raw.tasks || [],
   }
 }
 
@@ -204,20 +200,9 @@ export function validateWorkflow(workflow: unknown): ValidationResult {
     }
   }
 
-  // Validate kickoff (v2, optional)
+  // Validate kickoff (optional)
   if (w.kickoff !== undefined && typeof w.kickoff !== 'string') {
     errors.push({ path: 'kickoff', message: 'Kickoff must be a string' })
-  }
-
-  // Validate tasks (v1, optional)
-  if (w.tasks !== undefined) {
-    if (!Array.isArray(w.tasks)) {
-      errors.push({ path: 'tasks', message: 'Tasks must be an array' })
-    } else {
-      for (let i = 0; i < w.tasks.length; i++) {
-        validateTask(`tasks[${i}]`, w.tasks[i], errors)
-      }
-    }
   }
 
   return { valid: errors.length === 0, errors }
@@ -287,87 +272,8 @@ function validateAgent(name: string, agent: unknown, errors: ValidationError[]):
   }
 }
 
-function validateTask(path: string, task: unknown, errors: ValidationError[]): void {
-  if (!task || typeof task !== 'object') {
-    errors.push({ path, message: 'Task must be an object' })
-    return
-  }
-
-  const t = task as Record<string, unknown>
-
-  // Check task type
-  const hasShell = 'shell' in t
-  const hasSend = 'send' in t
-  const hasIf = 'if' in t
-  const hasParallel = 'parallel' in t
-
-  const typeCount = [hasShell, hasSend, hasIf, hasParallel].filter(Boolean).length
-
-  if (typeCount === 0) {
-    errors.push({ path, message: 'Task must have one of: shell, send, if, parallel' })
-    return
-  }
-
-  if (hasParallel) {
-    // Parallel task
-    if (!Array.isArray(t.parallel)) {
-      errors.push({ path: `${path}.parallel`, message: 'Parallel tasks must be an array' })
-    } else {
-      for (let i = 0; i < t.parallel.length; i++) {
-        validateTask(`${path}.parallel[${i}]`, t.parallel[i], errors)
-      }
-    }
-  } else if (hasIf) {
-    // Conditional task
-    if (typeof t.if !== 'string') {
-      errors.push({ path: `${path}.if`, message: 'Condition must be a string' })
-    }
-    // Conditional must have either shell or send
-    if (!hasShell && !hasSend) {
-      errors.push({ path, message: 'Conditional task must have "shell" or "send"' })
-    }
-  } else if (hasSend) {
-    // Send task
-    if (typeof t.send !== 'string') {
-      errors.push({ path: `${path}.send`, message: 'Send message must be a string' })
-    }
-    if (!t.to || typeof t.to !== 'string') {
-      errors.push({ path: `${path}.to`, message: 'Send task requires "to" field' })
-    }
-  } else if (hasShell) {
-    // Shell task
-    if (typeof t.shell !== 'string') {
-      errors.push({ path: `${path}.shell`, message: 'Shell command must be a string' })
-    }
-  }
-}
-
 /**
- * Get all agent names referenced in tasks (v1)
- */
-export function getReferencedAgents(tasks: Task[]): Set<string> {
-  const agents = new Set<string>()
-
-  function collectFromTask(task: Task): void {
-    if (isSendTask(task) || (isConditionalTask(task) && task.to)) {
-      agents.add(task.to!)
-    }
-    if (isParallelTask(task)) {
-      for (const subTask of task.parallel) {
-        collectFromTask(subTask)
-      }
-    }
-  }
-
-  for (const task of tasks) {
-    collectFromTask(task)
-  }
-
-  return agents
-}
-
-/**
- * Get all agent names mentioned in kickoff (v2)
+ * Get all agent names mentioned in kickoff
  */
 export function getKickoffMentions(kickoff: string, validAgents: string[]): string[] {
   const mentions: string[] = []
