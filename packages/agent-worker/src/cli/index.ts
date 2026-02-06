@@ -130,13 +130,15 @@ function listAgentsAction() {
   for (const s of sessions) {
     const running = isSessionRunning(s.id)
     const status = running ? 'running' : 'stopped'
-    // Parse name to show agent@instance format
+    const shortId = s.id.slice(0, 8)
+
+    // Show: shortId (name) - model [status] or shortId - model [status]
     if (s.name) {
       const parsed = parseAgentId(s.name)
       const instanceStr = parsed.instance !== DEFAULT_INSTANCE ? `@${parsed.instance}` : ''
-      console.log(`  ${parsed.agent}${instanceStr} - ${s.model} [${status}]`)
+      console.log(`  ${shortId} (${parsed.agent}${instanceStr}) - ${s.model} [${status}]`)
     } else {
-      console.log(`  ${s.id.slice(0, 8)} - ${s.model} [${status}]`)
+      console.log(`  ${shortId} - ${s.model} [${status}]`)
     }
   }
 }
