@@ -110,3 +110,10 @@ export class MemoryContextProvider implements ContextProvider {
     return this.mentionState.get(agent)
   }
 }
+
+/**
+ * Create a memory context provider
+ */
+export function createMemoryContextProvider(validAgents: string[]): MemoryContextProvider {
+  return new MemoryContextProvider(validAgents)
+}

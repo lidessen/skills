@@ -82,59 +82,50 @@ export async function parseWorkflowFile(
 
 /**
  * Resolve context configuration
+ *
+ * - undefined (not set): default file provider enabled
+ * - null: default file provider enabled (YAML `context:` syntax)
+ * - false: explicitly disabled
+ * - { provider: 'file', config?: {...} }: file provider with config
+ * - { provider: 'memory' }: memory provider (for testing)
  */
 function resolveContext(
-  config: WorkflowFile['context'],
+  config: WorkflowFile['context'] | null,
   workflowDir: string,
   instance: string
 ): ResolvedContext | undefined {
-  // undefined = no context
-  if (config === undefined) {
+  // false = explicitly disabled
+  if (config === false) {
     return undefined
   }
 
-  // null or empty object = enable with defaults
-  const isDefaultConfig = config === null || (typeof config === 'object' && Object.keys(config).length === 0)
+  // undefined or null = default file provider enabled
+  if (config === undefined || config === null) {
+    const dir = join(workflowDir, CONTEXT_DEFAULTS.dir.replace('${{ instance }}', instance))
+    return {
+      provider: 'file',
+      dir,
+      channel: CONTEXT_DEFAULTS.channel,
+      document: CONTEXT_DEFAULTS.document,
+    }
+  }
 
-  // Base directory with instance interpolation
-  const dirTemplate = isDefaultConfig ? CONTEXT_DEFAULTS.dir : (config?.dir || CONTEXT_DEFAULTS.dir)
+  // Memory provider
+  if (config.provider === 'memory') {
+    return { provider: 'memory' }
+  }
+
+  // File provider with custom config
+  const fileConfig = config.config || {}
+  const dirTemplate = fileConfig.dir || CONTEXT_DEFAULTS.dir
   const dir = join(workflowDir, dirTemplate.replace('${{ instance }}', instance))
 
-  const result: ResolvedContext = { dir }
-
-  // Channel configuration
-  const channelConfig = isDefaultConfig ? {} : config?.channel
-  if (channelConfig !== undefined) {
-    const channelFile = channelConfig?.file || CONTEXT_DEFAULTS.channel.file
-    result.channel = {
-      file: channelFile,
-      path: join(dir, channelFile),
-    }
+  return {
+    provider: 'file',
+    dir,
+    channel: fileConfig.channel || CONTEXT_DEFAULTS.channel,
+    document: fileConfig.document || CONTEXT_DEFAULTS.document,
   }
-
-  // Document configuration
-  const documentConfig = isDefaultConfig ? {} : config?.document
-  if (documentConfig !== undefined) {
-    const documentFile = documentConfig?.file || CONTEXT_DEFAULTS.document.file
-    result.document = {
-      file: documentFile,
-      path: join(dir, documentFile),
-    }
-  }
-
-  // If default config, enable both channel and document
-  if (isDefaultConfig) {
-    result.channel = {
-      file: CONTEXT_DEFAULTS.channel.file,
-      path: join(dir, CONTEXT_DEFAULTS.channel.file),
-    }
-    result.document = {
-      file: CONTEXT_DEFAULTS.document.file,
-      path: join(dir, CONTEXT_DEFAULTS.document.file),
-    }
-  }
-
-  return result
 }
 
 /**
@@ -185,7 +176,9 @@ export function validateWorkflow(workflow: unknown): ValidationResult {
   }
 
   // Validate context (optional)
-  if (w.context !== undefined && w.context !== null) {
+  // null and undefined are valid (default enabled)
+  // false is valid (disabled)
+  if (w.context !== undefined && w.context !== null && w.context !== false) {
     validateContext(w.context, errors)
   }
 
@@ -209,23 +202,41 @@ export function validateWorkflow(workflow: unknown): ValidationResult {
 }
 
 function validateContext(context: unknown, errors: ValidationError[]): void {
-  if (typeof context !== 'object') {
-    errors.push({ path: 'context', message: 'Context must be an object or null' })
+  if (typeof context !== 'object' || context === null) {
+    errors.push({ path: 'context', message: 'Context must be an object or false' })
     return
   }
 
   const c = context as Record<string, unknown>
 
-  if (c.dir !== undefined && typeof c.dir !== 'string') {
-    errors.push({ path: 'context.dir', message: 'Context dir must be a string' })
+  // Validate provider field
+  if (!c.provider || typeof c.provider !== 'string') {
+    errors.push({ path: 'context.provider', message: 'Context requires "provider" field (file or memory)' })
+    return
   }
 
-  if (c.channel !== undefined && c.channel !== null && typeof c.channel !== 'object') {
-    errors.push({ path: 'context.channel', message: 'Context channel must be an object or null' })
+  if (c.provider !== 'file' && c.provider !== 'memory') {
+    errors.push({ path: 'context.provider', message: 'Context provider must be "file" or "memory"' })
+    return
   }
 
-  if (c.document !== undefined && c.document !== null && typeof c.document !== 'object') {
-    errors.push({ path: 'context.document', message: 'Context document must be an object or null' })
+  // Validate file provider config
+  if (c.provider === 'file' && c.config !== undefined) {
+    if (typeof c.config !== 'object' || c.config === null) {
+      errors.push({ path: 'context.config', message: 'Context config must be an object' })
+      return
+    }
+
+    const cfg = c.config as Record<string, unknown>
+    if (cfg.dir !== undefined && typeof cfg.dir !== 'string') {
+      errors.push({ path: 'context.config.dir', message: 'Context config dir must be a string' })
+    }
+    if (cfg.channel !== undefined && typeof cfg.channel !== 'string') {
+      errors.push({ path: 'context.config.channel', message: 'Context config channel must be a string' })
+    }
+    if (cfg.document !== undefined && typeof cfg.document !== 'string') {
+      errors.push({ path: 'context.config.document', message: 'Context config document must be a string' })
+    }
   }
 }
 

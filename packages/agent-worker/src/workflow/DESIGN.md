@@ -49,36 +49,31 @@ kickoff: |
 
 ### Context Configuration
 
-Context enables shared communication and workspace between agents.
+Context enables shared communication and workspace between agents. **Context is enabled by default** with the file provider.
 
 ```yaml
-# Minimal - enable all with defaults
-context:
+# Default: file provider enabled automatically (no context field needed)
+agents:
+  reviewer: ...
 
-# Equivalent to:
+# Explicit file provider with defaults
 context:
-  channel:
-  document:
+  provider: file
 
-# Equivalent to:
+# File provider with custom config
 context:
-  dir: .workflow/${{ instance }}/
-  channel:
-    file: channel.md
-  document:
-    file: notes.md
+  provider: file
+  config:
+    dir: ./my-context/
+    channel: discussion.md
+    document: workspace.md
 
-# Selective - only channel
+# Memory provider (for testing)
 context:
-  channel:
+  provider: memory
 
-# Custom paths
-context:
-  dir: ./my-context/
-  channel:
-    file: discussion.md
-  document:
-    file: workspace.md
+# Disable context entirely
+context: false
 ```
 
 **Default Values:**
@@ -86,12 +81,8 @@ context:
 ```typescript
 const CONTEXT_DEFAULTS = {
   dir: '.workflow/${{ instance }}/',
-  channel: {
-    file: 'channel.md',
-  },
-  document: {
-    file: 'notes.md',
-  },
+  channel: 'channel.md',
+  document: 'notes.md',
 }
 ```
 
@@ -140,11 +131,11 @@ interface WorkflowFile {
 
   /**
    * Shared context configuration
-   * - undefined: no context (agents can't communicate)
-   * - null/empty: enable with all defaults
-   * - object: custom configuration
+   * - undefined/null: default file provider enabled
+   * - false: explicitly disabled
+   * - object: custom provider configuration
    */
-  context?: ContextConfig | null
+  context?: ContextConfig
 
   /** Agent definitions */
   agents: Record<string, AgentDefinition>
@@ -159,23 +150,20 @@ interface WorkflowFile {
   kickoff?: string
 }
 
-interface ContextConfig {
-  /** Context directory (default: .workflow/${{ instance }}/) */
-  dir?: string
+/** Context configuration: false to disable, or provider config */
+type ContextConfig = false | FileContextConfig | MemoryContextConfig
 
-  /** Channel config (null/empty = defaults, undefined = disabled) */
-  channel?: ChannelConfig | null
-
-  /** Document config (null/empty = defaults, undefined = disabled) */
-  document?: DocumentConfig | null
+interface FileContextConfig {
+  provider: 'file'
+  config?: {
+    dir?: string      // default: .workflow/${{ instance }}/
+    channel?: string  // default: channel.md
+    document?: string // default: notes.md
+  }
 }
 
-interface ChannelConfig {
-  file?: string  // default: channel.md
-}
-
-interface DocumentConfig {
-  file?: string  // default: notes.md
+interface MemoryContextConfig {
+  provider: 'memory'
 }
 
 interface AgentDefinition {

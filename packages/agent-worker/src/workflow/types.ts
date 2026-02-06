@@ -5,7 +5,12 @@
 import type { ContextConfig } from './context/types.js'
 
 // Re-export context types for convenience
-export type { ContextConfig, ChannelConfig, DocumentConfig } from './context/types.js'
+export type {
+  ContextConfig,
+  FileContextConfig,
+  MemoryContextConfig,
+  FileProviderConfig,
+} from './context/types.js'
 
 // ==================== Workflow File ====================
 
@@ -21,11 +26,12 @@ export interface WorkflowFile {
 
   /**
    * Shared context configuration
-   * - undefined: no context (agents can't communicate)
-   * - null/empty: enable with all defaults
-   * - object: custom configuration
+   * - undefined (not set): default file provider enabled
+   * - false: explicitly disabled
+   * - { provider: 'file', config?: {...} }: file provider with config
+   * - { provider: 'memory' }: memory provider (for testing)
    */
-  context?: ContextConfig | null
+  context?: ContextConfig
 
   /**
    * Setup commands - run before kickoff
@@ -91,22 +97,23 @@ export interface ResolvedAgent extends AgentDefinition {
   resolvedSystemPrompt: string
 }
 
-/** Resolved context configuration with actual paths */
-export interface ResolvedContext {
+/** Resolved context configuration */
+export type ResolvedContext = ResolvedFileContext | ResolvedMemoryContext
+
+/** Resolved file context with actual paths */
+export interface ResolvedFileContext {
+  provider: 'file'
   /** Context directory path */
   dir: string
+  /** Channel file name */
+  channel: string
+  /** Document file name */
+  document: string
+}
 
-  /** Channel configuration (if enabled) */
-  channel?: {
-    file: string
-    path: string // Full path: dir + file
-  }
-
-  /** Document configuration (if enabled) */
-  document?: {
-    file: string
-    path: string // Full path: dir + file
-  }
+/** Resolved memory context (for testing) */
+export interface ResolvedMemoryContext {
+  provider: 'memory'
 }
 
 // ==================== Validation ====================

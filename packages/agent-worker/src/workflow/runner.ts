@@ -6,9 +6,10 @@
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
 import { mkdirSync, existsSync } from 'node:fs'
-import type { ParsedWorkflow, SetupTask, ResolvedAgent, ResolvedContext } from './types.ts'
+import type { ParsedWorkflow, SetupTask, ResolvedAgent, ResolvedContext, ResolvedFileContext } from './types.ts'
 import { interpolate, createContext, type VariableContext } from './interpolate.ts'
 import { createFileContextProvider } from './context/file-provider.ts'
+import { createMemoryContextProvider } from './context/memory-provider.ts'
 import { createContextMCPServer } from './context/mcp-server.ts'
 import { runWithUnixSocket, getSocketPath, type UnixSocketServer } from './context/transport.ts'
 import type { ContextProvider } from './context/provider.ts'
@@ -99,18 +100,29 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
 
   const resolvedContext = workflow.context as ResolvedContext
 
-  // Create context directory
-  if (!existsSync(resolvedContext.dir)) {
-    mkdirSync(resolvedContext.dir, { recursive: true })
+  // Create context provider based on provider type
+  let contextProvider: ContextProvider
+
+  if (resolvedContext.provider === 'memory') {
+    // Memory provider (for testing)
+    if (verbose) log('Using memory context provider')
+    contextProvider = createMemoryContextProvider(agentNames)
+  } else {
+    // File provider (default)
+    const fileContext = resolvedContext as ResolvedFileContext
+
+    // Create context directory
+    if (!existsSync(fileContext.dir)) {
+      mkdirSync(fileContext.dir, { recursive: true })
+    }
+
+    if (verbose) log(`Context directory: ${fileContext.dir}`)
+
+    contextProvider = createFileContextProvider(fileContext.dir, agentNames, {
+      channelFile: fileContext.channel,
+      documentFile: fileContext.document,
+    })
   }
-
-  if (verbose) log(`Context directory: ${resolvedContext.dir}`)
-
-  // Create context provider
-  const contextProvider = createFileContextProvider(resolvedContext.dir, agentNames, {
-    channelFile: resolvedContext.channel?.file,
-    documentFile: resolvedContext.document?.file,
-  })
 
   // Create MCP server
   const mcpSocketPath = getSocketPath(workflow.name, instance)

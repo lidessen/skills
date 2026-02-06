@@ -27,35 +27,42 @@ export interface MentionNotification {
   timestamp: string
 }
 
-/** Context configuration in workflow file */
-export interface ContextConfig {
+/**
+ * Context configuration in workflow file
+ *
+ * - undefined (not set): default file provider enabled
+ * - false: explicitly disabled
+ * - { provider: 'file', config?: {...} }: file provider with optional config
+ * - { provider: 'memory' }: memory provider (for testing)
+ */
+export type ContextConfig = false | FileContextConfig | MemoryContextConfig
+
+/** File-based context provider configuration */
+export interface FileContextConfig {
+  provider: 'file'
+  config?: FileProviderConfig
+}
+
+/** Memory-based context provider configuration (for testing) */
+export interface MemoryContextConfig {
+  provider: 'memory'
+}
+
+/** Configuration for file provider */
+export interface FileProviderConfig {
   /** Context directory (default: .workflow/${{ instance }}/) */
   dir?: string
-
-  /** Channel config (null/empty = defaults, undefined = disabled) */
-  channel?: ChannelConfig | null
-
-  /** Document config (null/empty = defaults, undefined = disabled) */
-  document?: DocumentConfig | null
-}
-
-export interface ChannelConfig {
-  file?: string // default: channel.md
-}
-
-export interface DocumentConfig {
-  file?: string // default: notes.md
+  /** Channel file name (default: channel.md) */
+  channel?: string
+  /** Document file name (default: notes.md) */
+  document?: string
 }
 
 /** Default context configuration values */
 export const CONTEXT_DEFAULTS = {
-  dir: '.workflow/default/',
-  channel: {
-    file: 'channel.md',
-  },
-  document: {
-    file: 'notes.md',
-  },
+  dir: '.workflow/${{ instance }}/',
+  channel: 'channel.md',
+  document: 'notes.md',
 } as const
 
 /** Mention pattern for extracting @mentions */
