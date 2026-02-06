@@ -76,21 +76,27 @@ Implementation tasks for the workflow design. See [DESIGN.md](./DESIGN.md) for f
 
 - [ ] Add `InboxMessage` and `InboxState` types
 - [ ] Add inbox methods to `ContextProvider` interface
-- [ ] Implement `getInbox()` - get unread @mentions for agent
+- [ ] Implement `getInbox()` - get unread @mentions for agent (**does NOT acknowledge**)
 - [ ] Implement `ackInbox()` - acknowledge messages up to timestamp
-- [ ] Implement `peekInbox()` - view inbox without acknowledging
 - [ ] Add priority detection (multiple mentions, urgent keywords)
-- [ ] Add MCP tools: `inbox_check`, `inbox_ack`, `inbox_peek`
+- [ ] Add MCP tools: `inbox_check`, `inbox_ack`
+- [ ] **Remove auto-acknowledge from `channel_read`** (breaking change)
 - [ ] Update agent system prompts with work loop guidance
+
+> **Design Decision**: `inbox_check` and `channel_read` do NOT acknowledge messages.
+> Only explicit `inbox_ack` acknowledges. This allows: check inbox → process → ack on success.
 
 ## Phase 8: Agent Controller & Backend Abstraction
 
 ### Agent Controller
 - [ ] Define `AgentController` interface (state: idle/running/stopped)
-- [ ] Define `AgentControllerConfig` types
+- [ ] Define `AgentControllerConfig` types with `RetryConfig`
 - [ ] Implement `createAgentController()` factory
 - [ ] Implement polling loop with `wake()` interrupt
-- [ ] Integrate with MCP server (wake on @mention in `channel_send`)
+- [ ] **Add `onMention` callback to `createContextMCPServer()` options**
+- [ ] Call `onMention` in `channel_send` for each @mention (decoupled from controller)
+- [ ] **Controller acknowledges inbox ONLY on successful agent run**
+- [ ] Implement retry with exponential backoff (default: 3 attempts)
 
 ### Context Management
 - [ ] Define `AgentRunContext` interface
@@ -106,7 +112,7 @@ Implementation tasks for the workflow design. See [DESIGN.md](./DESIGN.md) for f
 - [ ] Implement Claude CLI backend (`claude -p --mcp-config`)
 - [ ] Implement Codex CLI backend (project-level config)
 - [ ] Implement `getBackendForModel()` selector
-- [ ] Handle model string parsing (`anthropic/claude-sonnet-4-5` → API model ID)
+- [ ] **Implement `parseModel()` with aliases and version mapping**
 
 ### Integration
 - [ ] Update `runWorkflow()` to use controllers
@@ -122,6 +128,19 @@ Implementation tasks for the workflow design. See [DESIGN.md](./DESIGN.md) for f
 - [ ] Implement `deleteDocument()` - remove document file
 - [ ] Add MCP tools: `document_list`, `document_create`
 - [ ] Support nested document directories (e.g., `findings/auth.md`)
+
+## Phase 10: Document Ownership (Optional)
+
+Single-writer model to prevent concurrent document conflicts:
+
+- [ ] Add `documentOwner` to `FileContextConfig`
+- [ ] Add ownership check to `document_write`, `document_create`, `document_append`
+- [ ] Add `document_suggest` MCP tool for non-owners
+- [ ] Non-owner write attempts return error with guidance to use `document_suggest`
+- [ ] `document_suggest` posts @mention to owner in channel
+
+> **When to use**: Workflows with 3+ agents, when document consistency matters.
+> **When NOT to use**: Simple workflows, speed over consistency.
 
 ---
 

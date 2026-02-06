@@ -255,6 +255,129 @@ await tools.document_create({
 })
 ```
 
+### Document Ownership Model
+
+To prevent concurrent write conflicts, documents have an optional **owner** who has exclusive write permission. Other agents can read and suggest changes.
+
+**Configuration:**
+
+```yaml
+context:
+  provider: file
+  config:
+    document: workspace.md
+    documentOwner: scribe  # Only @scribe can write to documents
+```
+
+**How It Works:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Document Ownership                            │
+│                                                                  │
+│  Owner (@scribe):                 Non-owners:                   │
+│   - document_read ✓                - document_read ✓            │
+│   - document_write ✓               - document_write ✗           │
+│   - document_create ✓              - document_create ✗          │
+│   - document_append ✓              - document_append ✗          │
+│   - document_list ✓                - document_list ✓            │
+│   - document_suggest ✓             - document_suggest ✓ (new)   │
+│                                                                  │
+│  Non-owners use document_suggest to request changes:            │
+│  → Message posted to channel: "@scribe [DOC_SUGGEST] ..."       │
+│  → Scribe processes suggestion and updates document             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**MCP Tools with Ownership:**
+
+```typescript
+server.tool('document_write', {
+  content: z.string(),
+  file: z.string().optional(),
+}, async ({ content, file }, extra) => {
+  const agent = extra.sessionId
+  const owner = config.documentOwner
+
+  // Check ownership if configured
+  if (owner && agent !== owner) {
+    return {
+      content: [{
+        type: 'text',
+        text: `Error: Only @${owner} can write to documents. Use document_suggest instead.`
+      }]
+    }
+  }
+
+  await provider.writeDocument(content, file)
+  return { content: [{ type: 'text', text: 'written' }] }
+})
+
+server.tool('document_suggest', {
+  suggestion: z.string().describe('What change to make'),
+  file: z.string().optional().describe('Which file to change'),
+  reason: z.string().optional().describe('Why this change is needed'),
+}, async ({ suggestion, file, reason }, extra) => {
+  const from = extra.sessionId
+  const owner = config.documentOwner || 'system'
+  const fileInfo = file ? ` in ${file}` : ''
+  const reasonInfo = reason ? `\nReason: ${reason}` : ''
+
+  // Post suggestion to channel as @mention to owner
+  const message = `@${owner} [DOC_SUGGEST]${fileInfo}\n${suggestion}${reasonInfo}`
+  await provider.appendChannel(from, message)
+
+  return { content: [{ type: 'text', text: `Suggestion sent to @${owner}` }] }
+})
+```
+
+**Example Workflow:**
+
+```yaml
+name: code-review
+
+context:
+  provider: file
+  config:
+    documentOwner: scribe  # Dedicated document maintainer
+
+agents:
+  reviewer:
+    model: anthropic/claude-sonnet-4-5
+    system_prompt: |
+      You review code and report findings.
+      Use document_suggest to request documentation updates.
+
+  coder:
+    model: anthropic/claude-sonnet-4-5
+    system_prompt: |
+      You fix code issues.
+      Use document_suggest to record your changes.
+
+  scribe:
+    model: anthropic/claude-haiku-3-5  # Lightweight model for doc updates
+    system_prompt: |
+      You maintain the project documentation.
+      Process [DOC_SUGGEST] messages and update documents accordingly.
+      Consolidate duplicate suggestions. Keep docs concise.
+```
+
+**Benefits:**
+- No concurrent write conflicts (single writer)
+- Clear responsibility (scribe owns documentation quality)
+- Suggestions are logged in channel (audit trail)
+- Scribe can consolidate/prioritize suggestions
+
+**When to Use:**
+- Workflows with 3+ agents that might update documents
+- When document consistency matters
+- When you want an audit trail of document changes
+
+**When NOT to Use:**
+- Simple 2-agent workflows
+- When speed matters more than consistency
+- When agents rarely update documents
+
 ### Inbox Design
 
 The inbox is a **derived view** of channel @mentions, filtered to unread messages for a specific agent.
@@ -281,9 +404,10 @@ interface InboxMessage {
 
 | Operation | Effect |
 |-----------|--------|
-| `inbox_check` | Get unread messages for this agent |
+| `inbox_check` | Get unread messages for this agent (does NOT auto-acknowledge) |
 | `inbox_ack` | Mark messages as read (up to timestamp) |
-| `inbox_peek` | View inbox without marking as read |
+
+> **Note**: `inbox_check` does not acknowledge messages. Agents must explicitly call `inbox_ack` after processing. This allows agents to: (1) check inbox, (2) process messages, (3) acknowledge only after successful completion.
 
 **Example Flow**:
 
@@ -395,9 +519,88 @@ interface AgentControllerConfig {
   /** Poll interval in ms (default: 5000) */
   pollInterval?: number
 
+  /** Retry configuration */
+  retry?: RetryConfig
+
   /** Run agent and return when done */
-  runAgent: (context: AgentRunContext) => Promise<void>
+  runAgent: (context: AgentRunContext) => Promise<AgentRunResult>
 }
+
+interface RetryConfig {
+  /** Max retry attempts on failure (default: 3) */
+  maxAttempts?: number
+  /** Initial backoff delay in ms (default: 1000) */
+  backoffMs?: number
+  /** Backoff multiplier (default: 2) */
+  backoffMultiplier?: number
+}
+
+**Controller Responsibilities:**
+
+The controller handles lifecycle concerns that agents shouldn't manage:
+
+1. **Inbox Acknowledgment**: Controller acknowledges inbox AFTER successful agent run
+   - Success: `ackInbox(agent, latestInboxTimestamp)`
+   - Failure: Don't acknowledge → messages redelivered on retry
+
+2. **Retry on Failure**: Exponential backoff with configurable limits
+   ```
+   Attempt 1: Run agent
+   Failure → wait 1000ms
+   Attempt 2: Run agent
+   Failure → wait 2000ms
+   Attempt 3: Run agent
+   Failure → log error, move to idle (messages stay unread)
+   ```
+
+3. **Error Isolation**: One agent's failure doesn't affect others
+
+```typescript
+// Simplified controller loop
+async function controllerLoop(config: AgentControllerConfig) {
+  while (state !== 'stopped') {
+    // Wait for wake() or poll interval
+    await waitForWakeOrPoll()
+
+    const inbox = await provider.getInbox(config.name)
+    if (inbox.length === 0) continue
+
+    // Get latest inbox timestamp for acknowledgment
+    const latestTimestamp = inbox[inbox.length - 1].entry.timestamp
+
+    // Run agent with retry
+    let attempt = 0
+    const maxAttempts = config.retry?.maxAttempts ?? 3
+
+    while (attempt < maxAttempts) {
+      attempt++
+      state = 'running'
+
+      const result = await config.runAgent({
+        name: config.name,
+        inbox,
+        recentChannel: await provider.readChannel(undefined, 50),
+        mcpSocketPath: config.mcpSocketPath,
+      })
+
+      if (result.success) {
+        // Acknowledge inbox ONLY on success
+        await provider.ackInbox(config.name, latestTimestamp)
+        break
+      }
+
+      // Retry with backoff
+      if (attempt < maxAttempts) {
+        const delay = (config.retry?.backoffMs ?? 1000) *
+                      Math.pow(config.retry?.backoffMultiplier ?? 2, attempt - 1)
+        await sleep(delay)
+      }
+    }
+
+    state = 'idle'
+  }
+}
+```
 
 interface AgentRunContext {
   /** Agent name */
@@ -416,23 +619,26 @@ interface AgentRunContext {
 
 **Wake on @mention:**
 
-```typescript
-// In MCP server channel_send tool
-server.tool('channel_send', { message: z.string() }, async ({ message }, extra) => {
-  const from = getAgentId(extra)
-  const entry = await provider.appendChannel(from, message)
+The MCP server calls `onMention` callback when agents are @mentioned. The runner uses this to wake idle controllers:
 
-  // Wake mentioned agents immediately
-  for (const target of entry.mentions) {
+```typescript
+// Runner creates MCP server with onMention callback
+const agentControllers = new Map<string, AgentController>()
+
+const { server } = createContextMCPServer({
+  provider,
+  validAgents,
+  onMention: (from, target, entry) => {
+    // Wake mentioned agent's controller if idle
     const controller = agentControllers.get(target)
     if (controller?.state === 'idle') {
       controller.wake()
     }
   }
-
-  return { content: [{ type: 'text', text: 'sent' }] }
 })
 ```
+
+This pattern decouples the MCP server from controller implementation, making testing easier.
 
 ### Context Management
 
@@ -652,6 +858,70 @@ function getBackendForModel(model: string): AgentBackend {
 }
 ```
 
+**Model String Parsing:**
+
+Model strings support multiple formats for flexibility:
+
+```typescript
+/** Model aliases for convenience */
+const MODEL_ALIASES: Record<string, string> = {
+  // Anthropic shortcuts
+  'sonnet': 'anthropic/claude-sonnet-4-5',
+  'opus': 'anthropic/claude-opus-4',
+  'haiku': 'anthropic/claude-haiku-3-5',
+
+  // Full names without provider
+  'claude-sonnet-4-5': 'anthropic/claude-sonnet-4-5',
+  'claude-opus-4': 'anthropic/claude-opus-4',
+  'claude-haiku-3-5': 'anthropic/claude-haiku-3-5',
+}
+
+/** Current model versions (may be updated) */
+const MODEL_VERSIONS: Record<string, string> = {
+  'claude-sonnet-4-5': 'claude-sonnet-4-5-20250514',
+  'claude-opus-4': 'claude-opus-4-20250514',
+  'claude-haiku-3-5': 'claude-haiku-3-5-20250620',
+}
+
+interface ParsedModel {
+  provider: string    // 'anthropic', 'openai', etc.
+  name: string        // 'claude-sonnet-4-5'
+  apiModelId: string  // 'claude-sonnet-4-5-20250514' (for API calls)
+}
+
+function parseModel(model: string): ParsedModel {
+  // 1. Resolve alias first
+  const resolved = MODEL_ALIASES[model] || model
+
+  // 2. Parse provider/name
+  let provider: string
+  let name: string
+
+  if (resolved.includes('/')) {
+    [provider, name] = resolved.split('/')
+  } else {
+    // Assume Anthropic if no provider specified
+    provider = 'anthropic'
+    name = resolved
+  }
+
+  // 3. Get versioned API model ID
+  const apiModelId = MODEL_VERSIONS[name] || name
+
+  return { provider, name, apiModelId }
+}
+
+// Usage examples:
+parseModel('sonnet')
+// → { provider: 'anthropic', name: 'claude-sonnet-4-5', apiModelId: 'claude-sonnet-4-5-20250514' }
+
+parseModel('anthropic/claude-opus-4')
+// → { provider: 'anthropic', name: 'claude-opus-4', apiModelId: 'claude-opus-4-20250514' }
+
+parseModel('openai/gpt-4o')
+// → { provider: 'openai', name: 'gpt-4o', apiModelId: 'gpt-4o' }
+```
+
 **Backend Comparison:**
 
 | Aspect | SDK | Claude CLI | Codex |
@@ -800,9 +1070,10 @@ type ContextConfig = false | FileContextConfig | MemoryContextConfig
 interface FileContextConfig {
   provider: 'file'
   config?: {
-    dir?: string      // default: .workflow/${{ instance }}/
-    channel?: string  // default: channel.md
-    document?: string // default: notes.md
+    dir?: string           // default: .workflow/${{ instance }}/
+    channel?: string       // default: channel.md
+    document?: string      // default: notes.md
+    documentOwner?: string // optional: agent with exclusive write permission
   }
 }
 
@@ -935,7 +1206,7 @@ Context is provided to agents via an MCP server, not direct file access.
 │  │  Channel:              Inbox:              Document:     │ │
 │  │   - channel_send        - inbox_check       - document_read     │ │
 │  │   - channel_read        - inbox_ack         - document_write    │ │
-│  │   - channel_peek        - inbox_peek        - document_append   │ │
+│  │                                              - document_append   │ │
 │  │                                              - document_list     │ │
 │  │                                              - document_create   │ │
 │  │                                                           │ │
@@ -968,11 +1239,11 @@ interface ContextProvider {
   readChannel(since?: string, limit?: number): Promise<ChannelEntry[]>
 
   // Inbox operations (derived from channel @mentions)
+  // NOTE: getInbox does NOT acknowledge - explicit ackInbox required
   getInbox(agent: string): Promise<InboxMessage[]>
   ackInbox(agent: string, until: string): Promise<void>
-  peekInbox(agent: string): Promise<InboxMessage[]>  // No ack
 
-  // Document operations (single file - legacy)
+  // Document operations
   readDocument(file?: string): Promise<string>
   writeDocument(content: string, file?: string): Promise<void>
   appendDocument(content: string, file?: string): Promise<void>
@@ -983,11 +1254,18 @@ interface ContextProvider {
   deleteDocument(file: string): Promise<void>
 }
 
-// MCP Server for Context
-function createContextMCPServer(
-  provider: ContextProvider,
+/** Options for creating Context MCP Server */
+interface ContextMCPServerOptions {
+  provider: ContextProvider
   validAgents: string[]
-) {
+  /** Called when an agent is @mentioned - used to wake idle controllers */
+  onMention?: (from: string, target: string, entry: ChannelEntry) => void
+}
+
+// MCP Server for Context
+function createContextMCPServer(options: ContextMCPServerOptions) {
+  const { provider, validAgents, onMention } = options
+
   const server = new McpServer({
     name: 'workflow-context',
     version: '1.0.0',
@@ -1015,6 +1293,10 @@ function createContextMCPServer(
           timestamp: entry.timestamp,
         })
       }
+
+      // Call onMention callback to wake idle controllers
+      // This decouples MCP server from controller implementation
+      onMention?.(from, target, entry)
     }
 
     return { content: [{ type: 'text', text: 'sent' }] }
@@ -1023,16 +1305,10 @@ function createContextMCPServer(
   server.tool('channel_read', {
     since: z.string().optional().describe('Read entries after this timestamp'),
     limit: z.number().optional().describe('Max entries to return'),
-  }, async ({ since, limit }, extra) => {
-    const agent = extra.sessionId
+  }, async ({ since, limit }) => {
+    // NOTE: channel_read does NOT acknowledge mentions
+    // Agents must explicitly call inbox_ack after processing
     const entries = await provider.readChannel(since, limit)
-
-    // Acknowledge mentions for this agent up to latest entry
-    if (entries.length > 0) {
-      const latest = entries[entries.length - 1].timestamp
-      await provider.acknowledgeMentions(agent, latest)
-    }
-
     return { content: [{ type: 'text', text: JSON.stringify(entries) }] }
   })
 
@@ -1059,11 +1335,8 @@ function createContextMCPServer(
     return { content: [{ type: 'text', text: 'acknowledged' }] }
   })
 
-  server.tool('inbox_peek', {}, async (_, extra) => {
-    const agent = extra.sessionId
-    const messages = await provider.peekInbox(agent)
-    return { content: [{ type: 'text', text: JSON.stringify(messages) }] }
-  })
+  // NOTE: inbox_peek removed - inbox_check already doesn't acknowledge
+  // If you need to check inbox without side effects, just use inbox_check
 
   // Document tools
   server.tool('document_read', {
@@ -1803,7 +2076,6 @@ The current implementation (Phase 1-6) provides a working foundation. Phase 7-8 
 | `getUnreadMentions(agent)` | → `getInbox(agent): InboxMessage[]` (add priority) |
 | `getAllMentions(agent)` | → Remove (not needed) |
 | `acknowledgeMentions(agent, until)` | → `ackInbox(agent, until)` |
-| - | → `peekInbox(agent): InboxMessage[]` (new) |
 | `readDocument()` | → `readDocument(file?)` (add optional file) |
 | `writeDocument(content)` | → `writeDocument(content, file?)` |
 | `appendDocument(content)` | → `appendDocument(content, file?)` |
@@ -1816,13 +2088,21 @@ The current implementation (Phase 1-6) provides a working foundation. Phase 7-8 
 | Current Tool | Phase 7-8 Change |
 |--------------|------------------|
 | `channel_mentions` | → Replace with `inbox_check` |
+| `channel_read` | → Remove auto-acknowledge behavior |
 | - | → `inbox_ack` (new) |
-| - | → `inbox_peek` (new) |
 | `document_read` | → Add `file` parameter |
-| `document_write` | → Add `file` parameter |
-| `document_append` | → Add `file` parameter |
+| `document_write` | → Add `file` parameter, add ownership check |
+| `document_append` | → Add `file` parameter, add ownership check |
 | - | → `document_list` (new) |
-| - | → `document_create` (new) |
+| - | → `document_create` (new, with ownership check) |
+| - | → `document_suggest` (new, for non-owners) |
+
+**Key Design Changes:**
+
+1. **`inbox_check` does NOT acknowledge** - explicit `inbox_ack` required
+2. **`channel_read` does NOT acknowledge** - decoupled from inbox
+3. **Controller acknowledges on success** - not the agent
+4. **Document ownership** - optional single-writer model with `document_suggest`
 
 **New Types:**
 
@@ -1840,6 +2120,13 @@ function calculatePriority(entry: ChannelEntry): 'normal' | 'high' {
   if (/\b(urgent|asap|blocked|critical)\b/i.test(entry.message)) return 'high'
   return 'normal'
 }
+
+// Retry configuration
+interface RetryConfig {
+  maxAttempts?: number      // default: 3
+  backoffMs?: number        // default: 1000
+  backoffMultiplier?: number // default: 2
+}
 ```
 
 ### Implementation Order
@@ -1847,24 +2134,33 @@ function calculatePriority(entry: ChannelEntry): 'normal' | 'high' {
 **Phase 7: Inbox Model**
 1. Add `InboxMessage` type to `context/types.ts`
 2. Rename mention methods to inbox methods in `ContextProvider`
-3. Add `peekInbox()` method
-4. Add priority calculation
-5. Implement in both providers
-6. Replace `channel_mentions` with `inbox_check`, add `inbox_ack`, `inbox_peek`
+3. Add priority calculation
+4. Implement in both providers
+5. Replace `channel_mentions` with `inbox_check`, add `inbox_ack`
+6. **Remove auto-acknowledge from `channel_read`**
 
 **Phase 8: Agent Controller**
 1. Add `AgentController` interface and types
-2. Implement `createAgentController()` with polling loop
-3. Add `wake()` interrupt mechanism
-4. Integrate with MCP server (wake on @mention in `channel_send`)
-5. Implement backend runners (SDK, Claude CLI, Codex)
-6. Update `runWorkflow()` to use controllers
+2. Add `RetryConfig` interface
+3. Implement `createAgentController()` with polling loop
+4. Add `wake()` interrupt mechanism
+5. **Add `onMention` callback to MCP server options**
+6. **Controller acknowledges inbox on successful agent run**
+7. Implement retry with exponential backoff
+8. Implement backend runners (SDK, Claude CLI, Codex)
+9. Add model parsing (`parseModel()` with aliases and versions)
+10. Update `runWorkflow()` to use controllers
 
 **Phase 9: Multi-File Documents**
 1. Add `file` parameter to document methods
 2. Add `listDocuments`, `createDocument`, `deleteDocument`
 3. Add MCP tools
 4. Support nested directories
+
+**Phase 10: Document Ownership** (optional)
+1. Add `documentOwner` to context config
+2. Add ownership check to write/create/append tools
+3. Add `document_suggest` tool for non-owners
 
 ---
 
