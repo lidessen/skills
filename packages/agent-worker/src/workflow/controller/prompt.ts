@@ -82,9 +82,15 @@ export function buildAgentPrompt(ctx: AgentRunContext): string {
   sections.push('')
   sections.push('### Workflow')
   sections.push('1. Read your inbox messages above')
-  sections.push('2. Use channel_send with @mentions to communicate with other agents')
+  sections.push('2. Do your assigned work using channel_send with @mentions')
   sections.push('3. Acknowledge your inbox with inbox_ack')
-  sections.push('4. Exit when done')
+  sections.push('4. Exit when your task is complete')
+  sections.push('')
+  sections.push('### IMPORTANT: When to stop')
+  sections.push('- Once your assigned task is complete, acknowledge your inbox and exit. Do NOT keep chatting.')
+  sections.push('- Do NOT send pleasantries ("you\'re welcome", "glad to help", "thanks again") — they trigger unnecessary cycles.')
+  sections.push('- Do NOT @mention another agent in your final message unless you need them to do more work.')
+  sections.push('- If you receive a thank-you or acknowledgment, just call inbox_ack and exit. Do not reply.')
 
   return sections.join('\n')
 }
