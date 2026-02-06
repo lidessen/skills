@@ -504,11 +504,14 @@ export async function runWorkflowWithControllers(config: ControllerRunConfig): P
       instance,
       verbose: debug, // Use debug for internal verbose logging
       log,
-      onMention: (from, target, _entry) => {
+      onMention: (from, target, entry) => {
         const controller = controllers.get(target)
         if (controller) {
-          logger.debug(`Mention detected: ${from} → @${target}, waking controller`)
+          const preview = entry.message.length > 80 ? entry.message.slice(0, 80) + '...' : entry.message
+          logger.debug(`@mention: ${from} → @${target} (state=${controller.state}): ${preview}`)
           controller.wake()
+        } else {
+          logger.debug(`@mention: ${from} → @${target} (no controller found!)`)
         }
       },
       debugLog: debug ? (msg) => logger.debug(msg) : undefined,
@@ -533,13 +536,14 @@ export async function runWorkflowWithControllers(config: ControllerRunConfig): P
 
       // Get backend for this agent
       // Priority: 1. Custom createBackend, 2. Explicit backend field, 3. Infer from model
+      const backendDebugLog = debug ? (msg: string) => logger.debug(msg) : undefined
       let backend: AgentBackend
       if (createBackend) {
         backend = createBackend(agentName, agentDef)
       } else if (agentDef.backend) {
-        backend = getBackendByType(agentDef.backend, { model: agentDef.model })
+        backend = getBackendByType(agentDef.backend, { model: agentDef.model, debugLog: backendDebugLog })
       } else if (agentDef.model) {
-        backend = getBackendForModel(agentDef.model)
+        backend = getBackendForModel(agentDef.model, { debugLog: backendDebugLog })
       } else {
         throw new Error(`Agent "${agentName}" requires either a backend or model field`)
       }
@@ -576,16 +580,14 @@ export async function runWorkflowWithControllers(config: ControllerRunConfig): P
     await runtime.sendKickoff()
     logger.debug('Kickoff sent')
 
-    // Start channel watcher for real-time output (only if not debug mode)
-    let channelWatcher: ChannelWatcher | null = null
-    if (!debug) {
-      channelWatcher = startChannelWatcher(
-        runtime.contextProvider,
-        runtime.agentNames,
-        log,
-        250 // Fast polling for responsive output
-      )
-    }
+    // Start channel watcher for real-time output
+    // Always enabled - this is the primary way to see agent communication
+    const channelWatcher = startChannelWatcher(
+      runtime.contextProvider,
+      runtime.agentNames,
+      log,
+      250 // Fast polling for responsive output
+    )
 
     // Handle run mode vs start mode
     if (mode === 'run') {
@@ -597,14 +599,22 @@ export async function runWorkflowWithControllers(config: ControllerRunConfig): P
         idleCheckCount++
 
         if (idleCheckCount % 10 === 0) {
-          // Log every 10 seconds
+          // Log every 10 seconds with detailed state
           const states = [...controllers.entries()].map(([n, c]) => `${n}=${c.state}`).join(', ')
           logger.debug(`Idle check #${idleCheckCount}: ${states}`)
+
+          // Also check inbox state for each agent
+          for (const [agentName] of controllers) {
+            const inbox = await runtime.contextProvider.getInbox(agentName)
+            if (inbox.length > 0) {
+              logger.debug(`  ${agentName} inbox: ${inbox.length} unread from [${inbox.map(m => m.entry.from).join(', ')}]`)
+            }
+          }
         }
 
         if (isIdle) {
           logger.debug('Workflow complete - all agents idle')
-          if (!debug && verbose) log('\nWorkflow complete')
+          if (verbose) log('\nWorkflow complete')
           break
         }
         // Check every second

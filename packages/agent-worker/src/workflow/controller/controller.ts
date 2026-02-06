@@ -85,6 +85,16 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
         continue
       }
 
+      // Log inbox contents for debugging
+      const senders = inbox.map((m) => m.entry.from)
+      log(`[${name}] Inbox: ${inbox.length} message(s) from [${senders.join(', ')}]`)
+      for (const msg of inbox) {
+        const preview = msg.entry.message.length > 120
+          ? msg.entry.message.slice(0, 120) + '...'
+          : msg.entry.message
+        log(`[${name}]   <- @${msg.entry.from}: ${preview}`)
+      }
+
       // Get latest timestamp for acknowledgment
       const latestTimestamp = inbox[inbox.length - 1]!.entry.timestamp
 

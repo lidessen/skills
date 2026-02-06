@@ -262,13 +262,15 @@ describe('detectCLIError', () => {
 })
 
 describe('generateWorkflowMCPConfig', () => {
-  test('generates valid MCP config', () => {
-    const config = generateWorkflowMCPConfig('/tmp/workflow.sock')
+  test('generates valid MCP config with agent identity', () => {
+    const config = generateWorkflowMCPConfig('/tmp/workflow.sock', 'alice')
 
     expect(config).toHaveProperty('mcpServers')
     expect((config as any).mcpServers['workflow-context']).toBeDefined()
     expect((config as any).mcpServers['workflow-context'].type).toBe('stdio')
     expect((config as any).mcpServers['workflow-context'].args).toContain('/tmp/workflow.sock')
+    expect((config as any).mcpServers['workflow-context'].args).toContain('--agent')
+    expect((config as any).mcpServers['workflow-context'].args).toContain('alice')
   })
 })
 
