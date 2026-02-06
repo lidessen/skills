@@ -1232,10 +1232,10 @@ describe('Backend factory', () => {
 })
 
 describe('CLI backend implementations', () => {
-  test('ClaudeCliBackend builds correct args', async () => {
-    const { ClaudeCliBackend } = await import('../src/backends/claude-cli.ts')
+  test('ClaudeCodeBackend builds correct args', async () => {
+    const { ClaudeCodeBackend } = await import('../src/backends/claude-code.ts')
 
-    const backend = new ClaudeCliBackend({
+    const backend = new ClaudeCodeBackend({
       model: 'opus',
       outputFormat: 'json',
       continue: true,
@@ -1245,10 +1245,10 @@ describe('CLI backend implementations', () => {
     expect(backend.getInfo().model).toBe('opus')
   })
 
-  test('CodexCliBackend builds correct args', async () => {
-    const { CodexCliBackend } = await import('../src/backends/codex-cli.ts')
+  test('CodexBackend builds correct args', async () => {
+    const { CodexBackend } = await import('../src/backends/codex.ts')
 
-    const backend = new CodexCliBackend({
+    const backend = new CodexBackend({
       model: 'o3',
       approvalMode: 'full-auto',
     })
@@ -1257,10 +1257,10 @@ describe('CLI backend implementations', () => {
     expect(backend.getInfo().model).toBe('o3')
   })
 
-  test('CursorCliBackend builds correct args', async () => {
-    const { CursorCliBackend } = await import('../src/backends/cursor-cli.ts')
+  test('CursorBackend builds correct args', async () => {
+    const { CursorBackend } = await import('../src/backends/cursor.ts')
 
-    const backend = new CursorCliBackend({
+    const backend = new CursorBackend({
       model: 'gpt-5.2',
     })
 

@@ -7,7 +7,7 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
 import { spawn } from 'node:child_process'
 import { join } from 'node:path'
-import { CursorCliBackend } from '../src/backends/cursor-cli.ts'
+import { CursorBackend } from '../src/backends/cursor.ts'
 
 const MOCK_CLI_PATH = join(import.meta.dir, 'mock-cli.ts')
 
@@ -81,9 +81,9 @@ describe('Mock CLI', () => {
   })
 })
 
-describe('CursorCliBackend with Mock', () => {
+describe('CursorBackend with Mock', () => {
   // Create a backend that uses our mock CLI
-  class MockCursorBackend extends CursorCliBackend {
+  class MockCursorBackend extends CursorBackend {
     protected override buildCommand(message: string): { command: string; args: string[] } {
       // Use bun to run mock-cli.ts instead of actual cursor-agent
       return {
@@ -137,7 +137,7 @@ describe('CursorCliBackend with Mock', () => {
 
 describe('Backend Integration', () => {
   test('mock CLI behaves like real cursor-agent', async () => {
-    // Test the exact command that CursorCliBackend would build
+    // Test the exact command that CursorBackend would build
     const result = await runMockCli(['cursor-agent', '-p', 'What is 2+2?'])
     expect(result.exitCode).toBe(0)
     expect(result.stdout).toBe('4')

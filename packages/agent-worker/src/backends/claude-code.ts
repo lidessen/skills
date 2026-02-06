@@ -5,10 +5,10 @@
  * @see https://code.claude.com/docs/en/headless
  */
 
-import { spawn } from 'node:child_process'
+import { execa, ExecaError } from 'execa'
 import type { Backend, BackendResponse } from './types.ts'
 
-export interface ClaudeCliOptions {
+export interface ClaudeCodeOptions {
   /** Model to use (e.g., 'opus', 'sonnet') */
   model?: string
   /** Additional system prompt to append */
@@ -23,72 +23,61 @@ export interface ClaudeCliOptions {
   resume?: string
   /** Working directory */
   cwd?: string
+  /** Timeout in milliseconds */
+  timeout?: number
 }
 
-export class ClaudeCliBackend implements Backend {
+export class ClaudeCodeBackend implements Backend {
   readonly type = 'claude' as const
-  private options: ClaudeCliOptions
+  private options: ClaudeCodeOptions
 
-  constructor(options: ClaudeCliOptions = {}) {
-    this.options = options
+  constructor(options: ClaudeCodeOptions = {}) {
+    this.options = {
+      timeout: 300000, // 5 minute default
+      ...options,
+    }
   }
 
   async send(message: string, options?: { system?: string }): Promise<BackendResponse> {
     const args = this.buildArgs(message, options)
 
-    return new Promise((resolve, reject) => {
-      const proc = spawn('claude', args, {
+    try {
+      const { stdout } = await execa('claude', args, {
         cwd: this.options.cwd,
-        env: process.env,
-        stdio: ['ignore', 'pipe', 'pipe'], // Ignore stdin, pipe stdout/stderr
+        stdin: 'ignore',
+        timeout: this.options.timeout,
       })
 
-      let stdout = ''
-      let stderr = ''
-
-      proc.stdout.on('data', (data) => {
-        stdout += data.toString()
-      })
-
-      proc.stderr.on('data', (data) => {
-        stderr += data.toString()
-      })
-
-      proc.on('close', (code) => {
-        if (code !== 0) {
-          reject(new Error(`claude exited with code ${code}: ${stderr}`))
-          return
-        }
-
-        // Parse response based on output format
-        if (this.options.outputFormat === 'json') {
-          try {
-            const parsed = JSON.parse(stdout)
-            resolve({
-              content: parsed.content || parsed.result || stdout,
-              toolCalls: parsed.toolCalls,
-              usage: parsed.usage,
-            })
-          } catch {
-            resolve({ content: stdout.trim() })
+      // Parse response based on output format
+      if (this.options.outputFormat === 'json') {
+        try {
+          const parsed = JSON.parse(stdout)
+          return {
+            content: parsed.content || parsed.result || stdout,
+            toolCalls: parsed.toolCalls,
+            usage: parsed.usage,
           }
-        } else {
-          resolve({ content: stdout.trim() })
+        } catch {
+          return { content: stdout.trim() }
         }
-      })
+      }
 
-      proc.on('error', (err) => {
-        reject(new Error(`Failed to spawn claude: ${err.message}`))
-      })
-    })
+      return { content: stdout.trim() }
+    } catch (error) {
+      if (error instanceof ExecaError) {
+        throw new Error(`claude failed (exit ${error.exitCode}): ${error.stderr || error.shortMessage}`)
+      }
+      throw error
+    }
   }
 
   async isAvailable(): Promise<boolean> {
-    return new Promise((resolve) => {
-      const proc = spawn('claude', ['--version'], { stdio: 'pipe' })
-      proc.on('close', (code) => resolve(code === 0))
-      proc.on('error', () => resolve(false))
-    })
+    try {
+      await execa('claude', ['--version'], { stdin: 'ignore', timeout: 5000 })
+      return true
+    } catch {
+      return false
+    }
   }
 
   getInfo(): { name: string; version?: string; model?: string } {
