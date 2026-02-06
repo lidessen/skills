@@ -1278,3 +1278,101 @@ describe('CLI backend implementations', () => {
     expect(info.model).toBe('anthropic/claude-sonnet-4-5')
   })
 })
+
+// ==================== Model Mapping Tests ====================
+
+describe('getModelForBackend', () => {
+  test('returns default model when no model specified', async () => {
+    const { getModelForBackend, BACKEND_DEFAULT_MODELS } = await import('../src/backends/types.ts')
+
+    expect(getModelForBackend(undefined, 'cursor')).toBe(BACKEND_DEFAULT_MODELS.cursor)
+    expect(getModelForBackend(undefined, 'claude')).toBe(BACKEND_DEFAULT_MODELS.claude)
+    expect(getModelForBackend(undefined, 'codex')).toBe(BACKEND_DEFAULT_MODELS.codex)
+    expect(getModelForBackend(undefined, 'sdk')).toBe(BACKEND_DEFAULT_MODELS.sdk)
+  })
+
+  test('translates model names for cursor backend', async () => {
+    const { getModelForBackend } = await import('../src/backends/types.ts')
+
+    // Generic names -> cursor format
+    expect(getModelForBackend('sonnet', 'cursor')).toBe('sonnet-4.5')
+    expect(getModelForBackend('opus', 'cursor')).toBe('opus-4.5')
+
+    // With provider prefix
+    expect(getModelForBackend('anthropic/claude-sonnet-4-5', 'cursor')).toBe('sonnet-4.5')
+    expect(getModelForBackend('anthropic/claude-opus-4-5', 'cursor')).toBe('opus-4.5')
+
+    // Already in cursor format
+    expect(getModelForBackend('sonnet-4.5', 'cursor')).toBe('sonnet-4.5')
+    expect(getModelForBackend('gpt-5.2', 'cursor')).toBe('gpt-5.2')
+  })
+
+  test('translates model names for claude backend', async () => {
+    const { getModelForBackend } = await import('../src/backends/types.ts')
+
+    // Generic names -> claude format
+    expect(getModelForBackend('sonnet', 'claude')).toBe('sonnet')
+    expect(getModelForBackend('opus', 'claude')).toBe('opus')
+
+    // With provider prefix
+    expect(getModelForBackend('anthropic/claude-sonnet-4-5', 'claude')).toBe('sonnet')
+
+    // From cursor format
+    expect(getModelForBackend('sonnet-4.5', 'claude')).toBe('sonnet')
+    expect(getModelForBackend('opus-4.5', 'claude')).toBe('opus')
+  })
+
+  test('translates model names for sdk backend', async () => {
+    const { getModelForBackend } = await import('../src/backends/types.ts')
+
+    // Generic names -> full model ID
+    expect(getModelForBackend('sonnet', 'sdk')).toBe('claude-sonnet-4-5-20250514')
+    expect(getModelForBackend('opus', 'sdk')).toBe('claude-opus-4-20250514')
+    expect(getModelForBackend('haiku', 'sdk')).toBe('claude-haiku-3-5-20250514')
+
+    // Short names -> full model ID
+    expect(getModelForBackend('claude-sonnet-4-5', 'sdk')).toBe('claude-sonnet-4-5-20250514')
+  })
+
+  test('passes through unknown models unchanged', async () => {
+    const { getModelForBackend } = await import('../src/backends/types.ts')
+
+    expect(getModelForBackend('unknown-model', 'cursor')).toBe('unknown-model')
+    expect(getModelForBackend('custom-model-v2', 'claude')).toBe('custom-model-v2')
+  })
+})
+
+describe('createBackend with model translation', () => {
+  test('cursor backend receives translated model', async () => {
+    const { createBackend } = await import('../src/backends/index.ts')
+
+    // Create with generic model name
+    const backend = createBackend({ type: 'cursor', model: 'sonnet' })
+    const info = backend.getInfo()
+
+    // Should be translated to cursor format
+    expect(info.model).toBe('sonnet-4.5')
+  })
+
+  test('claude backend receives translated model', async () => {
+    const { createBackend } = await import('../src/backends/index.ts')
+
+    // Create with provider-prefixed model
+    const backend = createBackend({ type: 'claude', model: 'anthropic/claude-sonnet-4-5' })
+    const info = backend.getInfo()
+
+    // Should be translated to claude format
+    expect(info.model).toBe('sonnet')
+  })
+
+  test('backend uses default model when not specified', async () => {
+    const { createBackend } = await import('../src/backends/index.ts')
+    const { BACKEND_DEFAULT_MODELS } = await import('../src/backends/types.ts')
+
+    const cursorBackend = createBackend({ type: 'cursor' })
+    expect(cursorBackend.getInfo().model).toBe(BACKEND_DEFAULT_MODELS.cursor)
+
+    const claudeBackend = createBackend({ type: 'claude' })
+    expect(claudeBackend.getInfo().model).toBe(BACKEND_DEFAULT_MODELS.claude)
+  })
+})

@@ -17,30 +17,39 @@ export type { CodexOptions as CodexCliOptions } from './codex.ts'
 export type { CursorOptions as CursorCliOptions } from './cursor.ts'
 
 import type { Backend, BackendType } from './types.ts'
+import { getModelForBackend } from './types.ts'
 import { ClaudeCodeBackend, type ClaudeCodeOptions } from './claude-code.ts'
 import { CodexBackend, type CodexOptions } from './codex.ts'
 import { CursorBackend, type CursorOptions } from './cursor.ts'
 import { SdkBackend } from './sdk.ts'
 
 export type BackendOptions =
-  | { type: 'sdk'; model: string; maxTokens?: number }
+  | { type: 'sdk'; model?: string; maxTokens?: number }
   | { type: 'claude'; model?: string; options?: Omit<ClaudeCodeOptions, 'model'> }
   | { type: 'codex'; model?: string; options?: Omit<CodexOptions, 'model'> }
   | { type: 'cursor'; model?: string; options?: Omit<CursorOptions, 'model'> }
 
 /**
  * Create a backend instance
+ * Model names are automatically translated to backend-specific format
+ *
+ * Examples:
+ * - "sonnet" → cursor: "sonnet-4.5", claude: "sonnet", sdk: "claude-sonnet-4-5-20250514"
+ * - "anthropic/claude-sonnet-4-5" → cursor: "sonnet-4.5", claude: "sonnet"
  */
 export function createBackend(config: BackendOptions): Backend {
+  // Translate model to backend-specific format
+  const model = getModelForBackend(config.model, config.type)
+
   switch (config.type) {
     case 'sdk':
-      return new SdkBackend({ model: config.model, maxTokens: config.maxTokens })
+      return new SdkBackend({ model, maxTokens: config.maxTokens })
     case 'claude':
-      return new ClaudeCodeBackend({ ...config.options, model: config.model })
+      return new ClaudeCodeBackend({ ...config.options, model })
     case 'codex':
-      return new CodexBackend({ ...config.options, model: config.model })
+      return new CodexBackend({ ...config.options, model })
     case 'cursor':
-      return new CursorBackend({ ...config.options, model: config.model })
+      return new CursorBackend({ ...config.options, model })
     default:
       throw new Error(`Unknown backend type: ${(config as { type: string }).type}`)
   }
