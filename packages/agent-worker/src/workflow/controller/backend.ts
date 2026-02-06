@@ -376,18 +376,37 @@ export function getBackendForModel(
 // ==================== CLI Adapter Backends ====================
 
 /**
+ * CLI backend interface with MCP config support
+ */
+interface CLIWithMcp {
+  send: (message: string, options?: { system?: string }) => Promise<{ content: string }>
+  setMcpConfigPath?: (path: string) => void
+}
+
+/**
  * Adapter that wraps new CLI backends for workflow controller
  */
 class CLIAdapterBackend implements AgentBackend {
   constructor(
     public readonly name: string,
-    private cli: { send: (message: string, options?: { system?: string }) => Promise<{ content: string }> }
+    private cli: CLIWithMcp
   ) {}
 
   async run(ctx: AgentRunContext): Promise<AgentRunResult> {
     const startTime = Date.now()
+    let mcpConfigPath: string | undefined
 
     try {
+      // Generate MCP config file for this run
+      mcpConfigPath = join(tmpdir(), `agent-${ctx.name}-${Date.now()}-mcp.json`)
+      const mcpConfig = generateWorkflowMCPConfig(ctx.mcpSocketPath)
+      writeFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 2))
+
+      // Set MCP config on CLI backend
+      if (this.cli.setMcpConfigPath) {
+        this.cli.setMcpConfigPath(mcpConfigPath)
+      }
+
       const prompt = buildAgentPrompt(ctx)
       await this.cli.send(prompt, { system: ctx.agent.resolvedSystemPrompt })
 
@@ -397,6 +416,15 @@ class CLIAdapterBackend implements AgentBackend {
         success: false,
         error: error instanceof Error ? error.message : String(error),
         duration: Date.now() - startTime,
+      }
+    } finally {
+      // Cleanup MCP config file
+      if (mcpConfigPath && existsSync(mcpConfigPath)) {
+        try {
+          unlinkSync(mcpConfigPath)
+        } catch {
+          // Ignore cleanup errors
+        }
       }
     }
   }

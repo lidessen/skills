@@ -25,6 +25,8 @@ export interface ClaudeCodeOptions {
   cwd?: string
   /** Timeout in milliseconds */
   timeout?: number
+  /** MCP config file path (for workflow context) */
+  mcpConfigPath?: string
 }
 
 export class ClaudeCodeBackend implements Backend {
@@ -115,6 +117,17 @@ export class ClaudeCodeBackend implements Backend {
       args.push('--resume', this.options.resume)
     }
 
+    if (this.options.mcpConfigPath) {
+      args.push('--mcp-config', this.options.mcpConfigPath)
+    }
+
     return args
+  }
+
+  /**
+   * Set MCP config path (for workflow integration)
+   */
+  setMcpConfigPath(path: string): void {
+    this.options.mcpConfigPath = path
   }
 }

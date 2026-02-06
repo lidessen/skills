@@ -17,6 +17,8 @@ export interface CursorOptions {
   useAgentCommand?: boolean
   /** Timeout in milliseconds */
   timeout?: number
+  /** MCP config file path (for workflow context) */
+  mcpConfigPath?: string
 }
 
 export class CursorBackend implements Backend {
@@ -80,10 +82,11 @@ export class CursorBackend implements Backend {
   private buildCommand(message: string): { command: string; args: string[] } {
     if (this.options.useAgentCommand) {
       // Use 'agent chat' command
-      return {
-        command: 'agent',
-        args: ['chat', message],
+      const args = ['chat', message]
+      if (this.options.mcpConfigPath) {
+        args.push('--mcp-config', this.options.mcpConfigPath)
       }
+      return { command: 'agent', args }
     }
 
     // Use 'cursor-agent -p' command
@@ -93,6 +96,17 @@ export class CursorBackend implements Backend {
       args.push('--model', this.options.model)
     }
 
+    if (this.options.mcpConfigPath) {
+      args.push('--mcp-config', this.options.mcpConfigPath)
+    }
+
     return { command: 'cursor-agent', args }
+  }
+
+  /**
+   * Set MCP config path (for workflow integration)
+   */
+  setMcpConfigPath(path: string): void {
+    this.options.mcpConfigPath = path
   }
 }
