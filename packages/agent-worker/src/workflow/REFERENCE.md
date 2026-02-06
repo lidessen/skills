@@ -467,9 +467,43 @@ function createContextMCPServer(options: MCPServerOptions) {
     return { content: [{ type: 'text', text: 'Written' }] }
   })
 
+  server.tool('document_append', {
+    content: z.string(),
+    file: z.string().optional(),
+  }, async ({ content, file }, extra) => {
+    // Ownership check
+    if (documentOwner && extra.sessionId !== documentOwner) {
+      return {
+        content: [{
+          type: 'text',
+          text: `Error: Only @${documentOwner} can append to documents. Use document_suggest instead.`
+        }]
+      }
+    }
+    await provider.appendDocument(content, file)
+    return { content: [{ type: 'text', text: 'Appended' }] }
+  })
+
   server.tool('document_list', {}, async () => {
     const files = await provider.listDocuments()
     return { content: [{ type: 'text', text: files.join('\n') || '(no documents)' }] }
+  })
+
+  server.tool('document_create', {
+    file: z.string().describe('File path relative to documents/'),
+    content: z.string().describe('Initial content'),
+  }, async ({ file, content }, extra) => {
+    // Ownership check
+    if (documentOwner && extra.sessionId !== documentOwner) {
+      return {
+        content: [{
+          type: 'text',
+          text: `Error: Only @${documentOwner} can create documents. Use document_suggest instead.`
+        }]
+      }
+    }
+    await provider.createDocument(file, content)
+    return { content: [{ type: 'text', text: `Created ${file}` }] }
   })
 
   server.tool('document_suggest', {
@@ -489,6 +523,43 @@ function createContextMCPServer(options: MCPServerOptions) {
   // Agent discovery
   server.tool('workflow_agents', {}, async () => {
     return { content: [{ type: 'text', text: validAgents.join(', ') }] }
+  })
+
+  // Proposal tools (see Proposal & Voting System section for types)
+  server.tool('proposal_create', {
+    type: z.enum(['election', 'decision', 'approval', 'assignment']),
+    title: z.string(),
+    description: z.string().optional(),
+    options: z.array(z.object({ id: z.string(), label: z.string() })).optional(),
+    resolution: z.object({
+      type: z.enum(['plurality', 'majority', 'unanimous']),
+      quorum: z.number().optional(),
+      tieBreaker: z.enum(['first', 'random', 'creator-decides']).optional(),
+    }).optional(),
+    binding: z.boolean().optional(),
+    timeoutSeconds: z.number().optional(),
+  }, async (params, extra) => {
+    // Implementation in Proposal & Voting System section
+  })
+
+  server.tool('vote', {
+    proposal: z.string().describe('Proposal ID'),
+    choice: z.string().describe('Option ID to vote for'),
+    reason: z.string().optional(),
+  }, async ({ proposal, choice, reason }, extra) => {
+    // Implementation in Proposal & Voting System section
+  })
+
+  server.tool('proposal_status', {
+    proposal: z.string().optional().describe('Proposal ID (omit for all active)'),
+  }, async ({ proposal }) => {
+    // Implementation in Proposal & Voting System section
+  })
+
+  server.tool('proposal_cancel', {
+    proposal: z.string().describe('Proposal ID'),
+  }, async ({ proposal }, extra) => {
+    // Implementation in Proposal & Voting System section
   })
 
   return { server }
