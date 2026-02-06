@@ -149,8 +149,11 @@ export class ProposalManager {
       mkdirSync(dir, { recursive: true })
     }
 
+    // Only persist active proposals (resolved/cancelled/expired are not saved)
+    const activeOnly = [...this.proposals.entries()].filter(([_, p]) => p.status === 'active')
+
     const state: ProposalsState = {
-      proposals: Object.fromEntries(this.proposals),
+      proposals: Object.fromEntries(activeOnly),
       version: Date.now(),
     }
     writeFileSync(this.statePath, JSON.stringify(state, null, 2))
