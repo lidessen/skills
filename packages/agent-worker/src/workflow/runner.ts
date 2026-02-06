@@ -315,8 +315,8 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
 
       if (verbose) log(`\nKickoff: ${interpolatedKickoff.slice(0, 100)}...`)
 
-      // Send kickoff as 'orchestrator' to the channel
-      await contextProvider.appendChannel('orchestrator', interpolatedKickoff)
+      // Send kickoff as 'system' to the channel
+      await contextProvider.appendChannel('system', interpolatedKickoff)
     },
 
     async shutdown() {
@@ -785,7 +785,7 @@ async function initWorkflowWithMentions(config: InitWithMentionsConfig): Promise
       }
 
       if (verbose) log(`\nKickoff: ${interpolatedKickoff.slice(0, 100)}...`)
-      await contextProvider.appendChannel('orchestrator', interpolatedKickoff)
+      await contextProvider.appendChannel('system', interpolatedKickoff)
     },
 
     async shutdown() {

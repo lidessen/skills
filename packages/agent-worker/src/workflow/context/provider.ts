@@ -1,9 +1,9 @@
 /**
  * Context Provider interface
- * Abstract storage layer for channel, inbox, and document operations
+ * Abstract storage layer for channel, inbox, document, and resource operations
  */
 
-import type { ChannelEntry, InboxMessage, AttachmentResult, AttachmentType } from './types.js'
+import type { ChannelEntry, InboxMessage, ResourceResult, ResourceType } from './types.js'
 
 /**
  * Context Provider interface - storage abstraction for workflow context
@@ -13,6 +13,8 @@ import type { ChannelEntry, InboxMessage, AttachmentResult, AttachmentType } fro
  * - FileContextProvider: File-based storage with markdown format
  */
 export interface ContextProvider {
+  // ==================== Channel ====================
+
   /**
    * Append a message to the channel
    * @param from - Agent name or 'system'
@@ -29,6 +31,8 @@ export interface ContextProvider {
    */
   readChannel(since?: string, limit?: number): Promise<ChannelEntry[]>
 
+  // ==================== Inbox ====================
+
   /**
    * Get unread inbox messages for an agent
    * Does NOT acknowledge - use ackInbox() after processing
@@ -43,6 +47,8 @@ export interface ContextProvider {
    * @param until - Timestamp to acknowledge up to (inclusive)
    */
   ackInbox(agent: string, until: string): Promise<void>
+
+  // ==================== Team Documents ====================
 
   /**
    * Read a document
@@ -79,23 +85,27 @@ export interface ContextProvider {
    */
   createDocument(file: string, content: string): Promise<void>
 
-  /**
-   * Create an attachment
-   * @param content - Attachment content
-   * @param createdBy - Agent creating the attachment
-   * @param type - Content type hint (default: 'text')
-   * @returns Attachment ID and ready-to-use reference
-   */
-  createAttachment(
-    content: string,
-    createdBy: string,
-    type?: AttachmentType
-  ): Promise<AttachmentResult>
+  // ==================== Resources ====================
+  // General-purpose resource reference mechanism.
+  // Resources can be referenced from channel messages, documents, or anywhere.
 
   /**
-   * Read attachment content by ID
-   * @param id - Attachment ID (e.g., att_abc123)
-   * @returns Attachment content or null if not found
+   * Create a resource
+   * @param content - Resource content
+   * @param createdBy - Agent creating the resource
+   * @param type - Content type hint (default: 'text')
+   * @returns Resource ID and ready-to-use reference
    */
-  readAttachment(id: string): Promise<string | null>
+  createResource(
+    content: string,
+    createdBy: string,
+    type?: ResourceType
+  ): Promise<ResourceResult>
+
+  /**
+   * Read resource content by ID
+   * @param id - Resource ID (e.g., res_abc123)
+   * @returns Resource content or null if not found
+   */
+  readResource(id: string): Promise<string | null>
 }

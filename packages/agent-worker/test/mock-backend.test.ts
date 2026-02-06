@@ -100,7 +100,7 @@ describe('agent identity via MCP transport', () => {
       const backend = createMockBackend()
 
       // Seed inbox with a kickoff message
-      await contextProvider.appendChannel('orchestrator', 'Hello @alice, please respond.')
+      await contextProvider.appendChannel('system', 'Hello @alice, please respond.')
 
       // Wait for inbox to propagate
       await new Promise((r) => setTimeout(r, 50))
@@ -134,7 +134,7 @@ describe('agent identity via MCP transport', () => {
 
       expect(aliceMessages.length).toBeGreaterThan(0)
 
-      // Should NOT have anonymous messages (except orchestrator)
+      // Should NOT have anonymous messages (except system)
       const anonymousMessages = channel.filter((e) => e.from === 'anonymous')
       expect(anonymousMessages).toHaveLength(0)
     } finally {
@@ -161,7 +161,7 @@ describe('agent identity via MCP transport', () => {
       const backend = createMockBackend()
 
       // Seed inbox for both agents
-      await contextProvider.appendChannel('orchestrator', 'Hello @agent1 and @agent2.')
+      await contextProvider.appendChannel('system', 'Hello @agent1 and @agent2.')
       await new Promise((r) => setTimeout(r, 50))
 
       // Run agent1

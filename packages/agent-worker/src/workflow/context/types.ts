@@ -15,78 +15,86 @@ export interface ChannelEntry {
   mentions: string[]
 }
 
-// ==================== Attachment System ====================
+// ==================== Resource System ====================
+// General-purpose resource reference mechanism.
+// Resources can be referenced from channel messages, documents, or anywhere
+// via the `resource:<id>` URI scheme.
 
-/** Attachment metadata */
-export interface Attachment {
-  /** Unique ID (e.g., att_abc123) */
+/** Resource metadata */
+export interface Resource {
+  /** Unique ID (e.g., res_abc123) */
   id: string
   /** Content type hint */
-  type: AttachmentType
+  type: ResourceType
   /** ISO timestamp of creation */
   createdAt: string
-  /** Agent who created the attachment */
+  /** Agent who created the resource */
   createdBy: string
 }
 
-/** Attachment content types */
-export type AttachmentType = 'markdown' | 'json' | 'text' | 'diff'
+/** Resource content types */
+export type ResourceType = 'markdown' | 'json' | 'text' | 'diff'
 
-/** Attachment creation result */
-export interface AttachmentResult {
+/** Resource creation result */
+export interface ResourceResult {
   /** Unique ID */
   id: string
-  /** Ready-to-use markdown reference: attachment:id */
+  /** Ready-to-use reference: resource:id */
   ref: string
 }
 
-/** Attachment ID prefix */
-export const ATTACHMENT_PREFIX = 'att_'
+/** Resource ID prefix */
+export const RESOURCE_PREFIX = 'res_'
 
-/** Attachment URI scheme */
-export const ATTACHMENT_SCHEME = 'attachment:'
+/** Resource URI scheme */
+export const RESOURCE_SCHEME = 'resource:'
 
-/** Attachments storage directory name */
-export const ATTACHMENTS_DIR = 'attachments'
+/** Resources storage directory name */
+export const RESOURCES_DIR = 'resources'
 
-/** Attachment threshold in characters - messages longer than this should use attachments */
-export const ATTACHMENT_THRESHOLD = 500
+/** Resource threshold in characters - content longer than this should use resources */
+export const RESOURCE_THRESHOLD = 500
 
 /**
- * Generate a unique attachment ID
+ * Generate a unique resource ID
  */
-export function generateAttachmentId(): string {
-  // Use timestamp + random for uniqueness
+export function generateResourceId(): string {
   const timestamp = Date.now().toString(36)
   const random = Math.random().toString(36).slice(2, 8)
-  return `${ATTACHMENT_PREFIX}${timestamp}${random}`
+  return `${RESOURCE_PREFIX}${timestamp}${random}`
 }
 
 /**
- * Create attachment reference for use in markdown
- * Example: attachment:att_abc123
+ * Create resource reference for use in markdown
+ * Example: resource:res_abc123
  */
-export function createAttachmentRef(id: string): string {
-  return `${ATTACHMENT_SCHEME}${id}`
+export function createResourceRef(id: string): string {
+  return `${RESOURCE_SCHEME}${id}`
 }
 
 /**
- * Parse attachment reference from markdown link
- * Extracts ID from "attachment:att_xxx" format
+ * Parse resource reference from markdown link
+ * Extracts ID from "resource:res_xxx" format
  */
-export function parseAttachmentRef(ref: string): string | null {
-  if (ref.startsWith(ATTACHMENT_SCHEME)) {
-    return ref.slice(ATTACHMENT_SCHEME.length)
+export function parseResourceRef(ref: string): string | null {
+  if (ref.startsWith(RESOURCE_SCHEME)) {
+    return ref.slice(RESOURCE_SCHEME.length)
   }
   return null
 }
 
 /**
- * Check if a string is an attachment ID
+ * Check if a string is a resource ID
  */
-export function isAttachmentId(str: string): boolean {
-  return str.startsWith(ATTACHMENT_PREFIX)
+export function isResourceId(str: string): boolean {
+  return str.startsWith(RESOURCE_PREFIX)
 }
+
+// Legacy aliases for backward compatibility during migration
+/** @deprecated Use ResourceType */
+export type AttachmentType = ResourceType
+/** @deprecated Use ResourceResult */
+export type AttachmentResult = ResourceResult
 
 /** Inbox message (unread @mention) */
 export interface InboxMessage {

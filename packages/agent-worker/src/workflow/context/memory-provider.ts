@@ -4,8 +4,8 @@
  */
 
 import type { ContextProvider } from './provider.js'
-import type { ChannelEntry, InboxMessage, InboxState, AttachmentResult, AttachmentType } from './types.js'
-import { CONTEXT_DEFAULTS, calculatePriority, extractMentions, generateAttachmentId, createAttachmentRef } from './types.js'
+import type { ChannelEntry, InboxMessage, InboxState, ResourceResult, ResourceType } from './types.js'
+import { CONTEXT_DEFAULTS, calculatePriority, extractMentions, generateResourceId, createResourceRef } from './types.js'
 
 /**
  * In-memory implementation of ContextProvider
@@ -14,7 +14,7 @@ import { CONTEXT_DEFAULTS, calculatePriority, extractMentions, generateAttachmen
 export class MemoryContextProvider implements ContextProvider {
   private channel: ChannelEntry[] = []
   private documents: Map<string, string> = new Map()
-  private attachments: Map<string, string> = new Map()
+  private resources: Map<string, string> = new Map()
   private inboxState: InboxState = { readCursors: {} }
   private sequence = 0 // Ensure unique timestamps
 
@@ -37,18 +37,18 @@ export class MemoryContextProvider implements ContextProvider {
     return entry
   }
 
-  async createAttachment(
+  async createResource(
     content: string,
     createdBy: string,
-    _type: AttachmentType = 'text'
-  ): Promise<AttachmentResult> {
-    const id = generateAttachmentId()
-    this.attachments.set(id, content)
-    return { id, ref: createAttachmentRef(id) }
+    _type: ResourceType = 'text'
+  ): Promise<ResourceResult> {
+    const id = generateResourceId()
+    this.resources.set(id, content)
+    return { id, ref: createResourceRef(id) }
   }
 
-  async readAttachment(id: string): Promise<string | null> {
-    return this.attachments.get(id) ?? null
+  async readResource(id: string): Promise<string | null> {
+    return this.resources.get(id) ?? null
   }
 
   async readChannel(since?: string, limit?: number): Promise<ChannelEntry[]> {
@@ -107,6 +107,16 @@ export class MemoryContextProvider implements ContextProvider {
     this.documents.set(file, content)
   }
 
+  // Legacy aliases for tests that still use attachment naming
+  /** @deprecated Use createResource */
+  async createAttachment(content: string, createdBy: string, type?: ResourceType): Promise<ResourceResult> {
+    return this.createResource(content, createdBy, type)
+  }
+  /** @deprecated Use readResource */
+  async readAttachment(id: string): Promise<string | null> {
+    return this.readResource(id)
+  }
+
   // Test helpers
 
   /** Get all channel entries (for testing) */
@@ -118,14 +128,19 @@ export class MemoryContextProvider implements ContextProvider {
   clear(): void {
     this.channel = []
     this.documents.clear()
-    this.attachments.clear()
+    this.resources.clear()
     this.inboxState = { readCursors: {} }
     this.sequence = 0
   }
 
-  /** Get all attachments (for testing) */
+  /** Get all resources (for testing) */
+  getResources(): Map<string, string> {
+    return new Map(this.resources)
+  }
+
+  /** @deprecated Use getResources */
   getAttachments(): Map<string, string> {
-    return new Map(this.attachments)
+    return this.getResources()
   }
 
   /** Get inbox state for an agent (for testing) */

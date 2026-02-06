@@ -296,51 +296,51 @@ describe('MemoryContextProvider', () => {
     })
   })
 
-  describe('attachment API', () => {
-    test('createAttachment returns ID and ref', async () => {
+  describe('resource API', () => {
+    test('createResource returns ID and ref', async () => {
       const content = '# Report\n' + 'Content line\n'.repeat(100)
-      const result = await provider.createAttachment(content, 'agent1')
+      const result = await provider.createResource(content, 'agent1')
 
-      expect(result.id).toMatch(/^att_/)
-      expect(result.ref).toBe(`attachment:${result.id}`)
+      expect(result.id).toMatch(/^res_/)
+      expect(result.ref).toBe(`resource:${result.id}`)
     })
 
-    test('readAttachment returns content by ID', async () => {
+    test('readResource returns content by ID', async () => {
       const content = '# Long Document\n' + 'Content line\n'.repeat(100)
-      const { id } = await provider.createAttachment(content, 'agent1')
+      const { id } = await provider.createResource(content, 'agent1')
 
-      const retrieved = await provider.readAttachment(id)
+      const retrieved = await provider.readResource(id)
       expect(retrieved).toBe(content)
     })
 
-    test('readAttachment returns null for missing ID', async () => {
-      const content = await provider.readAttachment('att_nonexistent')
+    test('readResource returns null for missing ID', async () => {
+      const content = await provider.readResource('res_nonexistent')
       expect(content).toBeNull()
     })
 
-    test('clear also clears attachments', async () => {
-      const { id } = await provider.createAttachment('Test content', 'agent1')
+    test('clear also clears resources', async () => {
+      const { id } = await provider.createResource('Test content', 'agent1')
 
       provider.clear()
 
-      const content = await provider.readAttachment(id)
+      const content = await provider.readResource(id)
       expect(content).toBeNull()
     })
 
-    test('getAttachments returns all attachments', async () => {
-      await provider.createAttachment('Content 1', 'agent1')
-      await provider.createAttachment('Content 2', 'agent2')
+    test('getResources returns all resources', async () => {
+      await provider.createResource('Content 1', 'agent1')
+      await provider.createResource('Content 2', 'agent2')
 
-      const attachments = provider.getAttachments()
-      expect(attachments.size).toBe(2)
+      const resources = provider.getResources()
+      expect(resources.size).toBe(2)
     })
 
-    test('channel message can reference attachment', async () => {
-      const { ref } = await provider.createAttachment('Full report content', 'agent1')
+    test('channel message can reference resource', async () => {
+      const { ref } = await provider.createResource('Full report content', 'agent1')
       await provider.appendChannel('agent1', `Analysis complete. See [full report](${ref})`)
 
       const entries = await provider.readChannel()
-      expect(entries[0].message).toContain('attachment:att_')
+      expect(entries[0].message).toContain('resource:res_')
     })
   })
 
@@ -541,30 +541,30 @@ describe('FileContextProvider', () => {
     })
   })
 
-  describe('attachment API', () => {
-    test('createAttachment stores file and returns ID', async () => {
+  describe('resource API', () => {
+    test('createResource stores file and returns ID', async () => {
       const content = '# Long Report\n' + 'Line content\n'.repeat(100)
-      const result = await provider.createAttachment(content, 'agent1')
+      const result = await provider.createResource(content, 'agent1')
 
       // Should return ID and ref
-      expect(result.id).toMatch(/^att_/)
-      expect(result.ref).toBe(`attachment:${result.id}`)
+      expect(result.id).toMatch(/^res_/)
+      expect(result.ref).toBe(`resource:${result.id}`)
 
-      // File should exist in attachments directory
-      const attachmentsDir = join(testDir, 'attachments')
-      expect(existsSync(attachmentsDir)).toBe(true)
+      // File should exist in resources directory
+      const resourcesDir = join(testDir, 'resources')
+      expect(existsSync(resourcesDir)).toBe(true)
     })
 
-    test('readAttachment returns file content by ID', async () => {
+    test('readResource returns file content by ID', async () => {
       const content = '# Long Document\n' + 'Content\n'.repeat(100)
-      const { id } = await provider.createAttachment(content, 'agent1', 'markdown')
+      const { id } = await provider.createResource(content, 'agent1', 'markdown')
 
-      const retrieved = await provider.readAttachment(id)
+      const retrieved = await provider.readResource(id)
       expect(retrieved).toBe(content)
     })
 
-    test('readAttachment returns null for missing ID', async () => {
-      const content = await provider.readAttachment('att_nonexistent')
+    test('readResource returns null for missing ID', async () => {
+      const content = await provider.readResource('res_nonexistent')
       expect(content).toBeNull()
     })
 
@@ -573,21 +573,21 @@ describe('FileContextProvider', () => {
       const jsonContent = '{"key": "value"}'
       const diffContent = '+ added\n- removed'
 
-      const mdResult = await provider.createAttachment(mdContent, 'agent1', 'markdown')
-      const jsonResult = await provider.createAttachment(jsonContent, 'agent1', 'json')
-      const diffResult = await provider.createAttachment(diffContent, 'agent1', 'diff')
+      const mdResult = await provider.createResource(mdContent, 'agent1', 'markdown')
+      const jsonResult = await provider.createResource(jsonContent, 'agent1', 'json')
+      const diffResult = await provider.createResource(diffContent, 'agent1', 'diff')
 
-      expect(await provider.readAttachment(mdResult.id)).toBe(mdContent)
-      expect(await provider.readAttachment(jsonResult.id)).toBe(jsonContent)
-      expect(await provider.readAttachment(diffResult.id)).toBe(diffContent)
+      expect(await provider.readResource(mdResult.id)).toBe(mdContent)
+      expect(await provider.readResource(jsonResult.id)).toBe(jsonContent)
+      expect(await provider.readResource(diffResult.id)).toBe(diffContent)
     })
 
-    test('channel message can reference attachment', async () => {
-      const { ref } = await provider.createAttachment('Full report content', 'agent1')
+    test('channel message can reference resource', async () => {
+      const { ref } = await provider.createResource('Full report content', 'agent1')
       await provider.appendChannel('agent1', `Analysis complete. See [full report](${ref})`)
 
       const entries = await provider.readChannel()
-      expect(entries[0].message).toContain('attachment:att_')
+      expect(entries[0].message).toContain('resource:res_')
     })
   })
 })
@@ -821,57 +821,57 @@ describe('MCP Server Tools', () => {
     })
   })
 
-  describe('attachment_create', () => {
-    test('creates attachment and returns ID/ref', async () => {
+  describe('resource_create', () => {
+    test('creates resource and returns ID/ref', async () => {
       const content = '# Long Document\n' + 'Content line\n'.repeat(100)
 
-      const result = (await callTool('attachment_create', { content }, { sessionId: 'agent1' })) as {
+      const result = (await callTool('resource_create', { content }, { sessionId: 'agent1' })) as {
         id: string
         ref: string
         hint: string
       }
 
-      expect(result.id).toMatch(/^att_/)
-      expect(result.ref).toBe(`attachment:${result.id}`)
+      expect(result.id).toMatch(/^res_/)
+      expect(result.ref).toBe(`resource:${result.id}`)
       expect(result.hint).toContain('Use [description]')
     })
 
     test('supports type parameter', async () => {
       const result = (await callTool(
-        'attachment_create',
+        'resource_create',
         { content: '{"key": "value"}', type: 'json' },
         { sessionId: 'agent1' }
       )) as { id: string }
 
-      expect(result.id).toMatch(/^att_/)
+      expect(result.id).toMatch(/^res_/)
     })
   })
 
-  describe('attachment_read', () => {
-    test('reads attachment content by ID', async () => {
+  describe('resource_read', () => {
+    test('reads resource content by ID', async () => {
       const content = '# Long Document\n' + 'Content line\n'.repeat(100)
-      const { id } = await provider.createAttachment(content, 'agent1')
+      const { id } = await provider.createResource(content, 'agent1')
 
-      const result = await callTool('attachment_read', { id })
+      const result = await callTool('resource_read', { id })
 
       expect(result).toBe(content)
     })
 
-    test('returns error for missing attachment', async () => {
-      const result = (await callTool('attachment_read', {
-        id: 'att_nonexistent',
+    test('returns error for missing resource', async () => {
+      const result = (await callTool('resource_read', {
+        id: 'res_nonexistent',
       })) as { error: string }
 
       expect(result.error).toContain('not found')
     })
   })
 
-  describe('inbox_check', () => {
+  describe('my_inbox', () => {
     test('gets unread inbox messages for agent', async () => {
       await provider.appendChannel('agent1', '@agent2 first mention')
       await provider.appendChannel('agent3', '@agent2 second mention')
 
-      const result = (await callTool('inbox_check', {}, { sessionId: 'agent2' })) as {
+      const result = (await callTool('my_inbox', {}, { sessionId: 'agent2' })) as {
         messages: Array<{ from: string; priority: string }>
         count: number
         latestTimestamp: string
@@ -887,7 +887,7 @@ describe('MCP Server Tools', () => {
       await provider.appendChannel('agent1', '@agent2 normal request')
       await provider.appendChannel('agent3', '@agent2 urgent: critical issue')
 
-      const result = (await callTool('inbox_check', {}, { sessionId: 'agent2' })) as {
+      const result = (await callTool('my_inbox', {}, { sessionId: 'agent2' })) as {
         messages: Array<{ priority: string }>
       }
 
@@ -898,7 +898,7 @@ describe('MCP Server Tools', () => {
     test('returns empty for no unread messages', async () => {
       await provider.appendChannel('agent1', 'No mentions here')
 
-      const result = (await callTool('inbox_check', {}, { sessionId: 'agent2' })) as {
+      const result = (await callTool('my_inbox', {}, { sessionId: 'agent2' })) as {
         messages: Array<unknown>
         count: number
       }
@@ -907,12 +907,12 @@ describe('MCP Server Tools', () => {
       expect(result.count).toBe(0)
     })
 
-    test('does NOT acknowledge (explicit inbox_ack required)', async () => {
+    test('does NOT acknowledge (explicit my_inbox_ack required)', async () => {
       await provider.appendChannel('agent1', '@agent2 check this')
 
       // Check inbox twice
-      await callTool('inbox_check', {}, { sessionId: 'agent2' })
-      const result = (await callTool('inbox_check', {}, { sessionId: 'agent2' })) as {
+      await callTool('my_inbox', {}, { sessionId: 'agent2' })
+      const result = (await callTool('my_inbox', {}, { sessionId: 'agent2' })) as {
         count: number
       }
 
@@ -921,14 +921,14 @@ describe('MCP Server Tools', () => {
     })
   })
 
-  describe('inbox_ack', () => {
+  describe('my_inbox_ack', () => {
     test('acknowledges inbox up to timestamp', async () => {
       const entry = await provider.appendChannel('agent1', '@agent2 first')
       await provider.appendChannel('agent3', '@agent2 second')
 
       // Acknowledge first message
       const ackResult = (await callTool(
-        'inbox_ack',
+        'my_inbox_ack',
         { until: entry.timestamp },
         { sessionId: 'agent2' }
       )) as { status: string; until: string }
@@ -947,24 +947,24 @@ describe('MCP Server Tools', () => {
       const second = await provider.appendChannel('agent3', '@agent2 second')
 
       // Acknowledge all
-      await callTool('inbox_ack', { until: second.timestamp }, { sessionId: 'agent2' })
+      await callTool('my_inbox_ack', { until: second.timestamp }, { sessionId: 'agent2' })
 
       const inbox = await provider.getInbox('agent2')
       expect(inbox).toEqual([])
     })
   })
 
-  describe('document_read', () => {
+  describe('team_doc_read', () => {
     test('reads document content', async () => {
       await provider.writeDocument('# Notes\nSome content')
 
-      const result = await callTool('document_read', {})
+      const result = await callTool('team_doc_read', {})
 
       expect(result).toBe('# Notes\nSome content')
     })
 
     test('returns placeholder for empty document', async () => {
-      const result = await callTool('document_read', {})
+      const result = await callTool('team_doc_read', {})
 
       expect(result).toBe('(empty document)')
     })
@@ -973,17 +973,17 @@ describe('MCP Server Tools', () => {
       await provider.writeDocument('Main notes', 'notes.md')
       await provider.writeDocument('Auth findings', 'findings/auth.md')
 
-      const notesResult = await callTool('document_read', { file: 'notes.md' })
-      const findingsResult = await callTool('document_read', { file: 'findings/auth.md' })
+      const notesResult = await callTool('team_doc_read', { file: 'notes.md' })
+      const findingsResult = await callTool('team_doc_read', { file: 'findings/auth.md' })
 
       expect(notesResult).toBe('Main notes')
       expect(findingsResult).toBe('Auth findings')
     })
   })
 
-  describe('document_write', () => {
+  describe('team_doc_write', () => {
     test('writes document content', async () => {
-      const result = await callTool('document_write', {
+      const result = await callTool('team_doc_write', {
         content: '# New Content',
       })
 
@@ -994,7 +994,7 @@ describe('MCP Server Tools', () => {
     })
 
     test('writes to specific file', async () => {
-      await callTool('document_write', {
+      await callTool('team_doc_write', {
         content: 'Findings content',
         file: 'findings.md',
       })
@@ -1006,18 +1006,18 @@ describe('MCP Server Tools', () => {
     test('overwrites existing content', async () => {
       await provider.writeDocument('Old content')
 
-      await callTool('document_write', { content: 'New content' })
+      await callTool('team_doc_write', { content: 'New content' })
 
       const content = await provider.readDocument()
       expect(content).toBe('New content')
     })
   })
 
-  describe('document_append', () => {
+  describe('team_doc_append', () => {
     test('appends to document', async () => {
       await provider.writeDocument('First')
 
-      const result = await callTool('document_append', { content: '\nSecond' })
+      const result = await callTool('team_doc_append', { content: '\nSecond' })
 
       expect(result).toContain('appended')
 
@@ -1028,26 +1028,26 @@ describe('MCP Server Tools', () => {
     test('appends to specific file', async () => {
       await provider.writeDocument('Start', 'notes.md')
 
-      await callTool('document_append', { content: '\nMore', file: 'notes.md' })
+      await callTool('team_doc_append', { content: '\nMore', file: 'notes.md' })
 
       const content = await provider.readDocument('notes.md')
       expect(content).toBe('Start\nMore')
     })
 
     test('appends to empty document', async () => {
-      await callTool('document_append', { content: 'First content' })
+      await callTool('team_doc_append', { content: 'First content' })
 
       const content = await provider.readDocument()
       expect(content).toBe('First content')
     })
   })
 
-  describe('document_list', () => {
+  describe('team_doc_list', () => {
     test('lists all document files', async () => {
       await provider.writeDocument('Notes', 'notes.md')
       await provider.writeDocument('Findings', 'findings.md')
 
-      const result = (await callTool('document_list', {})) as {
+      const result = (await callTool('team_doc_list', {})) as {
         files: string[]
         count: number
       }
@@ -1058,7 +1058,7 @@ describe('MCP Server Tools', () => {
     })
 
     test('returns empty for no documents', async () => {
-      const result = (await callTool('document_list', {})) as {
+      const result = (await callTool('team_doc_list', {})) as {
         files: string[]
         count: number
       }
@@ -1068,9 +1068,9 @@ describe('MCP Server Tools', () => {
     })
   })
 
-  describe('document_create', () => {
+  describe('team_doc_create', () => {
     test('creates new document', async () => {
-      const result = await callTool('document_create', {
+      const result = await callTool('team_doc_create', {
         file: 'new-doc.md',
         content: '# New Document',
       })
@@ -1085,7 +1085,7 @@ describe('MCP Server Tools', () => {
       await provider.writeDocument('Existing', 'existing.md')
 
       await expect(
-        callTool('document_create', {
+        callTool('team_doc_create', {
           file: 'existing.md',
           content: 'New content',
         })
@@ -1093,9 +1093,9 @@ describe('MCP Server Tools', () => {
     })
   })
 
-  describe('workflow_agents', () => {
+  describe('team_members', () => {
     test('lists all agents in workflow', async () => {
-      const result = (await callTool('workflow_agents', {})) as {
+      const result = (await callTool('team_members', {})) as {
         agents: Array<{ name: string; mention: string; isYou: boolean }>
         count: number
         hint: string
@@ -1118,7 +1118,7 @@ describe('MCP Server Tools', () => {
 
     test('marks current agent with isYou', async () => {
       const result = (await callTool(
-        'workflow_agents',
+        'team_members',
         {},
         { sessionId: 'agent2' }
       )) as {
@@ -1131,7 +1131,7 @@ describe('MCP Server Tools', () => {
     })
 
     test('uses anonymous when no sessionId', async () => {
-      const result = (await callTool('workflow_agents', {})) as {
+      const result = (await callTool('team_members', {})) as {
         agents: Array<{ isYou: boolean }>
       }
 

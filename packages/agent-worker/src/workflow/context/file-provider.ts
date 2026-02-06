@@ -6,8 +6,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import type { ContextProvider } from './provider.js'
-import type { ChannelEntry, InboxMessage, InboxState, AttachmentResult, AttachmentType } from './types.js'
-import { CONTEXT_DEFAULTS, ATTACHMENTS_DIR, calculatePriority, extractMentions, generateAttachmentId, createAttachmentRef } from './types.js'
+import type { ChannelEntry, InboxMessage, InboxState, ResourceResult, ResourceType } from './types.js'
+import { CONTEXT_DEFAULTS, RESOURCES_DIR, calculatePriority, extractMentions, generateResourceId, createResourceRef } from './types.js'
 
 /**
  * File-based implementation of ContextProvider
@@ -16,7 +16,7 @@ import { CONTEXT_DEFAULTS, ATTACHMENTS_DIR, calculatePriority, extractMentions, 
 export class FileContextProvider implements ContextProvider {
   private inboxState: InboxState = { readCursors: {} }
   private readonly inboxStatePath: string
-  private readonly attachmentsDir: string
+  private readonly resourcesDir: string
 
   constructor(
     private channelPath: string,
@@ -26,14 +26,14 @@ export class FileContextProvider implements ContextProvider {
     private contextDir?: string
   ) {
     this.inboxStatePath = join(stateDir, 'inbox-state.json')
-    // Attachments dir is sibling to channel file
-    this.attachmentsDir = join(contextDir || dirname(channelPath), ATTACHMENTS_DIR)
+    // Resources dir is sibling to channel file
+    this.resourcesDir = join(contextDir || dirname(channelPath), RESOURCES_DIR)
     this.ensureDirectories()
     this.loadInboxState()
   }
 
   private ensureDirectories(): void {
-    for (const dir of [dirname(this.channelPath), this.documentDir, this.stateDir, this.attachmentsDir]) {
+    for (const dir of [dirname(this.channelPath), this.documentDir, this.stateDir, this.resourcesDir]) {
       if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true })
       }
@@ -68,27 +68,27 @@ export class FileContextProvider implements ContextProvider {
     return entry
   }
 
-  async createAttachment(
+  async createResource(
     content: string,
     createdBy: string,
-    type: AttachmentType = 'text'
-  ): Promise<AttachmentResult> {
-    const id = generateAttachmentId()
+    type: ResourceType = 'text'
+  ): Promise<ResourceResult> {
+    const id = generateResourceId()
 
     // Determine file extension based on type
     const ext = type === 'json' ? 'json' : type === 'diff' ? 'diff' : 'md'
     const filename = `${id}.${ext}`
-    const filePath = join(this.attachmentsDir, filename)
+    const filePath = join(this.resourcesDir, filename)
 
     writeFileSync(filePath, content)
 
-    return { id, ref: createAttachmentRef(id) }
+    return { id, ref: createResourceRef(id) }
   }
 
-  async readAttachment(id: string): Promise<string | null> {
+  async readResource(id: string): Promise<string | null> {
     // Try common extensions
     for (const ext of ['md', 'json', 'diff', 'txt']) {
-      const filePath = join(this.attachmentsDir, `${id}.${ext}`)
+      const filePath = join(this.resourcesDir, `${id}.${ext}`)
       try {
         if (existsSync(filePath)) {
           return readFileSync(filePath, 'utf-8')

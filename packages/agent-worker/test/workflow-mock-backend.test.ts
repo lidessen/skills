@@ -177,7 +177,7 @@ describe('Alice-Bob workflow with mock backends', () => {
 
 @bob - When you receive a question, answer it briefly.`
 
-    await provider.appendChannel('orchestrator', kickoff)
+    await provider.appendChannel('system', kickoff)
     alice.wake()
     bob.wake()
 
@@ -192,7 +192,7 @@ describe('Alice-Bob workflow with mock backends', () => {
     const messages = entries.map((e) => ({ from: e.from, message: e.message }))
 
     // 1. Orchestrator kickoff
-    expect(messages[0]!.from).toBe('orchestrator')
+    expect(messages[0]!.from).toBe('system')
     expect(messages[0]!.message).toContain('@alice')
     expect(messages[0]!.message).toContain('@bob')
 
@@ -275,7 +275,7 @@ describe('Alice-Bob workflow with mock backends', () => {
     await bob.start()
 
     // Kickoff mentioning both
-    await provider.appendChannel('orchestrator', '@alice hello @bob hello')
+    await provider.appendChannel('system', '@alice hello @bob hello')
     alice.wake()
     bob.wake()
 
@@ -290,7 +290,7 @@ describe('Alice-Bob workflow with mock backends', () => {
     expect(capturedAliceCtx!.projectDir).toBe('/home/user/my-project')
     expect(capturedAliceCtx!.retryAttempt).toBe(1)
     expect(capturedAliceCtx!.inbox.length).toBe(1)
-    expect(capturedAliceCtx!.inbox[0]!.entry.from).toBe('orchestrator')
+    expect(capturedAliceCtx!.inbox[0]!.entry.from).toBe('system')
 
     // Bob context
     expect(capturedBobCtx!.name).toBe('bob')
@@ -361,7 +361,7 @@ describe('Alice-Bob workflow with mock backends', () => {
     await bob.start()
 
     // Only kickoff to alice (not bob)
-    await provider.appendChannel('orchestrator', '@alice please start')
+    await provider.appendChannel('system', '@alice please start')
     alice.wake()
 
     // Bob should be woken by alice's @mention, not by kickoff
@@ -372,7 +372,7 @@ describe('Alice-Bob workflow with mock backends', () => {
 
     const entries = await provider.readChannel()
     expect(entries).toHaveLength(3)
-    expect(entries[0]!.from).toBe('orchestrator')
+    expect(entries[0]!.from).toBe('system')
     expect(entries[1]!.from).toBe('alice')
     expect(entries[1]!.message).toContain('@bob')
     expect(entries[2]!.from).toBe('bob')
@@ -424,7 +424,7 @@ describe('Alice-Bob workflow with mock backends', () => {
     await bob.start()
 
     // Send one message to alice
-    await provider.appendChannel('orchestrator', '@alice do something')
+    await provider.appendChannel('system', '@alice do something')
     alice.wake()
 
     // Wait for alice to process
@@ -483,7 +483,7 @@ describe('Alice-Bob workflow with mock backends', () => {
     expect(idleBeforeMsg).toBe(true)
 
     // Send message → not idle anymore (unread inbox)
-    await provider.appendChannel('orchestrator', '@alice @bob start')
+    await provider.appendChannel('system', '@alice @bob start')
     const idleWithUnread = await checkWorkflowIdle(controllerMap, provider, 50)
     expect(idleWithUnread).toBe(false)
 
@@ -510,7 +510,7 @@ describe('Alice-Bob workflow with mock backends', () => {
         aliceTurns++
         const lastMsg = ctx.inbox[ctx.inbox.length - 1]?.entry
 
-        if (lastMsg?.from === 'orchestrator') {
+        if (lastMsg?.from === 'system') {
           await p.appendChannel('alice', '@bob What is machine learning?')
           bob.wake()
         } else if (lastMsg?.from === 'bob' && lastMsg.message.includes('subset of AI')) {
@@ -566,7 +566,7 @@ describe('Alice-Bob workflow with mock backends', () => {
     await bob.start()
 
     // Kickoff to alice only
-    await provider.appendChannel('orchestrator', '@alice Please ask @bob about machine learning.')
+    await provider.appendChannel('system', '@alice Please ask @bob about machine learning.')
     alice.wake()
 
     // Wait for full conversation to complete
@@ -580,7 +580,7 @@ describe('Alice-Bob workflow with mock backends', () => {
 
     // Verify 5-message flow
     expect(entries).toHaveLength(5)
-    expect(entries[0]!.from).toBe('orchestrator')
+    expect(entries[0]!.from).toBe('system')
     expect(entries[1]!.from).toBe('alice')
     expect(entries[1]!.message).toContain('machine learning')
     expect(entries[2]!.from).toBe('bob')
