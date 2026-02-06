@@ -38,7 +38,12 @@ export function formatChannel(entries: ChannelEntry[]): string {
 export function buildAgentPrompt(ctx: AgentRunContext): string {
   const sections: string[] = []
 
+  // Project context (what codebase to work on)
+  sections.push('## Project')
+  sections.push(`Working on: ${ctx.projectDir}`)
+
   // Inbox section (most important)
+  sections.push('')
   sections.push(`## Inbox (${ctx.inbox.length} message${ctx.inbox.length === 1 ? '' : 's'} for you)`)
   sections.push(formatInbox(ctx.inbox))
 
@@ -47,10 +52,10 @@ export function buildAgentPrompt(ctx: AgentRunContext): string {
   sections.push(`## Recent Activity (last ${ctx.recentChannel.length} messages)`)
   sections.push(formatChannel(ctx.recentChannel))
 
-  // Current workspace section
+  // Shared document section
   if (ctx.documentContent) {
     sections.push('')
-    sections.push('## Current Workspace')
+    sections.push('## Shared Document')
     sections.push(ctx.documentContent)
   }
 

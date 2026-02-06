@@ -6,6 +6,8 @@
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
 import { mkdirSync, existsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { ParsedWorkflow, SetupTask, ResolvedAgent, ResolvedContext, ResolvedFileContext } from './types.ts'
 import { interpolate, createContext, type VariableContext } from './interpolate.ts'
 import { createFileContextProvider } from './context/file-provider.ts'
@@ -172,6 +174,10 @@ export interface WorkflowRuntime {
   name: string
   /** Instance name */
   instance: string
+  /** Context directory (for shared channel, documents, workspaces) */
+  contextDir: string
+  /** Project directory (the codebase agents work on) */
+  projectDir: string
   /** Context provider */
   contextProvider: ContextProvider
   /** MCP server (if running with Unix socket) */
@@ -212,23 +218,29 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
 
   // Create context provider based on provider type
   let contextProvider: ContextProvider
+  let contextDir: string
+
+  // Project directory is where the workflow was invoked from
+  const projectDir = process.cwd()
 
   if (resolvedContext.provider === 'memory') {
-    // Memory provider (for testing)
+    // Memory provider (for testing) - use temp directory for workspaces
     if (verbose) log('Using memory context provider')
     contextProvider = createMemoryContextProvider(agentNames)
+    contextDir = join(tmpdir(), `agent-worker-${workflow.name}-${instance}`)
   } else {
     // File provider (default)
     const fileContext = resolvedContext as ResolvedFileContext
+    contextDir = fileContext.dir
 
     // Create context directory
-    if (!existsSync(fileContext.dir)) {
-      mkdirSync(fileContext.dir, { recursive: true })
+    if (!existsSync(contextDir)) {
+      mkdirSync(contextDir, { recursive: true })
     }
 
-    if (verbose) log(`Context directory: ${fileContext.dir}`)
+    if (verbose) log(`Context directory: ${contextDir}`)
 
-    contextProvider = createFileContextProvider(fileContext.dir, agentNames, {
+    contextProvider = createFileContextProvider(contextDir, agentNames, {
       channelFile: fileContext.channel,
       documentDir: fileContext.documentDir,
     })
@@ -288,6 +300,8 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
   const runtime: WorkflowRuntime = {
     name: workflow.name,
     instance,
+    contextDir,
+    projectDir,
     contextProvider,
     mcpServer,
     mcpSocketPath,
@@ -532,12 +546,20 @@ export async function runWorkflowWithControllers(config: ControllerRunConfig): P
 
       logger.debug(`Using backend: ${backend.name} for ${agentName}`)
 
+      // Each agent gets an isolated workspace directory
+      const workspaceDir = join(runtime.contextDir, 'workspaces', agentName)
+      if (!existsSync(workspaceDir)) {
+        mkdirSync(workspaceDir, { recursive: true })
+      }
+
       const controllerLogger = logger.child(agentName)
       const controller = createAgentController({
         name: agentName,
         agent: agentDef,
         contextProvider: runtime.contextProvider,
         mcpSocketPath: runtime.mcpSocketPath,
+        workspaceDir,
+        projectDir: runtime.projectDir,
         backend,
         pollInterval,
         log: debug ? (msg) => controllerLogger.debug(msg) : undefined,
@@ -659,20 +681,26 @@ async function initWorkflowWithMentions(config: InitWithMentionsConfig): Promise
 
   // Create context provider
   let contextProvider: ContextProvider
+  let contextDir: string
+
+  // Project directory is where the workflow was invoked from
+  const projectDir = process.cwd()
 
   if (resolvedContext.provider === 'memory') {
     if (verbose) log('Using memory context provider')
     contextProvider = createMemoryContextProvider(agentNames)
+    contextDir = join(tmpdir(), `agent-worker-${workflow.name}-${instance}`)
   } else {
     const fileContext = resolvedContext as ResolvedFileContext
+    contextDir = fileContext.dir
 
-    if (!existsSync(fileContext.dir)) {
-      mkdirSync(fileContext.dir, { recursive: true })
+    if (!existsSync(contextDir)) {
+      mkdirSync(contextDir, { recursive: true })
     }
 
-    if (verbose) log(`Context directory: ${fileContext.dir}`)
+    if (verbose) log(`Context directory: ${contextDir}`)
 
-    contextProvider = createFileContextProvider(fileContext.dir, agentNames, {
+    contextProvider = createFileContextProvider(contextDir, agentNames, {
       channelFile: fileContext.channel,
       documentDir: fileContext.documentDir,
     })
@@ -733,6 +761,8 @@ async function initWorkflowWithMentions(config: InitWithMentionsConfig): Promise
   const runtime: WorkflowRuntime = {
     name: workflow.name,
     instance,
+    contextDir,
+    projectDir,
     contextProvider,
     mcpServer,
     mcpSocketPath,

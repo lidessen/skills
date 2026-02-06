@@ -2,10 +2,16 @@
  * Claude Code CLI backend
  * Uses `claude -p` for non-interactive mode
  *
- * @see https://code.claude.com/docs/en/headless
+ * MCP Configuration:
+ * Claude supports per-invocation MCP config via --mcp-config flag.
+ * Use setWorkspace() for workspace isolation, or setMcpConfigPath() directly.
+ *
+ * @see https://docs.anthropic.com/en/docs/claude-code
  */
 
 import { execa, ExecaError } from 'execa'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import type { Backend, BackendResponse } from './types.ts'
 
 export interface ClaudeCodeOptions {
@@ -21,8 +27,10 @@ export interface ClaudeCodeOptions {
   continue?: boolean
   /** Resume specific session by ID */
   resume?: string
-  /** Working directory */
+  /** Working directory (defaults to workspace if set) */
   cwd?: string
+  /** Workspace directory for agent isolation */
+  workspace?: string
   /** Timeout in milliseconds */
   timeout?: number
   /** MCP config file path (for workflow context) */
@@ -40,12 +48,32 @@ export class ClaudeCodeBackend implements Backend {
     }
   }
 
+  /**
+   * Set up workspace directory with MCP config
+   * Claude uses --mcp-config flag, so we just write the config file
+   */
+  setWorkspace(workspaceDir: string, mcpConfig: { mcpServers: Record<string, unknown> }): void {
+    this.options.workspace = workspaceDir
+
+    // Ensure workspace exists
+    if (!existsSync(workspaceDir)) {
+      mkdirSync(workspaceDir, { recursive: true })
+    }
+
+    // Write MCP config file in workspace
+    const mcpConfigPath = join(workspaceDir, 'mcp-config.json')
+    writeFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 2))
+    this.options.mcpConfigPath = mcpConfigPath
+  }
+
   async send(message: string, options?: { system?: string }): Promise<BackendResponse> {
     const args = this.buildArgs(message, options)
+    // Use workspace as cwd if set
+    const cwd = this.options.workspace || this.options.cwd
 
     try {
       const { stdout } = await execa('claude', args, {
-        cwd: this.options.cwd,
+        cwd,
         stdin: 'ignore',
         timeout: this.options.timeout,
       })

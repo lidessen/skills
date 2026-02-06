@@ -2,21 +2,25 @@
  * Cursor CLI backend
  * Uses `cursor-agent -p` for non-interactive mode
  *
- * NOTE: cursor-agent does NOT support per-invocation MCP config.
- * MCP servers must be registered at project level before running:
- *   cursor agent mcp add workflow-context stdio -- agent-worker context mcp-stdio --socket <path>
+ * MCP Configuration:
+ * Cursor uses project-level MCP config via .cursor/mcp.json in the workspace.
+ * Use setWorkspace() to set up a dedicated workspace with MCP config.
  *
- * @see https://cursor.com/docs/cli/headless
+ * @see https://docs.cursor.com/context/model-context-protocol
  */
 
 import { execa, ExecaError } from 'execa'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import type { Backend, BackendResponse } from './types.ts'
 
 export interface CursorOptions {
   /** Model to use */
   model?: string
-  /** Working directory */
+  /** Working directory (defaults to workspace if set, otherwise cwd) */
   cwd?: string
+  /** Workspace directory for agent isolation (contains .cursor/mcp.json) */
+  workspace?: string
   /** Timeout in milliseconds */
   timeout?: number
 }
@@ -32,14 +36,34 @@ export class CursorBackend implements Backend {
     }
   }
 
+  /**
+   * Set up workspace directory with MCP config
+   * Creates .cursor/mcp.json in the workspace
+   */
+  setWorkspace(workspaceDir: string, mcpConfig: { mcpServers: Record<string, unknown> }): void {
+    this.options.workspace = workspaceDir
+
+    // Create .cursor directory
+    const cursorDir = join(workspaceDir, '.cursor')
+    if (!existsSync(cursorDir)) {
+      mkdirSync(cursorDir, { recursive: true })
+    }
+
+    // Write MCP config
+    const mcpConfigPath = join(cursorDir, 'mcp.json')
+    writeFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 2))
+  }
+
   async send(message: string, _options?: { system?: string }): Promise<BackendResponse> {
     const { command, args } = this.buildCommand(message)
+    // Use workspace as cwd if set, otherwise fall back to cwd option
+    const cwd = this.options.workspace || this.options.cwd
 
     try {
       // IMPORTANT: stdin must be 'ignore' to prevent cursor-agent from hanging
       // See: https://forum.cursor.com/t/node-js-spawn-with-cursor-agent-hangs-and-exits-with-code-143-after-timeout/133709
       const { stdout } = await execa(command, args, {
-        cwd: this.options.cwd,
+        cwd,
         stdin: 'ignore',
         timeout: this.options.timeout,
       })

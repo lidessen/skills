@@ -172,14 +172,18 @@ describe('buildAgentPrompt', () => {
       ],
       documentContent: '# Notes\nSome content here',
       mcpSocketPath: '/tmp/test.sock',
+      workspaceDir: '/tmp/workspaces/reviewer',
+      projectDir: '/home/user/myproject',
       retryAttempt: 1,
     }
 
     const result = buildAgentPrompt(ctx)
 
+    expect(result).toContain('## Project')
+    expect(result).toContain('Working on: /home/user/myproject')
     expect(result).toContain('## Inbox (1 message for you)')
     expect(result).toContain('## Recent Activity')
-    expect(result).toContain('## Current Workspace')
+    expect(result).toContain('## Shared Document')
     expect(result).toContain('# Notes')
     expect(result).toContain('## Instructions')
     expect(result).not.toContain('retry attempt')
@@ -193,6 +197,8 @@ describe('buildAgentPrompt', () => {
       recentChannel: [],
       documentContent: '',
       mcpSocketPath: '/tmp/test.sock',
+      workspaceDir: '/tmp/workspaces/reviewer',
+      projectDir: '/home/user/myproject',
       retryAttempt: 2,
     }
 

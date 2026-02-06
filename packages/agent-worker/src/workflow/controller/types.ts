@@ -50,6 +50,10 @@ export interface AgentControllerConfig {
   contextProvider: ContextProvider
   /** MCP socket path for tool access */
   mcpSocketPath: string
+  /** Workspace directory for this agent (isolated from project) */
+  workspaceDir: string
+  /** Project directory (the actual codebase to work on) */
+  projectDir: string
   /** Poll interval in ms (default: 5000) */
   pollInterval?: number
   /** Retry configuration */
@@ -78,6 +82,10 @@ export interface AgentRunContext {
   documentContent: string
   /** MCP socket path */
   mcpSocketPath: string
+  /** Workspace directory for this agent (isolated from project) */
+  workspaceDir: string
+  /** Project directory (the actual codebase to work on) */
+  projectDir: string
   /** Retry attempt number (1 = first try, 2+ = retry) */
   retryAttempt: number
 }

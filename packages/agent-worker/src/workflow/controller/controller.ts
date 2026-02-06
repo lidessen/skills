@@ -36,6 +36,8 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
     agent,
     contextProvider,
     mcpSocketPath,
+    workspaceDir,
+    projectDir,
     backend,
     onRunComplete,
     log = () => {},
@@ -104,6 +106,8 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
           recentChannel: await contextProvider.readChannel(undefined, CONTROLLER_DEFAULTS.recentChannelLimit),
           documentContent: await contextProvider.readDocument(),
           mcpSocketPath,
+          workspaceDir,
+          projectDir,
           retryAttempt: attempt,
         }
 

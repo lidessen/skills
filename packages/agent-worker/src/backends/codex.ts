@@ -2,13 +2,17 @@
  * OpenAI Codex CLI backend
  * Uses `codex exec` for non-interactive mode
  *
- * NOTE: codex does NOT support per-invocation MCP config.
- * MCP servers must be configured in ~/.codex/config.toml or via `codex mcp` commands.
+ * MCP Configuration:
+ * Codex uses project-level MCP config. Use setWorkspace() to set up
+ * a dedicated workspace directory with .codex/config.yaml for MCP settings.
  *
- * @see https://developers.openai.com/codex/noninteractive/
+ * @see https://github.com/openai/codex
  */
 
 import { execa, ExecaError } from 'execa'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { stringify as yamlStringify } from 'yaml'
 import type { Backend, BackendResponse } from './types.ts'
 
 export interface CodexOptions {
@@ -16,8 +20,10 @@ export interface CodexOptions {
   model?: string
   /** Output as JSON events */
   json?: boolean
-  /** Working directory */
+  /** Working directory (defaults to workspace if set) */
   cwd?: string
+  /** Workspace directory for agent isolation */
+  workspace?: string
   /** Skip git repo check */
   skipGitRepoCheck?: boolean
   /** Approval mode: 'suggest' | 'auto-edit' | 'full-auto' */
@@ -39,12 +45,36 @@ export class CodexBackend implements Backend {
     }
   }
 
+  /**
+   * Set up workspace directory with MCP config
+   * Creates .codex/config.yaml in the workspace with MCP server config
+   */
+  setWorkspace(workspaceDir: string, mcpConfig: { mcpServers: Record<string, unknown> }): void {
+    this.options.workspace = workspaceDir
+
+    // Create .codex directory
+    const codexDir = join(workspaceDir, '.codex')
+    if (!existsSync(codexDir)) {
+      mkdirSync(codexDir, { recursive: true })
+    }
+
+    // Convert MCP config to codex format and write as YAML
+    // Codex uses mcp_servers in its config
+    const codexConfig = {
+      mcp_servers: mcpConfig.mcpServers,
+    }
+    const configPath = join(codexDir, 'config.yaml')
+    writeFileSync(configPath, yamlStringify(codexConfig))
+  }
+
   async send(message: string, _options?: { system?: string }): Promise<BackendResponse> {
     const args = this.buildArgs(message)
+    // Use workspace as cwd if set
+    const cwd = this.options.workspace || this.options.cwd
 
     try {
       const { stdout } = await execa('codex', args, {
-        cwd: this.options.cwd,
+        cwd,
         stdin: 'ignore',
         timeout: this.options.timeout,
       })
