@@ -4,6 +4,7 @@
  */
 
 import type { ContextProvider } from '../context/provider.ts'
+import type { ProposalManager } from '../context/proposals.ts'
 import type {
   AgentController,
   AgentControllerConfig,
@@ -244,7 +245,8 @@ export function isWorkflowComplete(state: WorkflowIdleState): boolean {
  */
 export async function buildWorkflowIdleState(
   controllers: Map<string, AgentController>,
-  provider: ContextProvider
+  provider: ContextProvider,
+  proposalManager?: ProposalManager
 ): Promise<Omit<WorkflowIdleState, 'idleDebounceElapsed'>> {
   // Check all controllers are idle
   const allControllersIdle = [...controllers.values()].every((c) => c.state === 'idle')
@@ -259,8 +261,8 @@ export async function buildWorkflowIdleState(
     }
   }
 
-  // Proposals not implemented yet, always true
-  const noActiveProposals = true
+  // Check no active proposals
+  const noActiveProposals = proposalManager ? !proposalManager.hasActiveProposals() : true
 
   return {
     allControllersIdle,
