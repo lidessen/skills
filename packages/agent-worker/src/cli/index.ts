@@ -956,7 +956,7 @@ program
           await createAgentAction(fullName, {
             model: config.model,
             system: config.resolvedSystemPrompt,
-            backend: 'sdk',
+            backend: config.backend || 'sdk',
           })
 
           startedAgents.push(fullName)
@@ -1174,7 +1174,7 @@ program
           await createAgentAction(fullName, {
             model: config.model,
             system: config.resolvedSystemPrompt,
-            backend: 'sdk',
+            backend: config.backend || 'sdk',
           })
 
           startedAgents.push(fullName)
