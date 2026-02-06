@@ -19,7 +19,7 @@ async function loadProvider(
   options?: ProviderOptions
 ): Promise<((model: string) => LanguageModel) | null> {
   if (name in providerCache) {
-    return providerCache[name]
+    return providerCache[name] ?? null
   }
 
   try {
@@ -37,11 +37,12 @@ async function loadProvider(
         }
         const provider = createProvider(providerOptions)
         providerCache[name] = provider
-        return providerCache[name]
+        return provider
       }
     }
-    providerCache[name] = module[exportName]
-    return providerCache[name]
+    const exportedProvider = module[exportName] as ((model: string) => LanguageModel) | null
+    providerCache[name] = exportedProvider
+    return exportedProvider
   } catch {
     providerCache[name] = null
     return null

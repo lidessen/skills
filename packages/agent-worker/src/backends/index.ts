@@ -3,36 +3,53 @@
  */
 
 export * from './types.ts'
-export { ClaudeCliBackend, type ClaudeCliOptions } from './claude-cli.ts'
-export { CodexCliBackend, type CodexCliOptions } from './codex-cli.ts'
-export { CursorCliBackend, type CursorCliOptions } from './cursor-cli.ts'
+export { ClaudeCodeBackend, type ClaudeCodeOptions } from './claude-code.ts'
+export { CodexBackend, type CodexOptions } from './codex.ts'
+export { CursorBackend, type CursorOptions } from './cursor.ts'
 export { SdkBackend, type SdkBackendOptions } from './sdk.ts'
 
+// Backward compatibility aliases
+export { ClaudeCodeBackend as ClaudeCliBackend } from './claude-code.ts'
+export { CodexBackend as CodexCliBackend } from './codex.ts'
+export { CursorBackend as CursorCliBackend } from './cursor.ts'
+export type { ClaudeCodeOptions as ClaudeCliOptions } from './claude-code.ts'
+export type { CodexOptions as CodexCliOptions } from './codex.ts'
+export type { CursorOptions as CursorCliOptions } from './cursor.ts'
+
 import type { Backend, BackendType } from './types.ts'
-import { ClaudeCliBackend, type ClaudeCliOptions } from './claude-cli.ts'
-import { CodexCliBackend, type CodexCliOptions } from './codex-cli.ts'
-import { CursorCliBackend, type CursorCliOptions } from './cursor-cli.ts'
-import { SdkBackend, type SdkBackendOptions } from './sdk.ts'
+import { getModelForBackend } from './types.ts'
+import { ClaudeCodeBackend, type ClaudeCodeOptions } from './claude-code.ts'
+import { CodexBackend, type CodexOptions } from './codex.ts'
+import { CursorBackend, type CursorOptions } from './cursor.ts'
+import { SdkBackend } from './sdk.ts'
 
 export type BackendOptions =
-  | { type: 'sdk'; model: string; maxTokens?: number }
-  | { type: 'claude'; model?: string; options?: Omit<ClaudeCliOptions, 'model'> }
-  | { type: 'codex'; model?: string; options?: Omit<CodexCliOptions, 'model'> }
-  | { type: 'cursor'; model?: string; options?: Omit<CursorCliOptions, 'model'> }
+  | { type: 'sdk'; model?: string; maxTokens?: number }
+  | { type: 'claude'; model?: string; options?: Omit<ClaudeCodeOptions, 'model'> }
+  | { type: 'codex'; model?: string; options?: Omit<CodexOptions, 'model'> }
+  | { type: 'cursor'; model?: string; options?: Omit<CursorOptions, 'model'> }
 
 /**
  * Create a backend instance
+ * Model names are automatically translated to backend-specific format
+ *
+ * Examples:
+ * - "sonnet" → cursor: "sonnet-4.5", claude: "sonnet", sdk: "claude-sonnet-4-5-20250514"
+ * - "anthropic/claude-sonnet-4-5" → cursor: "sonnet-4.5", claude: "sonnet"
  */
 export function createBackend(config: BackendOptions): Backend {
+  // Translate model to backend-specific format
+  const model = getModelForBackend(config.model, config.type)
+
   switch (config.type) {
     case 'sdk':
-      return new SdkBackend({ model: config.model, maxTokens: config.maxTokens })
+      return new SdkBackend({ model, maxTokens: config.maxTokens })
     case 'claude':
-      return new ClaudeCliBackend({ ...config.options, model: config.model })
+      return new ClaudeCodeBackend({ ...config.options, model })
     case 'codex':
-      return new CodexCliBackend({ ...config.options, model: config.model })
+      return new CodexBackend({ ...config.options, model })
     case 'cursor':
-      return new CursorCliBackend({ ...config.options, model: config.model })
+      return new CursorBackend({ ...config.options, model })
     default:
       throw new Error(`Unknown backend type: ${(config as { type: string }).type}`)
   }
@@ -42,9 +59,9 @@ export function createBackend(config: BackendOptions): Backend {
  * Check which backends are available
  */
 export async function checkBackends(): Promise<Record<BackendType, boolean>> {
-  const claude = new ClaudeCliBackend()
-  const codex = new CodexCliBackend()
-  const cursor = new CursorCliBackend()
+  const claude = new ClaudeCodeBackend()
+  const codex = new CodexBackend()
+  const cursor = new CursorBackend()
 
   const [claudeAvailable, codexAvailable, cursorAvailable] = await Promise.all([
     claude.isAvailable(),

@@ -117,7 +117,7 @@ export class SkillsProvider {
     const content = await readFile(skillMdPath, 'utf-8')
     const match = content.match(/^---\n([\s\S]+?)\n---/)
 
-    if (!match) {
+    if (!match || !match[1]) {
       throw new Error(`Invalid SKILL.md: missing frontmatter in ${skillMdPath}`)
     }
 
@@ -197,7 +197,7 @@ export class SkillsProvider {
     const content = readFileSync(skillMdPath, 'utf-8')
     const match = content.match(/^---\n([\s\S]+?)\n---/)
 
-    if (!match) {
+    if (!match || !match[1]) {
       throw new Error(`Invalid SKILL.md: missing frontmatter in ${skillMdPath}`)
     }
 
