@@ -83,7 +83,20 @@ Implementation tasks for the workflow design. See [DESIGN.md](./DESIGN.md) for f
 - [ ] Add MCP tools: `inbox_check`, `inbox_ack`, `inbox_peek`
 - [ ] Update agent system prompts with work loop guidance
 
-## Phase 8: Multi-File Documents
+## Phase 8: Agent Controller
+
+- [ ] Define `AgentController` interface
+- [ ] Define `AgentControllerConfig` and `AgentRunContext` types
+- [ ] Implement `createAgentController()` factory
+- [ ] Implement polling loop with wake() interrupt
+- [ ] Integrate with MCP server (wake on @mention)
+- [ ] Implement SDK backend runner
+- [ ] Implement Claude CLI backend runner
+- [ ] Implement Codex CLI backend runner
+- [ ] Update `runWorkflow()` to use controllers
+- [ ] Add graceful shutdown for controllers
+
+## Phase 9: Multi-File Documents
 
 - [ ] Add `documents` config option for additional document files
 - [ ] Add `file` parameter to `document_read`, `document_write`, `document_append`

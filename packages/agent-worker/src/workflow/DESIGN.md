@@ -320,6 +320,131 @@ function calculatePriority(entry: ChannelEntry): 'normal' | 'high' {
 }
 ```
 
+### Agent Controller
+
+The Runner manages each agent via an AgentController. Agents don't manage their own polling - the controller does.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Workflow Runner                           │
+│                                                              │
+│  For each agent:                                            │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              Agent Controller                        │   │
+│  │                                                      │   │
+│  │  State: idle | running | stopped                    │   │
+│  │                                                      │   │
+│  │  ┌────────────────────────────────────────────────┐ │   │
+│  │  │                   IDLE                         │ │   │
+│  │  │  - Polling inbox every N seconds               │ │   │
+│  │  │  - Or: wake() called on @mention               │ │   │
+│  │  └─────────────────────┬──────────────────────────┘ │   │
+│  │                        │ unread messages?            │   │
+│  │                        ▼                             │   │
+│  │  ┌────────────────────────────────────────────────┐ │   │
+│  │  │                  RUNNING                       │ │   │
+│  │  │  - Spawn agent process (backend-specific)      │ │   │
+│  │  │  - Agent reads inbox, channel, document        │ │   │
+│  │  │  - Agent does work                            │ │   │
+│  │  │  - Agent sends to channel, updates document   │ │   │
+│  │  │  - Agent process exits                        │ │   │
+│  │  └─────────────────────┬──────────────────────────┘ │   │
+│  │                        │                             │   │
+│  │                        ▼                             │   │
+│  │                   back to IDLE                       │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                              │
+│  When @mention detected in channel_send():                  │
+│    → agentControllers.get(target).wake()                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**AgentController Interface:**
+
+```typescript
+interface AgentController {
+  /** Agent name */
+  name: string
+
+  /** Current state */
+  state: 'idle' | 'running' | 'stopped'
+
+  /** Start the controller (begin polling loop) */
+  start(): Promise<void>
+
+  /** Stop the controller */
+  stop(): Promise<void>
+
+  /** Interrupt: immediately check inbox (skip poll wait) */
+  wake(): void
+}
+
+interface AgentControllerConfig {
+  /** Agent name */
+  name: string
+
+  /** Resolved agent config */
+  agent: ResolvedAgent
+
+  /** Context provider */
+  contextProvider: ContextProvider
+
+  /** MCP socket path */
+  mcpSocketPath: string
+
+  /** Poll interval in ms (default: 5000) */
+  pollInterval?: number
+
+  /** Run agent and return when done */
+  runAgent: (context: AgentRunContext) => Promise<void>
+}
+
+interface AgentRunContext {
+  /** Agent name */
+  name: string
+
+  /** Unread inbox messages */
+  inbox: InboxMessage[]
+
+  /** Recent channel entries (for context) */
+  recentChannel: ChannelEntry[]
+
+  /** MCP socket path */
+  mcpSocketPath: string
+}
+```
+
+**Wake on @mention:**
+
+```typescript
+// In MCP server channel_send tool
+server.tool('channel_send', { message: z.string() }, async ({ message }, extra) => {
+  const from = getAgentId(extra)
+  const entry = await provider.appendChannel(from, message)
+
+  // Wake mentioned agents immediately
+  for (const target of entry.mentions) {
+    const controller = agentControllers.get(target)
+    if (controller?.state === 'idle') {
+      controller.wake()
+    }
+  }
+
+  return { content: [{ type: 'text', text: 'sent' }] }
+})
+```
+
+**Backend-specific runAgent implementations:**
+
+| Backend | Implementation |
+|---------|----------------|
+| SDK | Call Anthropic API directly, inject MCP tools |
+| Claude CLI | `claude -p --mcp-config <path> "<prompt>"` |
+| Codex | `codex --mcp-config <path> "<prompt>"` |
+| Cursor | TBD |
+
+Key design principle: **Agents are stateless processes**. Each run starts fresh with inbox + channel context. The controller manages lifecycle.
+
 ### Agent Work Loop
 
 The recommended interaction pattern for agents:
@@ -1501,24 +1626,25 @@ function calculatePriority(entry: ChannelEntry): 'normal' | 'high' {
 
 **Phase 7: Inbox Model**
 1. Add `InboxMessage` type to `context/types.ts`
-2. Add inbox methods to `ContextProvider` interface
-3. Implement in `MemoryContextProvider` (easiest to test)
-4. Implement in `FileContextProvider`
-5. Add MCP tools: `inbox_check`, `inbox_ack`, `inbox_peek`
-6. Update tests
+2. Rename mention methods to inbox methods in `ContextProvider`
+3. Add `peekInbox()` method
+4. Add priority calculation
+5. Implement in both providers
+6. Replace `channel_mentions` with `inbox_check`, add `inbox_ack`, `inbox_peek`
 
-**Phase 8: Multi-File Documents**
-1. Add `file` parameter to document methods in interface
-2. Implement in both providers (file resolution logic)
-3. Add `listDocuments`, `createDocument`, `deleteDocument`
-4. Add MCP tools
-5. Update tests
+**Phase 8: Agent Controller**
+1. Add `AgentController` interface and types
+2. Implement `createAgentController()` with polling loop
+3. Add `wake()` interrupt mechanism
+4. Integrate with MCP server (wake on @mention in `channel_send`)
+5. Implement backend runners (SDK, Claude CLI, Codex)
+6. Update `runWorkflow()` to use controllers
 
-### Backward Compatibility
-
-- Existing `channel_mentions` tool can remain as alias for `inbox_check`
-- Document methods without `file` parameter default to entry point
-- No breaking changes to workflow YAML schema
+**Phase 9: Multi-File Documents**
+1. Add `file` parameter to document methods
+2. Add `listDocuments`, `createDocument`, `deleteDocument`
+3. Add MCP tools
+4. Support nested directories
 
 ---
 
