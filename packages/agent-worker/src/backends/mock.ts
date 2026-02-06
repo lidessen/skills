@@ -168,9 +168,9 @@ export class MockAIBackend implements AgentBackend {
       const mcp = await createMCPToolBridge(ctx.mcpSocketPath, ctx.name)
       log(`[${ctx.name}] MCP connected, ${Object.keys(mcp.tools).length} tools`)
 
-      // Summarize inbox for the mock response
+      // Summarize inbox for the mock response (strip @mentions to avoid re-triggering)
       const inboxSummary = ctx.inbox
-        .map((m) => `@${m.entry.from}: ${m.entry.message.slice(0, 80)}`)
+        .map((m) => `${m.entry.from}: ${m.entry.message.slice(0, 80).replace(/@/g, '')}`)
         .join('; ')
 
       // Create mock model with scripted responses:

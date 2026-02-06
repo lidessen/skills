@@ -804,3 +804,25 @@ describe('formatUserSender', () => {
     expect(formatUserSender('alice')).toBe('user:alice')
   })
 })
+
+// ==================== Mock Backend Registration Tests ====================
+
+describe('getBackendByType mock', () => {
+  test('returns mock backend with name "mock"', async () => {
+    const { getBackendByType } = await import('../src/workflow/controller/backend.ts')
+    const backend = getBackendByType('mock')
+    expect(backend.name).toBe('mock')
+  })
+
+  test('passes debugLog to mock backend', async () => {
+    const { getBackendByType } = await import('../src/workflow/controller/backend.ts')
+    const logs: string[] = []
+    const backend = getBackendByType('mock', { debugLog: (msg) => logs.push(msg) })
+    expect(backend.name).toBe('mock')
+  })
+
+  test('throws for unknown backend type', async () => {
+    const { getBackendByType } = await import('../src/workflow/controller/backend.ts')
+    expect(() => getBackendByType('nonexistent' as any)).toThrow('Unknown backend type')
+  })
+})

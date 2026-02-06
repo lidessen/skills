@@ -114,6 +114,8 @@ export async function runWithUnixSocket(
         const headerMatch = str.match(/^X-Agent-Id:\s*([^\n]+)\n\n/)
         if (headerMatch) {
           agentId = headerMatch[1].trim()
+          // Set sessionId on transport so MCP SDK passes it to tool handlers as extra.sessionId
+          transport.sessionId = agentId
           // Remove header from chunk
           const remaining = str.slice(headerMatch[0].length)
           if (remaining) {
