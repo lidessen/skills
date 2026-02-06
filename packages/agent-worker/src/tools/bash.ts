@@ -64,7 +64,11 @@ export async function createBashTools(
       required: ['command'],
     },
     execute: async (args) => {
-      const result = await toolkit.tools.bash.execute(args as { command: string })
+      const bashTool = toolkit.tools.bash
+      if (!bashTool?.execute) {
+        throw new Error('Bash tool not available')
+      }
+      const result = await bashTool.execute(args as { command: string }, {} as never)
       return result
     },
   })
@@ -85,7 +89,11 @@ export async function createBashTools(
         required: ['path'],
       },
       execute: async (args) => {
-        const result = await toolkit.tools.readFile.execute(args as { path: string })
+        const readFileTool = toolkit.tools.readFile
+        if (!readFileTool?.execute) {
+          throw new Error('ReadFile tool not available')
+        }
+        const result = await readFileTool.execute(args as { path: string }, {} as never)
         return result
       },
     })
@@ -111,8 +119,13 @@ export async function createBashTools(
         required: ['path', 'content'],
       },
       execute: async (args) => {
-        const result = await toolkit.tools.writeFile.execute(
-          args as { path: string; content: string }
+        const writeFileTool = toolkit.tools.writeFile
+        if (!writeFileTool?.execute) {
+          throw new Error('WriteFile tool not available')
+        }
+        const result = await writeFileTool.execute(
+          args as { path: string; content: string },
+          {} as never
         )
         return result
       },

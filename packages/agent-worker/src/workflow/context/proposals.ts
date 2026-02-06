@@ -432,15 +432,15 @@ export class ProposalManager {
       case 'majority':
         // Winner needs > 50% of votes cast
         if (topVotes > totalVotes / 2) {
-          winner = sorted[0][0]
+          winner = sorted[0]?.[0]
         }
         break
 
       case 'unanimous':
         // All votes must be for the same option
         // Quorum already checked above, so just verify unanimity
-        if (sorted.length === 1 || (sorted.length > 1 && sorted[1][1] === 0)) {
-          winner = sorted[0][0]
+        if (sorted.length === 1 || (sorted.length > 1 && (sorted[1]?.[1] ?? 0) === 0)) {
+          winner = sorted[0]?.[0]
         }
         break
     }
@@ -467,7 +467,7 @@ export class ProposalManager {
     }
 
     // Find all options tied for first
-    const topVotes = sorted[0][1]
+    const topVotes = sorted[0]?.[1] ?? 0
     const tiedOptions = sorted.filter(([_, count]) => count === topVotes).map(([id]) => id)
 
     switch (resolution.tieBreaker) {
@@ -490,8 +490,9 @@ export class ProposalManager {
 
     // Still determine winner if we have votes
     const sorted = Object.entries(proposal.result!.counts).sort((a, b) => b[1] - a[1])
-    if (sorted.length > 0 && sorted[0][1] > 0) {
-      const hasTie = sorted.length >= 2 && sorted[0][1] === sorted[1][1]
+    const topVotes = sorted[0]?.[1] ?? 0
+    if (sorted.length > 0 && topVotes > 0) {
+      const hasTie = sorted.length >= 2 && topVotes === (sorted[1]?.[1] ?? 0)
       proposal.result!.winner = this.resolveTie(sorted, proposal.resolution, hasTie)
     }
   }

@@ -301,7 +301,7 @@ export function getSessionInfo(idOrName?: string): SessionInfo | null {
       arr.findIndex(x => x.id === s.id) === i
     )
     if (uniqueSessions.length === 1) {
-      return uniqueSessions[0]
+      return uniqueSessions[0] ?? null
     }
     return null
   }
@@ -382,6 +382,7 @@ async function handleRequest(req: Request): Promise<Response> {
             Promise.race([backend.send(message, { system: info.system }), timeoutPromise])
               .then((result) => {
                 // Update the last message (which is the placeholder)
+                if (!state) return
                 const lastMsg = state.cliHistory[state.cliHistory.length - 1]
                 if (lastMsg && lastMsg.content === '(processing...)') {
                   lastMsg.content = result.content
@@ -389,6 +390,7 @@ async function handleRequest(req: Request): Promise<Response> {
                 }
               })
               .catch((error) => {
+                if (!state) return
                 const lastMsg = state.cliHistory[state.cliHistory.length - 1]
                 if (lastMsg && lastMsg.content === '(processing...)') {
                   lastMsg.content = `Error: ${error instanceof Error ? error.message : String(error)}`

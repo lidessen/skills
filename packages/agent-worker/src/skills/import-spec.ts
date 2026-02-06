@@ -39,7 +39,19 @@ export function parseImportSpec(spec: string): ImportSpec {
     )
   }
 
-  const [, provider = 'github', owner, repo, ref = 'main', skillsStr] = match
+  const [, providerMatch = 'github', ownerMatch, repoMatch, refMatch = 'main', skillsStr] = match
+
+  // Validate required captures
+  if (!ownerMatch || !repoMatch) {
+    throw new Error(
+      `Invalid import spec: ${spec}\nFormat: [provider:]owner/repo[@ref]:{skill1,skill2,...}`
+    )
+  }
+
+  const provider = providerMatch
+  const owner = ownerMatch
+  const repo = repoMatch
+  const ref = refMatch
 
   // Validate provider
   if (!['github', 'gitlab', 'gitee'].includes(provider)) {
