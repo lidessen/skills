@@ -14,6 +14,7 @@ import { createFileContextProvider } from './context/file-provider.ts'
 import { createMemoryContextProvider } from './context/memory-provider.ts'
 import { createContextMCPServer } from './context/mcp-server.ts'
 import { runWithUnixSocket, getSocketPath, type UnixSocketServer } from './context/transport.ts'
+import { runWithHttp, type HttpMCPServer } from './context/http-transport.ts'
 import type { ContextProvider } from './context/provider.ts'
 import {
   createAgentController,
@@ -182,8 +183,12 @@ export interface WorkflowRuntime {
   contextProvider: ContextProvider
   /** MCP server (if running with Unix socket) */
   mcpServer?: UnixSocketServer
-  /** MCP socket path */
+  /** HTTP MCP server (for CLI agents) */
+  httpMcpServer?: HttpMCPServer
+  /** MCP socket path (for Unix socket transport) */
   mcpSocketPath: string
+  /** MCP HTTP URL (for CLI agents: http://127.0.0.1:<port>/mcp) */
+  mcpUrl?: string
   /** Agent names */
   agentNames: string[]
   /** Setup results */
@@ -562,6 +567,7 @@ export async function runWorkflowWithControllers(config: ControllerRunConfig): P
         agent: agentDef,
         contextProvider: runtime.contextProvider,
         mcpSocketPath: runtime.mcpSocketPath,
+        mcpUrl: runtime.mcpUrl,
         workspaceDir,
         projectDir: runtime.projectDir,
         backend,
@@ -716,30 +722,47 @@ async function initWorkflowWithMentions(config: InitWithMentionsConfig): Promise
     })
   }
 
-  // Create MCP server with onMention callback
+  // Create MCP server factory (shared by both Unix socket and HTTP transports)
+  const createMCPServerInstance = () =>
+    createContextMCPServer({
+      provider: contextProvider,
+      validAgents: agentNames,
+      name: `${workflow.name}-context`,
+      version: '1.0.0',
+      onMention,
+      debugLog,
+    }).server
+
+  // Start Unix socket MCP server (for mock/SDK backends)
   const mcpSocketPath = getSocketPath(workflow.name, instance)
   if (verbose) log(`MCP socket: ${mcpSocketPath}`)
 
   const mcpServer = await runWithUnixSocket(
-    () =>
-      createContextMCPServer({
-        provider: contextProvider,
-        validAgents: agentNames,
-        name: `${workflow.name}-context`,
-        version: '1.0.0',
-        onMention, // Wire up the callback
-        debugLog, // Pass debug log function for tool call logging
-      }).server,
+    createMCPServerInstance,
     mcpSocketPath,
     {
       onConnect: (agentId, connId) => {
-        if (verbose) log(`Agent connected: ${agentId} (${connId.slice(0, 8)})`)
+        if (verbose) log(`Agent connected (socket): ${agentId} (${connId.slice(0, 8)})`)
       },
       onDisconnect: (agentId, connId) => {
-        if (verbose) log(`Agent disconnected: ${agentId} (${connId.slice(0, 8)})`)
+        if (verbose) log(`Agent disconnected (socket): ${agentId} (${connId.slice(0, 8)})`)
       },
     }
   )
+
+  // Start HTTP MCP server (for CLI backends: cursor, claude, codex)
+  const httpMcpServer = await runWithHttp({
+    createServerInstance: createMCPServerInstance,
+    port: 0, // Random port
+    onConnect: (agentId, sessionId) => {
+      if (verbose) log(`Agent connected (http): ${agentId} (${sessionId.slice(0, 8)})`)
+    },
+    onDisconnect: (agentId, sessionId) => {
+      if (verbose) log(`Agent disconnected (http): ${agentId} (${sessionId.slice(0, 8)})`)
+    },
+  })
+
+  if (verbose) log(`MCP HTTP: ${httpMcpServer.url}`)
 
   // Run setup commands
   const setupResults: Record<string, string> = {}
@@ -775,7 +798,9 @@ async function initWorkflowWithMentions(config: InitWithMentionsConfig): Promise
     projectDir,
     contextProvider,
     mcpServer,
+    httpMcpServer,
     mcpSocketPath,
+    mcpUrl: httpMcpServer.url,
     agentNames,
     setupResults,
 
@@ -791,6 +816,7 @@ async function initWorkflowWithMentions(config: InitWithMentionsConfig): Promise
 
     async shutdown() {
       if (verbose) log('\nShutting down workflow...')
+      await httpMcpServer.close()
       await mcpServer.close()
     },
   }

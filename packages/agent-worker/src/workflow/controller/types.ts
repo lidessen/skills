@@ -48,8 +48,10 @@ export interface AgentControllerConfig {
   agent: ResolvedAgent
   /** Context provider for channel/document access */
   contextProvider: ContextProvider
-  /** MCP socket path for tool access */
+  /** MCP socket path for tool access (Unix socket) */
   mcpSocketPath: string
+  /** MCP HTTP URL for tool access (for CLI backends) */
+  mcpUrl?: string
   /** Workspace directory for this agent (isolated from project) */
   workspaceDir: string
   /** Project directory (the actual codebase to work on) */
@@ -80,8 +82,10 @@ export interface AgentRunContext {
   recentChannel: ChannelEntry[]
   /** Current document content (entry point) */
   documentContent: string
-  /** MCP socket path */
+  /** MCP socket path (Unix socket) */
   mcpSocketPath: string
+  /** MCP HTTP URL (for CLI backends) */
+  mcpUrl?: string
   /** Workspace directory for this agent (isolated from project) */
   workspaceDir: string
   /** Project directory (the actual codebase to work on) */

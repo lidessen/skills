@@ -185,27 +185,35 @@ export interface WorkflowMCPConfig {
 }
 
 /**
- * Resolve the command and prefix args to invoke agent-worker CLI.
- * Works for: npx tsx (dev), bun (dev), installed binary (production).
+ * Generate MCP config for workflow context server.
  *
- * Uses the current process's runtime + loader flags + script path
- * so the subprocess runs in the same environment as the parent.
+ * When mcpUrl is provided (HTTP transport), generates URL-based config:
+ *   { type: "http", url: "http://127.0.0.1:<port>/mcp?agent=<name>" }
+ *
+ * Falls back to stdio transport (subprocess bridge) when no URL available.
  */
-function resolveAgentWorkerCLI(): { command: string; prefixArgs: string[] } {
-  const scriptPath = process.argv[1]
-  if (scriptPath) {
-    // Replicate exact runtime: node --import tsx/esm script.ts  OR  bun script.ts
+export function generateWorkflowMCPConfig(
+  socketPath: string,
+  agentName: string,
+  mcpUrl?: string
+): WorkflowMCPConfig {
+  // Prefer HTTP transport — CLI agents connect directly, no subprocess needed
+  if (mcpUrl) {
+    const url = `${mcpUrl}?agent=${encodeURIComponent(agentName)}`
     return {
-      command: process.execPath,
-      prefixArgs: [...process.execArgv, resolve(scriptPath)],
+      mcpServers: {
+        'workflow-context': {
+          type: 'http',
+          url,
+        },
+      },
     }
   }
-  // Fallback: assume agent-worker is in PATH (installed package)
-  return { command: 'agent-worker', prefixArgs: [] }
-}
 
-export function generateWorkflowMCPConfig(socketPath: string, agentName: string): WorkflowMCPConfig {
-  const { command, prefixArgs } = resolveAgentWorkerCLI()
+  // Fallback: stdio transport via subprocess bridge
+  const scriptPath = process.argv[1]
+  const command = scriptPath ? process.execPath : 'agent-worker'
+  const prefixArgs = scriptPath ? [...process.execArgv, resolve(scriptPath)] : []
   return {
     mcpServers: {
       'workflow-context': {
@@ -434,8 +442,9 @@ class CLIAdapterBackend implements AgentBackend {
     const log = this.debugLog || (() => {})
 
     try {
-      // Set up workspace with MCP config (includes --agent for identity)
-      const mcpConfig = generateWorkflowMCPConfig(ctx.mcpSocketPath, ctx.name)
+      // Set up workspace with MCP config
+      // Prefer HTTP URL (direct connection) over stdio (subprocess bridge)
+      const mcpConfig = generateWorkflowMCPConfig(ctx.mcpSocketPath, ctx.name, ctx.mcpUrl)
       this.cli.setWorkspace(ctx.workspaceDir, mcpConfig)
 
       const prompt = buildAgentPrompt(ctx)
