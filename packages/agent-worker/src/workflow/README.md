@@ -345,10 +345,8 @@ kickoff: |
 ## Quick Start
 
 ```bash
-# Install (from source)
-git clone https://github.com/lidessen/moniro.git
-cd moniro/packages/agent-worker
-bun install && bun run build
+# Install
+npm install -g agent-worker
 
 # Create a workflow
 cat > review.yaml << 'EOF'
