@@ -148,6 +148,48 @@ Agents interact with three complementary context layers:
 | @mention | Triggers notifications | No triggers |
 | Typical use | Discussions, handoffs | Notes, findings, decisions |
 
+### Channel Management (Long Workflows)
+
+For long-running workflows, channel can grow large. Best practices:
+
+**1. Use `limit` parameter when reading:**
+```typescript
+// Read only recent messages (most agents don't need full history)
+const recent = await tools.channel_read({ limit: 50 })
+```
+
+**2. Agent prompts should summarize, not preserve:**
+```markdown
+# Agent System Prompt Guidance
+When you have many channel messages, focus on:
+- Most recent 10-20 messages for immediate context
+- @mentions directed at you
+- Key decisions (look for [RESOLVED], [DECISION])
+
+Don't try to remember everything - the channel is your external memory.
+```
+
+**3. Transfer key information to document:**
+```markdown
+# Workflow Best Practice
+Important decisions, findings, and status should be recorded in document.
+Channel is for communication; document is for persistent state.
+```
+
+**4. Channel rotation (future consideration):**
+```yaml
+# Potential future config (not yet implemented)
+context:
+  provider: file
+  config:
+    channel: channel.md
+    channelRotation:
+      maxEntries: 500      # Rotate after 500 entries
+      archiveTo: archive/  # Move old to archive/channel-YYYY-MM-DD.md
+```
+
+For now, trust agents to use `limit` and rely on document for important state.
+
 **channel.md** (append-only):
 ```markdown
 ### 10:00:00 [system]
@@ -512,6 +554,28 @@ server.tool('vote', {
     return { content: [{ type: 'text', text: `Error: Invalid option. Valid: ${proposal.options.map(o => o.id).join(', ')}` }] }
   }
 
+  // Check for duplicate vote (idempotency on retry)
+  const existingVote = proposal.result!.votes.get(voter)
+  if (existingVote) {
+    if (existingVote === choice) {
+      // Same vote - idempotent, just return success
+      return {
+        content: [{
+          type: 'text',
+          text: `Vote already recorded for "${proposal.options.find(o => o.id === choice)!.label}".`
+        }]
+      }
+    } else {
+      // Different vote - reject change (votes are final)
+      return {
+        content: [{
+          type: 'text',
+          text: `Error: You already voted for "${proposal.options.find(o => o.id === existingVote)!.label}". Votes cannot be changed.`
+        }]
+      }
+    }
+  }
+
   // Record vote
   proposal.result!.votes.set(voter, choice)
 
@@ -666,6 +730,52 @@ async function applyProposalResult(proposal: Proposal, winner: string) {
 }
 ```
 
+**Proposal Persistence:**
+
+Proposals are stored in context alongside channel and document:
+
+```
+.workflow/instance/
+├── channel.md          # Communication log
+├── notes.md            # Document (entry point)
+├── inbox-state.json    # Per-agent read cursors
+└── proposals.json      # Active and resolved proposals
+```
+
+```typescript
+// proposals.json structure
+interface ProposalsState {
+  proposals: Record<string, Proposal>
+  version: number  // For optimistic locking
+}
+
+// On workflow start, load existing proposals
+async function loadProposals(contextDir: string): Promise<Map<string, Proposal>> {
+  const path = join(contextDir, 'proposals.json')
+  try {
+    const data = JSON.parse(await fs.readFile(path, 'utf-8'))
+    return new Map(Object.entries(data.proposals))
+  } catch {
+    return new Map()  // No existing proposals
+  }
+}
+
+// Save after any proposal mutation
+async function saveProposals(contextDir: string, proposals: Map<string, Proposal>): Promise<void> {
+  const path = join(contextDir, 'proposals.json')
+  const data: ProposalsState = {
+    proposals: Object.fromEntries(proposals),
+    version: Date.now(),
+  }
+  await fs.writeFile(path, JSON.stringify(data, null, 2))
+}
+```
+
+This ensures:
+- Proposals survive workflow runner restarts
+- State is recoverable after crashes
+- Multiple instances can have independent proposals
+
 **Use Case Examples:**
 
 ```typescript
@@ -764,6 +874,83 @@ function startDocumentOwnerElection() {
   })
 }
 ```
+
+**Election Timing:**
+
+Document owner election happens at workflow start, **before kickoff**:
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    Workflow Startup Sequence                    │
+│                                                                 │
+│  1. Parse workflow, create providers                           │
+│  2. Start MCP server                                           │
+│  3. Check document owner config:                               │
+│     - Single agent → owner = self (no election)                │
+│     - Multiple + specified → use config                        │
+│     - Multiple + unspecified → START ELECTION                  │
+│                                                                 │
+│  4. If election needed:                                        │
+│     a. Post [PROPOSAL] to channel (includes @mentions to all)  │
+│     b. Start all agent controllers                             │
+│     c. Wait for election to resolve (timeout: 30s)             │
+│     d. Apply result (set documentOwner)                        │
+│                                                                 │
+│  5. Send kickoff message                                       │
+│  6. Agents collaborate normally                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+The election proposal @mentions all agents to wake them:
+
+```typescript
+// Election message includes @mentions to ensure agents wake
+const electionMessage = `[PROPOSAL:${proposal.id}] Document Owner Election\n` +
+  `${validAgents.map(a => `@${a}`).join(' ')}\n` +  // @mention all
+  `Vote for who should maintain documents. Use: vote({ proposal: '${proposal.id}', choice: '<agent-name>' })`
+```
+
+**Timeout Fallback:**
+
+If election times out without resolution:
+
+```typescript
+async function handleElectionTimeout(proposal: Proposal) {
+  if (proposal.result!.votes.size === 0) {
+    // No votes → disable ownership (no single writer)
+    config.documentOwner = undefined
+    await provider.appendChannel('system',
+      `[EXPIRED:${proposal.id}] No votes received. Document ownership disabled.`
+    )
+  } else {
+    // Partial votes → resolve with what we have
+    await resolveProposal(proposal)
+  }
+}
+```
+
+**Document Write During Election:**
+
+While election is pending, document writes are queued or rejected:
+
+```typescript
+server.tool('document_write', { ... }, async ({ content, file }, extra) => {
+  // Check for pending election
+  const pendingElection = proposals.values()
+    .find(p => p.type === 'election' && p.id.startsWith('doc-owner') && p.status === 'active')
+
+  if (pendingElection) {
+    return {
+      content: [{
+        type: 'text',
+        text: `Error: Document owner election in progress (${pendingElection.id}). ` +
+              `Please vote and wait for resolution before writing.`
+      }]
+    }
+  }
+
+  // Normal ownership check...
+})
 
 ### Inbox Design
 
@@ -968,6 +1155,7 @@ async function controllerLoop(config: AgentControllerConfig) {
         inbox,
         recentChannel: await provider.readChannel(undefined, 50),
         mcpSocketPath: config.mcpSocketPath,
+        retryAttempt: attempt,  // Let agent know if this is a retry
       })
 
       if (result.success) {
@@ -1001,6 +1189,9 @@ interface AgentRunContext {
 
   /** MCP socket path */
   mcpSocketPath: string
+
+  /** Retry attempt number (1 = first try, 2+ = retry) */
+  retryAttempt: number
 }
 ```
 
@@ -1110,6 +1301,47 @@ interface AgentRunResult {
   success: boolean
   error?: string
   duration: number
+}
+
+/**
+ * Success Criteria for Different Backends
+ *
+ * SDK Backend:
+ * - success = response.stop_reason === 'end_turn' (natural completion)
+ * - failure = API error, rate limit, or tool error
+ *
+ * CLI Backends (Claude, Codex, Cursor):
+ * - success = exit code 0 AND no error patterns in output
+ * - failure = exit code non-zero OR known error patterns
+ *
+ * Error patterns to detect:
+ * - "Error:", "error:", "ERROR"
+ * - "Failed to", "failed to"
+ * - "Exception:", "exception:"
+ * - API rate limit messages
+ */
+const CLI_ERROR_PATTERNS = [
+  /\bError:/i,
+  /\bFailed to\b/i,
+  /\bException:/i,
+  /rate limit/i,
+  /API error/i,
+  /connection refused/i,
+]
+
+function detectCLIError(stdout: string, stderr: string, exitCode: number): string | undefined {
+  if (exitCode !== 0) {
+    return `Process exited with code ${exitCode}`
+  }
+
+  for (const pattern of CLI_ERROR_PATTERNS) {
+    const match = stderr.match(pattern) || stdout.match(pattern)
+    if (match) {
+      return `Error detected: ${match[0]}`
+    }
+  }
+
+  return undefined  // No error detected
 }
 ```
 
@@ -2317,6 +2549,67 @@ kickoff: |
 │               Exit with results      (continue)     │
 └─────────────────────────────────────────────────────┘
 ```
+
+**Idle Detection (Run Mode Exit Condition):**
+
+The workflow exits when **all** of the following are true:
+
+```typescript
+interface WorkflowIdleState {
+  /** All controllers in 'idle' state (not 'running') */
+  allControllersIdle: boolean
+
+  /** No unread inbox messages for any agent */
+  noUnreadMessages: boolean
+
+  /** No active proposals requiring votes */
+  noActivePendingProposals: boolean
+
+  /** Debounce period elapsed (avoid premature exit) */
+  idleDebounceElapsed: boolean
+}
+
+function isWorkflowComplete(state: WorkflowIdleState): boolean {
+  return state.allControllersIdle &&
+         state.noUnreadMessages &&
+         state.noActivePendingProposals &&
+         state.idleDebounceElapsed
+}
+
+// Idle check runs periodically
+async function checkWorkflowIdle(
+  controllers: Map<string, AgentController>,
+  provider: ContextProvider,
+  proposals: Map<string, Proposal>,
+  debounceMs: number = 2000
+): Promise<boolean> {
+  // 1. Check controller states
+  const allIdle = [...controllers.values()].every(c => c.state === 'idle')
+  if (!allIdle) return false
+
+  // 2. Check inbox for all agents
+  for (const [name] of controllers) {
+    const inbox = await provider.getInbox(name)
+    if (inbox.length > 0) return false
+  }
+
+  // 3. Check active proposals
+  const activeProposals = [...proposals.values()].filter(p => p.status === 'active')
+  if (activeProposals.length > 0) return false
+
+  // 4. Debounce - wait to ensure no new activity
+  await sleep(debounceMs)
+
+  // Re-check after debounce
+  const stillIdle = [...controllers.values()].every(c => c.state === 'idle')
+  return stillIdle
+}
+```
+
+This prevents premature exit:
+- Agents might take time to process
+- New @mentions might arrive during processing
+- Proposals need time to resolve
 
 ### Start Mode
 

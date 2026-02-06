@@ -97,9 +97,10 @@ Implementation tasks for the workflow design. See [DESIGN.md](./DESIGN.md) for f
 - [ ] Call `onMention` in `channel_send` for each @mention (decoupled from controller)
 - [ ] **Controller acknowledges inbox ONLY on successful agent run**
 - [ ] Implement retry with exponential backoff (default: 3 attempts)
+- [ ] **Add `retryAttempt` to `AgentRunContext`** (let agent know if retry)
 
 ### Context Management
-- [ ] Define `AgentRunContext` interface
+- [ ] Define `AgentRunContext` interface (with `retryAttempt` field)
 - [ ] Implement `buildAgentPrompt()` - unified prompt from inbox/channel/document
 - [ ] Implement `formatInbox()` and `formatChannel()` helpers
 - [ ] Configure recent channel limit (last N entries)
@@ -113,6 +114,13 @@ Implementation tasks for the workflow design. See [DESIGN.md](./DESIGN.md) for f
 - [ ] Implement Codex CLI backend (project-level config)
 - [ ] Implement `getBackendForModel()` selector
 - [ ] **Implement `parseModel()` with aliases and version mapping**
+- [ ] **Add `detectCLIError()` for CLI backend success criteria**
+
+### Idle Detection (Run Mode)
+- [ ] Define `WorkflowIdleState` interface
+- [ ] Implement `isWorkflowComplete()` - check all idle conditions
+- [ ] Implement `checkWorkflowIdle()` with debounce
+- [ ] Exit conditions: all idle + no unread inbox + no active proposals
 
 ### Integration
 - [ ] Update `runWorkflow()` to use controllers
@@ -159,21 +167,34 @@ Generic collaborative decision-making for elections, design decisions, task assi
 - [ ] Proposal types: election, decision, approval, assignment
 - [ ] Resolution types: plurality, majority, unanimous
 
+### Persistence
+- [ ] Define `ProposalsState` interface (proposals + version)
+- [ ] Implement `loadProposals()` from proposals.json
+- [ ] Implement `saveProposals()` to proposals.json
+- [ ] Store proposals in `.workflow/instance/proposals.json`
+
 ### MCP Tools
 - [ ] Add `proposal_create` tool
-- [ ] Add `vote` tool
+- [ ] Add `vote` tool (with duplicate vote handling - idempotent same, reject change)
 - [ ] Add `proposal_status` tool
 - [ ] Add `proposal_cancel` tool (creator only)
 
 ### Resolution Logic
 - [ ] Implement `resolveProposal()` with plurality/majority/unanimous rules
 - [ ] Implement `applyProposalResult()` for binding proposals
-- [ ] Handle timeout resolution
+- [ ] Handle timeout resolution (via `handleElectionTimeout()`)
 - [ ] Handle tie-breaker logic
+- [ ] Timeout fallback: no votes → disable feature, partial votes → resolve
+
+### Election Timing
+- [ ] Election before kickoff (blocking) for document owner
+- [ ] @mention all agents in election proposal to wake them
+- [ ] Block document_write during active election
+- [ ] 30s default timeout for elections
 
 ### Integration
 - [ ] Auto-create document owner election when needed (binding)
-- [ ] Post [PROPOSAL], [VOTE], [RESOLVED] messages to channel
+- [ ] Post [PROPOSAL], [VOTE], [RESOLVED], [EXPIRED] messages to channel
 - [ ] Update system prompt guidance for voting
 
 > **Use cases**: Document owner election, design decisions, task assignment, merge approval
