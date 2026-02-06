@@ -250,16 +250,16 @@ Agent Teams relies on natural language prompts to define team structure. Our YAM
 
 **5. Backend flexibility**
 
-Mix different models based on task requirements:
+Mix different providers based on task requirements:
 
 ```yaml
 agents:
   architect:
-    model: anthropic/claude-opus-4    # Opus for complex reasoning
+    model: anthropic/claude-opus-4    # Claude for design
     system_prompt: prompts/architect.md
 
   implementer:
-    model: anthropic/claude-sonnet-4-5  # Sonnet for fast iteration
+    model: openai/gpt-5.2-codex       # Codex for code
     system_prompt: prompts/implementer.md
 ```
 
