@@ -13,6 +13,7 @@ import { buildAgentPrompt } from './prompt.ts'
 import { CursorBackend as CursorCLI } from '../../backends/cursor.ts'
 import { ClaudeCodeBackend as ClaudeCLI } from '../../backends/claude-code.ts'
 import { CodexBackend as CodexCLI } from '../../backends/codex.ts'
+import { createMockBackend } from '../../backends/mock.ts'
 import { getModelForBackend } from '../../backends/types.ts'
 
 // ==================== SDK Backend ====================
@@ -327,7 +328,7 @@ export interface BackendOptions {
  * Get backend by explicit backend type
  */
 export function getBackendByType(
-  backendType: 'sdk' | 'claude' | 'cursor' | 'codex',
+  backendType: 'sdk' | 'claude' | 'cursor' | 'codex' | 'mock',
   options?: BackendOptions & { model?: string; debugLog?: (msg: string) => void }
 ): AgentBackend {
   switch (backendType) {
@@ -345,6 +346,9 @@ export function getBackendByType(
 
     case 'cursor':
       return createCursorBackend(options?.model, options?.debugLog)
+
+    case 'mock':
+      return createMockBackend(options?.debugLog)
 
     default:
       throw new Error(`Unknown backend type: ${backendType}`)

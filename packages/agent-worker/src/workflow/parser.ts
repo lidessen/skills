@@ -305,8 +305,8 @@ function validateSetupTask(path: string, task: unknown, errors: ValidationError[
   }
 }
 
-/** Backends that have their own default model (CLI tools) */
-const CLI_BACKENDS = ['claude', 'cursor', 'codex']
+/** Backends that don't require an explicit model field */
+const CLI_BACKENDS = ['claude', 'cursor', 'codex', 'mock']
 
 function validateAgent(name: string, agent: unknown, errors: ValidationError[]): void {
   const path = `agents.${name}`

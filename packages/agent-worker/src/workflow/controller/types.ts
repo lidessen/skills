@@ -127,7 +127,7 @@ export interface WorkflowIdleState {
 // ==================== Model Parsing ====================
 
 /** Backend type */
-export type BackendType = 'sdk' | 'claude' | 'cursor' | 'codex'
+export type BackendType = 'sdk' | 'claude' | 'cursor' | 'codex' | 'mock'
 
 /** Parsed model information */
 export interface ParsedModel {
@@ -139,6 +139,7 @@ export interface ParsedModel {
 
 /** Default model per backend */
 export const BACKEND_DEFAULT_MODELS: Record<BackendType, string> = {
+  mock: 'mock-model',
   sdk: 'claude-sonnet-4-5',
   claude: 'sonnet',
   cursor: 'sonnet-4.5',
