@@ -1,0 +1,29 @@
+agents:
+  reviewer:
+    model: deepseek/deepseek-chat
+    system_prompt: prompts/reviewer.md
+
+context:
+  provider: memory
+
+setup:
+  - shell: gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json title,body,baseRefName,headRefName,author,additions,deletions,changedFiles
+    as: pr_info
+
+  - shell: gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
+    as: pr_diff
+
+  - shell: gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json files --jq '.files[].path'
+    as: changed_files
+
+kickoff: |
+  @reviewer Please review this pull request.
+
+  ## PR Info
+  ${{ pr_info }}
+
+  ## Changed Files
+  ${{ changed_files }}
+
+  ## Diff
+  ${{ pr_diff }}

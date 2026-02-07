@@ -103,6 +103,8 @@ export interface AgentRunResult {
   error?: string;
   /** Duration in ms */
   duration: number;
+  /** Agent text response (SDK backends only — CLI backends handle output via tools) */
+  content?: string;
 }
 
 // ==================== Idle Detection ====================

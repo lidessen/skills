@@ -140,6 +140,12 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
         if (lastResult.success) {
           log(`[${name}] Success (${lastResult.duration}ms)`);
 
+          // SDK agents can't use MCP tools to post output — write response to document
+          if (lastResult.content) {
+            await contextProvider.writeDocument(lastResult.content);
+            log(`[${name}] Response written to document (${lastResult.content.length} chars)`);
+          }
+
           // Acknowledge inbox on success
           await contextProvider.ackInbox(name, latestId);
           break;
@@ -266,9 +272,13 @@ async function runAgent(
     log(`[${ctx.name}] Prompt (${prompt.length} chars) → ${backend.type} backend`);
 
     // 3. Send via backend
-    await backend.send(prompt, { system: ctx.agent.resolvedSystemPrompt });
+    const response = await backend.send(prompt, { system: ctx.agent.resolvedSystemPrompt });
 
-    return { success: true, duration: Date.now() - startTime };
+    // SDK agents can't use MCP tools — return their text response
+    // so the controller can write it to the document for output capture
+    const content = !backend.setWorkspace ? response.content : undefined;
+
+    return { success: true, duration: Date.now() - startTime, content };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     log(`[${ctx.name}] Error: ${errorMsg}`);
