@@ -86,6 +86,8 @@ const KEYS = {
  */
 export class ContextProviderImpl implements ContextProvider {
   private sequence = 0;
+  private lastTimestamp = "";
+  private channelRead = false;
 
   constructor(
     private storage: StorageBackend,
@@ -100,10 +102,24 @@ export class ContextProviderImpl implements ContextProvider {
   // ==================== Channel ====================
 
   async appendChannel(from: string, content: string, options?: SendOptions): Promise<Message> {
+    // On first append, read existing channel to get the high-water mark.
+    // This ensures timestamps are strictly monotonic across provider recreations.
+    if (!this.channelRead) {
+      this.channelRead = true;
+      await this.initLastTimestamp();
+    }
+
     // Use sequence suffix to ensure unique timestamps in rapid succession
     const now = new Date();
     const seq = this.sequence++;
-    const timestamp = `${now.toISOString().slice(0, -1)}${seq.toString().padStart(3, "0")}Z`;
+    let timestamp = `${now.toISOString().slice(0, -1)}${seq.toString().padStart(3, "0")}Z`;
+
+    // Ensure strict monotonicity — bump if we'd collide with a prior message
+    if (timestamp <= this.lastTimestamp) {
+      timestamp = bumpTimestamp(this.lastTimestamp);
+    }
+    this.lastTimestamp = timestamp;
+
     const mentions = extractMentions(content, this.validAgents);
     const msg: Message = { timestamp, from, content, mentions };
 
@@ -256,6 +272,26 @@ export class ContextProviderImpl implements ContextProvider {
   async destroy(): Promise<void> {
     await this.storage.delete(KEYS.inboxState);
   }
+
+  // ==================== Internal ====================
+
+  /** Read the last timestamp from the existing channel log */
+  private async initLastTimestamp(): Promise<void> {
+    const raw = await this.storage.read(KEYS.channel);
+    if (!raw) return;
+    const lines = raw.trimEnd().split("\n");
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const msg = JSON.parse(lines[i]!);
+        if (msg.timestamp) {
+          this.lastTimestamp = msg.timestamp;
+          return;
+        }
+      } catch {
+        // Skip malformed lines
+      }
+    }
+  }
 }
 
 // ==================== Helpers ====================
@@ -276,6 +312,18 @@ function parseJsonl<T>(content: string): T[] {
     }
   }
   return results;
+}
+
+/**
+ * Increment the sub-second portion of a timestamp by 1.
+ * Format: YYYY-MM-DDTHH:mm:ss.NNNNNNZ → increment NNNNNN
+ */
+function bumpTimestamp(ts: string): string {
+  const dotIdx = ts.lastIndexOf(".");
+  const base = ts.slice(0, dotIdx + 1);
+  const sub = ts.slice(dotIdx + 1, -1); // strip trailing Z
+  const bumped = (parseInt(sub, 10) + 1).toString().padStart(sub.length, "0");
+  return `${base}${bumped}Z`;
 }
 
 /**
