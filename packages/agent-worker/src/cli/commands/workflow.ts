@@ -84,6 +84,9 @@ export function registerWorkflowCommands(program: Command) {
       if (options.background) {
         const scriptPath = process.argv[1] ?? "";
         const args = [scriptPath, "start", file, "--instance", options.instance];
+        if (options.feedback) {
+          args.push("--feedback");
+        }
 
         const child = spawn(process.execPath, args, {
           detached: true,

@@ -104,10 +104,16 @@ export function createFeedbackTool(
       required: ["target", "type", "description"],
     }),
     execute: async (args: Record<string, unknown>) => {
+      const validTypes = ["missing", "friction", "suggestion"] as const;
+      const rawType = args.type as string;
+      const type = validTypes.includes(rawType as (typeof validTypes)[number])
+        ? (rawType as FeedbackEntry["type"])
+        : "suggestion";
+
       const entry: FeedbackEntry = {
         timestamp: new Date().toISOString(),
         target: args.target as string,
-        type: args.type as FeedbackEntry["type"],
+        type,
         description: args.description as string,
         ...(args.context ? { context: args.context as string } : {}),
       };
