@@ -115,11 +115,24 @@ function resolveContextDir(
 }
 
 /**
+ * Check if context config uses the `bind` shorthand
+ */
+function isBindConfig(config: unknown): config is { bind: string; documentOwner?: string } {
+  return (
+    typeof config === "object" &&
+    config !== null &&
+    "bind" in config &&
+    typeof (config as Record<string, unknown>).bind === "string"
+  );
+}
+
+/**
  * Resolve context configuration
  *
  * - undefined (not set): default file provider enabled
  * - null: default file provider enabled (YAML `context:` syntax)
  * - false: explicitly disabled
+ * - { bind: './path' }: persistent file provider (like Docker Compose volumes)
  * - { provider: 'file', config?: {...} }: file provider with config
  * - { provider: 'memory' }: memory provider (for testing)
  */
@@ -138,6 +151,17 @@ function resolveContext(
   if (config === undefined || config === null) {
     const dir = resolveContextDir(CONTEXT_DEFAULTS.dir, workflowDir, workflowName, instance);
     return { provider: "file", dir };
+  }
+
+  // Bind shorthand — persistent file provider
+  if (isBindConfig(config)) {
+    const dir = resolveContextDir(config.bind, workflowDir, workflowName, instance);
+    return {
+      provider: "file",
+      dir,
+      persistent: true,
+      documentOwner: config.documentOwner,
+    };
   }
 
   // Memory provider
@@ -240,11 +264,26 @@ function validateContext(context: unknown, errors: ValidationError[]): void {
 
   const c = context as Record<string, unknown>;
 
+  // Bind shorthand: { bind: './path' }
+  if ("bind" in c) {
+    if (typeof c.bind !== "string") {
+      errors.push({ path: "context.bind", message: 'Context "bind" must be a string path' });
+    }
+    // Validate documentOwner (optional)
+    if (c.documentOwner !== undefined && typeof c.documentOwner !== "string") {
+      errors.push({
+        path: "context.documentOwner",
+        message: "Context documentOwner must be a string",
+      });
+    }
+    return;
+  }
+
   // Validate provider field
   if (!c.provider || typeof c.provider !== "string") {
     errors.push({
       path: "context.provider",
-      message: 'Context requires "provider" field (file or memory)',
+      message: 'Context requires "provider" field (file or memory), or use "bind" shorthand',
     });
     return;
   }

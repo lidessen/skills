@@ -459,6 +459,144 @@ describe("Concurrent Write Safety (single process)", () => {
   });
 });
 
+// ==================== Bind (Persistent) Context Tests ====================
+
+describe("Bind (Persistent) Context", () => {
+  let testDir: string;
+
+  beforeEach(() => {
+    testDir = join(
+      tmpdir(),
+      `bind-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    );
+    mkdirSync(testDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(testDir, { recursive: true, force: true });
+  });
+
+  test("persistent context preserves inbox state across provider recreations", async () => {
+    // Simulate bind mode: don't call destroy(), only releaseLock()
+    const provider1 = createFileContextProvider(testDir, ["alice", "bob"]);
+    provider1.acquireLock();
+
+    await provider1.appendChannel("alice", "@bob review this PR");
+    const inbox1 = await provider1.getInbox("bob");
+    expect(inbox1).toHaveLength(1);
+
+    // Ack the message
+    await provider1.ackInbox("bob", inbox1[0].entry.timestamp);
+    expect(await provider1.getInbox("bob")).toHaveLength(0);
+
+    // Persistent shutdown: only release lock, don't destroy
+    provider1.releaseLock();
+
+    // Next session: reconnect to same directory
+    const provider2 = createFileContextProvider(testDir, ["alice", "bob"]);
+    provider2.acquireLock();
+
+    // Inbox state should be preserved (bob already acked)
+    expect(await provider2.getInbox("bob")).toHaveLength(0);
+
+    // New message should appear
+    await provider2.appendChannel("alice", "@bob new changes pushed");
+    expect(await provider2.getInbox("bob")).toHaveLength(1);
+
+    provider2.releaseLock();
+  });
+
+  test("ephemeral context resets inbox state on destroy", async () => {
+    // Simulate ephemeral mode: call destroy() on shutdown
+    const provider1 = createFileContextProvider(testDir, ["alice", "bob"]);
+
+    await provider1.appendChannel("alice", "@bob review this");
+    await provider1.ackInbox("bob", (await provider1.getInbox("bob"))[0].entry.timestamp);
+    expect(await provider1.getInbox("bob")).toHaveLength(0);
+
+    // Ephemeral shutdown: destroy clears inbox state
+    await provider1.destroy();
+
+    // Next session: bob sees old message again (inbox state was reset)
+    const provider2 = createFileContextProvider(testDir, ["alice", "bob"]);
+    const inbox = await provider2.getInbox("bob");
+    expect(inbox).toHaveLength(1);
+    expect(inbox[0].entry.content).toBe("@bob review this");
+  });
+
+  test("persistent context accumulates channel history across runs", async () => {
+    // Run 1
+    const provider1 = createFileContextProvider(testDir, ["alice", "bob"]);
+    provider1.acquireLock();
+    await provider1.appendChannel("alice", "Run 1: starting review");
+    await provider1.appendChannel("bob", "Run 1: looks good");
+    provider1.releaseLock();
+
+    // Run 2
+    const provider2 = createFileContextProvider(testDir, ["alice", "bob"]);
+    provider2.acquireLock();
+    await provider2.appendChannel("alice", "Run 2: new feature added");
+
+    const allMessages = await provider2.readChannel();
+    expect(allMessages).toHaveLength(3);
+    expect(allMessages[0].content).toBe("Run 1: starting review");
+    expect(allMessages[1].content).toBe("Run 1: looks good");
+    expect(allMessages[2].content).toBe("Run 2: new feature added");
+
+    provider2.releaseLock();
+  });
+
+  test("persistent context preserves documents across runs", async () => {
+    // Run 1: create findings
+    const provider1 = createFileContextProvider(testDir, ["alice"]);
+    provider1.acquireLock();
+    await provider1.writeDocument("# Run 1 Findings\n- Bug in auth module");
+    await provider1.createDocument("api-review.md", "# API Review\n- Endpoint /users needs auth");
+    provider1.releaseLock();
+
+    // Run 2: continue from previous findings
+    const provider2 = createFileContextProvider(testDir, ["alice"]);
+    provider2.acquireLock();
+
+    expect(await provider2.readDocument()).toBe("# Run 1 Findings\n- Bug in auth module");
+    expect(await provider2.readDocument("api-review.md")).toBe(
+      "# API Review\n- Endpoint /users needs auth",
+    );
+
+    // Append to existing document
+    await provider2.appendDocument("\n- Also found XSS in comments");
+    expect(await provider2.readDocument()).toBe(
+      "# Run 1 Findings\n- Bug in auth module\n- Also found XSS in comments",
+    );
+
+    const docs = await provider2.listDocuments();
+    expect(docs).toHaveLength(2);
+
+    provider2.releaseLock();
+  });
+
+  test("bind with instance template creates separate dirs", () => {
+    // Simulate what the parser does with ${{ instance }} in bind path
+    const instanceA = join(testDir, "instance-a");
+    const instanceB = join(testDir, "instance-b");
+    mkdirSync(instanceA, { recursive: true });
+    mkdirSync(instanceB, { recursive: true });
+
+    const providerA = createFileContextProvider(instanceA, ["alice"]);
+    const providerB = createFileContextProvider(instanceB, ["alice"]);
+
+    providerA.acquireLock();
+    providerB.acquireLock();
+
+    // Both should work independently
+    expect(existsSync(join(instanceA, "_state", "instance.lock"))).toBe(true);
+    expect(existsSync(join(instanceB, "_state", "instance.lock"))).toBe(true);
+
+    providerA.releaseLock();
+    providerB.releaseLock();
+  });
+});
+
 // ==================== DM Visibility Isolation Tests ====================
 
 describe("DM Visibility Isolation", () => {

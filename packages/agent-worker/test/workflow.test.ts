@@ -294,6 +294,40 @@ describe('validateWorkflow', () => {
     const result = validateWorkflow(workflow)
     expect(result.valid).toBe(false)
   })
+
+  test('validates context bind shorthand', () => {
+    const workflow = {
+      agents: {
+        a: { model: 'm', system_prompt: 's' },
+      },
+      context: { bind: '.agent-context/' },
+    }
+    const result = validateWorkflow(workflow)
+    expect(result.valid).toBe(true)
+  })
+
+  test('rejects non-string bind value', () => {
+    const workflow = {
+      agents: {
+        a: { model: 'm', system_prompt: 's' },
+      },
+      context: { bind: 123 },
+    }
+    const result = validateWorkflow(workflow)
+    expect(result.valid).toBe(false)
+    expect(result.errors.some(e => e.path === 'context.bind')).toBe(true)
+  })
+
+  test('validates bind with documentOwner', () => {
+    const workflow = {
+      agents: {
+        a: { model: 'm', system_prompt: 's' },
+      },
+      context: { bind: './ctx/', documentOwner: 'a' },
+    }
+    const result = validateWorkflow(workflow)
+    expect(result.valid).toBe(true)
+  })
 })
 
 describe('parseWorkflowFile', () => {
@@ -427,6 +461,83 @@ kickoff: "@assistant start working"
     const workflow = await parseWorkflowFile(workflowPath)
     expect(workflow.setup).toEqual([])
   })
+
+  test('parses bind context as persistent file provider', async () => {
+    const workflowPath = join(testDir, 'bind-workflow.yml')
+    writeFileSync(
+      workflowPath,
+      `agents:
+  reviewer:
+    model: test
+    system_prompt: test
+context:
+  bind: .agent-context/
+`
+    )
+
+    const workflow = await parseWorkflowFile(workflowPath)
+    expect(workflow.context).toBeDefined()
+    expect(workflow.context!.provider).toBe('file')
+    expect((workflow.context as any).persistent).toBe(true)
+    expect((workflow.context as any).dir).toBe(join(testDir, '.agent-context/'))
+  })
+
+  test('parses bind context with instance template', async () => {
+    const workflowPath = join(testDir, 'bind-instance.yml')
+    writeFileSync(
+      workflowPath,
+      `agents:
+  a:
+    model: test
+    system_prompt: test
+context:
+  bind: .ctx/${'${{ instance }}'}/
+`
+    )
+
+    const workflow = await parseWorkflowFile(workflowPath, { instance: 'pr-42' })
+    expect((workflow.context as any).dir).toBe(join(testDir, '.ctx/pr-42/'))
+    expect((workflow.context as any).persistent).toBe(true)
+  })
+
+  test('parses bind context with documentOwner', async () => {
+    const workflowPath = join(testDir, 'bind-owner.yml')
+    writeFileSync(
+      workflowPath,
+      `agents:
+  lead:
+    model: test
+    system_prompt: test
+context:
+  bind: ./shared-ctx/
+  documentOwner: lead
+`
+    )
+
+    const workflow = await parseWorkflowFile(workflowPath)
+    expect((workflow.context as any).persistent).toBe(true)
+    expect((workflow.context as any).documentOwner).toBe('lead')
+  })
+
+  test('regular file provider does not have persistent flag', async () => {
+    const workflowPath = join(testDir, 'non-bind.yml')
+    writeFileSync(
+      workflowPath,
+      `agents:
+  a:
+    model: test
+    system_prompt: test
+context:
+  provider: file
+  config:
+    dir: ./my-ctx/
+`
+    )
+
+    const workflow = await parseWorkflowFile(workflowPath)
+    expect(workflow.context!.provider).toBe('file')
+    expect((workflow.context as any).persistent).toBeUndefined()
+  })
 })
 
 // ==================== Runner Tests ====================
@@ -550,6 +661,74 @@ describe('runWorkflow', () => {
 
     expect(result.success).toBe(false)
     expect(result.error).toContain('context is disabled')
+  })
+
+  test('persistent (bind) context preserves inbox state on shutdown', async () => {
+    const contextDir = join(testDir, 'bind-ctx')
+    const workflow: ParsedWorkflow = {
+      name: 'bind-test',
+      filePath: 'test.yml',
+      agents: { agent1: { model: 'test', resolvedSystemPrompt: 'test' } },
+      context: { provider: 'file', dir: contextDir, persistent: true },
+      setup: [],
+      kickoff: '@agent1 start',
+    }
+
+    const result = await runWorkflow({
+      workflow,
+      instance: 'test',
+      startAgent: async () => {},
+    })
+
+    expect(result.success).toBe(true)
+
+    // Write something to inbox state before shutdown
+    await result.contextProvider!.appendChannel('system', '@agent1 do something')
+    await result.contextProvider!.ackInbox('agent1',
+      (await result.contextProvider!.getInbox('agent1'))[0].entry.timestamp,
+    )
+
+    // Shutdown (persistent mode — should preserve inbox state)
+    await result.shutdown!()
+
+    // Verify inbox state file still exists (not cleaned up)
+    const inboxPath = join(contextDir, '_state', 'inbox.json')
+    expect(existsSync(inboxPath)).toBe(true)
+    const inboxData = JSON.parse(readFileSync(inboxPath, 'utf-8'))
+    expect(inboxData.readCursors.agent1).toBeDefined()
+  })
+
+  test('ephemeral context cleans up inbox state on shutdown', async () => {
+    const contextDir = join(testDir, 'ephemeral-ctx')
+    const workflow: ParsedWorkflow = {
+      name: 'ephemeral-test',
+      filePath: 'test.yml',
+      agents: { agent1: { model: 'test', resolvedSystemPrompt: 'test' } },
+      context: { provider: 'file', dir: contextDir },
+      setup: [],
+      kickoff: '@agent1 start',
+    }
+
+    const result = await runWorkflow({
+      workflow,
+      instance: 'test',
+      startAgent: async () => {},
+    })
+
+    expect(result.success).toBe(true)
+
+    // Write something to inbox state before shutdown
+    await result.contextProvider!.appendChannel('system', '@agent1 do something')
+    await result.contextProvider!.ackInbox('agent1',
+      (await result.contextProvider!.getInbox('agent1'))[0].entry.timestamp,
+    )
+
+    // Shutdown (ephemeral mode — should clean up inbox state)
+    await result.shutdown!()
+
+    // Inbox state should be cleaned up
+    const inboxPath = join(contextDir, '_state', 'inbox.json')
+    expect(existsSync(inboxPath)).toBe(false)
   })
 })
 
