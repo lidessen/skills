@@ -1,6 +1,6 @@
 agents:
   reviewer:
-    model: deepseek/deepseek-chat
+    model: deepseek:deepseek-chat
     system_prompt: prompts/reviewer.md
 
 context:
@@ -27,3 +27,6 @@ kickoff: |
 
   ## Diff
   ${{ pr_diff }}
+
+  Post your review using the bash tool:
+  gh pr comment "${{ env.PR_NUMBER }}" --repo "${{ env.GITHUB_REPOSITORY }}" --body "<review>"
