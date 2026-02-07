@@ -7,41 +7,79 @@ description: Create and manage AI agent sessions with multiple backends (SDK, Cl
 
 ## Who You Are
 
-You build AI-powered workflows. You want programmatic control over AI conversations—whether single-agent sessions or multi-agent collaboration.
+You build AI-powered workflows. You want programmatic control over AI conversations—single-agent or multi-agent collaboration.
 
-**Two modes**:
-- **Sessions**: Single agent, persistent state, tool injection, approval workflows
-- **Workflows**: Multiple agents, shared context, @mention coordination, voting
+**One model**: Every agent belongs to an **instance** (namespace). Agents in the same instance share a channel (for communication) and documents (for shared state). The default instance is `default`.
 
-You're here to create sessions, orchestrate agents, manage tools—all from the command line.
+- `agent-worker new` creates an agent in the default instance
+- `agent-worker run workflow.yaml` creates agents from YAML in a named instance
+- Both are the same thing: agents in instances, sharing context
+
+You're here to create agents, send messages, orchestrate workflows—all from the command line.
 
 ---
 
 ## Quick Start
 
 ```bash
-# Create a session (SDK backend, default)
-agent-worker new -m anthropic/claude-sonnet-4-5
+# Create an agent (auto-named: a0, a1, ...)
+agent-worker new
+# → a0
 
-# Create with Claude CLI backend
-agent-worker new -b claude
+# Create with explicit name
+agent-worker new reviewer -m anthropic/claude-sonnet-4-5
 
-# Send a message (async by default)
-agent-worker send "What is 2+2?"
+# Send a message via channel (@mention to route)
+agent-worker send "@a0 What is 2+2?"
 
 # Check the response
 agent-worker peek
 
-# Or send and wait for immediate response
-agent-worker send "What is 3+3?" --wait
+# Create a second agent — shares channel with a0
+agent-worker new coder
 
-# End session
-agent-worker agent end
+# They can now communicate
+agent-worker send "@reviewer review the code, then @coder fix issues"
+
+# Stop agents
+agent-worker stop --all
 ```
 
-That's it. Session persists across commands. State maintained until you end it.
+That's it. Agents share context automatically within an instance.
 
-**Note**: `send` is async by default (non-blocking). Use `peek` to view responses, or add `--wait` for synchronous behavior.
+---
+
+## Core Concepts
+
+### Instance = Namespace
+
+Every agent belongs to an instance. Agents in the same instance share:
+- **Channel**: Communication via @mentions
+- **Documents**: Shared workspace
+
+```bash
+# Default instance
+agent-worker new reviewer              # → reviewer (in default instance)
+agent-worker new coder                  # → coder (in default instance, shares channel)
+
+# Named instance
+agent-worker new reviewer --instance pr-123
+agent-worker new coder --instance pr-123
+
+# List agents (grouped by instance)
+agent-worker ls
+agent-worker ls --instance pr-123
+```
+
+### @Mention Routing
+
+All communication goes through the channel. Use `@agent` to route messages:
+
+```bash
+agent-worker send "@reviewer please review this code"
+agent-worker send "@reviewer @coder collaborate on this"
+agent-worker send "status update for everyone"           # broadcast (no @mention)
+```
 
 ---
 
@@ -69,75 +107,106 @@ agent-worker new -b cursor
 
 **Important Notes**:
 - Tool management (add, mock, import) only works with SDK backend
-- Claude CLI backend may not work properly within Claude Code environment itself (use SDK backend for testing)
-- Async requests timeout after 60 seconds to prevent indefinite hangs
+- Claude CLI backend may not work properly within Claude Code environment (use SDK backend)
 
 ---
 
-## Session Management
+## Agent Management
 
-### Creating Sessions
+### Creating Agents
 
 ```bash
-# Basic session
+# Auto-name (a0, a1, ..., z9)
 agent-worker new
 
+# Named
+agent-worker new reviewer
+
 # With custom system prompt
-agent-worker new -s "You are a code reviewer."
+agent-worker new reviewer -s "You are a code reviewer."
 
 # From file
-agent-worker new -f ./prompts/reviewer.txt
+agent-worker new reviewer -f ./prompts/reviewer.txt
 
-# Named session (easier reference)
-agent-worker new -n my-session
+# In named instance
+agent-worker new reviewer --instance pr-123
 
 # Custom idle timeout (ms, 0 = no timeout)
 agent-worker new --idle-timeout 3600000
 
-# With scheduled wakeup (see Scheduled Wakeup section)
+# With scheduled wakeup
 agent-worker new --wakeup 5m
 agent-worker new --wakeup "0 */2 * * *"
 ```
 
-### Multiple Sessions
+### Lifecycle
 
 ```bash
-# List all
+# List all agents
 agent-worker ls
 
-# Switch default
-agent-worker agent use my-session
+# Check status
+agent-worker status reviewer
 
-# Target specific session
-agent-worker send "Hello" --to my-session
+# Set default agent (for stats/export/clear)
+agent-worker use reviewer
 
-# End specific
-agent-worker agent end my-session
-
-# End all
-agent-worker agent end --all
+# Stop
+agent-worker stop reviewer
+agent-worker stop --instance pr-123
+agent-worker stop --all
 ```
 
-### Session Info
+---
+
+## Messaging
+
+### Send (Channel-based)
 
 ```bash
-# Status
-agent-worker agent status
+# Route to specific agent
+agent-worker send "@reviewer check this code"
 
-# Statistics (tokens, messages)
-agent-worker stats
+# Route to multiple agents
+agent-worker send "@reviewer @coder collaborate on this fix"
 
-# View messages (default: last 10)
+# Broadcast (no @mention)
+agent-worker send "status update"
+
+# Target different instance
+agent-worker send "@reviewer check this" --instance pr-123
+```
+
+### Peek (Read Channel)
+
+```bash
+# Last 10 messages (default)
 agent-worker peek
-agent-worker peek --last 5          # Show last 5 messages
-agent-worker peek --all             # Show all messages
-agent-worker peek --find "error"    # Search messages containing "error"
+
+# Last 5
+agent-worker peek -n 5
+
+# All messages
+agent-worker peek --all
+
+# Search
+agent-worker peek --find "error"
+
+# Different instance
+agent-worker peek --instance pr-123
+```
+
+### Agent-level Operations
+
+```bash
+# Token/message statistics
+agent-worker stats reviewer
 
 # Export full transcript
-agent-worker export > transcript.json
+agent-worker export reviewer > transcript.json
 
-# Clear messages (keep session)
-agent-worker clear
+# Clear agent conversation history
+agent-worker clear reviewer
 ```
 
 ---
@@ -175,7 +244,6 @@ export default [
       required: ['query']
     },
     execute: async (args) => {
-      // Real implementation
       return { results: ['doc1', 'doc2'] }
     }
   }
@@ -189,10 +257,7 @@ agent-worker tool import ./my-tools.ts
 ### Mocking Tools
 
 ```bash
-# Set static mock response
 agent-worker tool mock get_weather '{"temp": 72, "condition": "sunny"}'
-
-# List tools
 agent-worker tool list
 ```
 
@@ -203,16 +268,9 @@ agent-worker tool list
 For tools marked `needsApproval`:
 
 ```bash
-# Send message that triggers tool
-agent-worker send "Delete /tmp/test.txt"
-
-# Check pending approvals
+agent-worker send "@a0 Delete /tmp/test.txt"
 agent-worker pending
-
-# Approve
 agent-worker approve <approval-id>
-
-# Deny with reason
 agent-worker deny <approval-id> -r "Path not allowed"
 ```
 
@@ -242,197 +300,28 @@ agent-worker providers
 
 ---
 
-## Common Patterns
-
-### Testing a Prompt
-
-```bash
-# Create session with your system prompt
-agent-worker new -f ./my-prompt.txt -n test
-
-# Run test cases (async)
-agent-worker send "Test case 1: ..." --to test
-agent-worker send "Test case 2: ..." --to test
-
-# Check responses
-agent-worker peek --to test
-
-# Or send synchronously for quick tests
-agent-worker send "Test case 3: ..." --to test --wait
-
-# Clean up
-agent-worker agent end test
-```
-
-### Tool Development
-
-```bash
-# Start session
-agent-worker new -n dev
-
-# Add tool with mock
-agent-worker tool add my_api -d "Call my API" -p "endpoint:string"
-agent-worker tool mock my_api '{"status": "ok"}'
-
-# Test
-agent-worker send "Call my API at /users"
-
-# Update mock, test again
-agent-worker tool mock my_api '{"status": "error", "code": 500}'
-agent-worker send "Call my API at /users"
-```
-
-### Multi-Backend Comparison
-
-```bash
-# Same prompt, different backends
-agent-worker new -m anthropic/claude-sonnet-4-5 -n anthropic
-agent-worker new -b claude -n claude-cli
-
-agent-worker send "Explain recursion" --to anthropic
-agent-worker send "Explain recursion" --to claude-cli
-
-# Compare responses
-agent-worker peek --to anthropic
-agent-worker peek --to claude-cli
-```
-
----
-
-## Programmatic Usage
-
-```typescript
-import { AgentSession } from 'agent-worker'
-
-const session = new AgentSession({
-  model: 'anthropic/claude-sonnet-4-5',
-  system: 'You are a helpful assistant.',
-  tools: [/* your tools */]
-})
-
-// Send message
-const response = await session.send('Hello')
-console.log(response.content)
-console.log(response.toolCalls)
-console.log(response.usage)
-
-// Stream
-for await (const chunk of session.sendStream('Tell me a story')) {
-  process.stdout.write(chunk)
-}
-
-// Get state for persistence
-const state = session.getState()
-```
-
----
-
 ## Scheduled Wakeup
-
-Agents can be configured to wake up periodically. Two modes:
 
 | Mode | Format | Behavior |
 |------|--------|----------|
-| **Interval** | `60000`, `30s`, `5m`, `2h` | Fires after idle. Resets on any activity. |
+| **Interval** | `60000`, `30s`, `5m`, `2h` | Fires after idle. Resets on activity. |
 | **Cron** | `0 */2 * * *` | Fixed schedule. NOT reset by activity. |
 
-### At creation
-
 ```bash
-# Wake every 5 minutes of inactivity
+# At creation
 agent-worker new --wakeup 5m
+agent-worker new --wakeup "0 */2 * * *" --wakeup-prompt "Check for new tasks"
 
-# Wake every 2 hours (fixed, cron)
-agent-worker new --wakeup "0 */2 * * *"
-
-# With custom wakeup prompt
-agent-worker new --wakeup 30s --wakeup-prompt "Check for new tasks"
-```
-
-### Runtime management
-
-```bash
-# Set wakeup on running agent
-agent-worker agent schedule set 5m
-agent-worker agent schedule set "0 */2 * * *" -p "Run health check"
-
-# View current schedule
-agent-worker agent schedule get
-
-# Remove wakeup
-agent-worker agent schedule clear
-```
-
-### Format detection
-
-The `--wakeup` value is automatically detected:
-- Pure number → **ms interval** (e.g., `60000` = 60s)
-- Duration string → **interval** (e.g., `30s`, `5m`, `2h`, `1d`)
-- Otherwise → **cron expression** (5-field: min hour dom month dow)
-
-**Interval** resets its timer whenever the agent handles activity (external sends, etc). It measures "time since last active."
-
-**Cron** fires at fixed wall-clock times regardless of agent activity.
-
----
-
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| "No active session" | Run `agent-worker new` first |
-| "Session not found" | Check `agent-worker ls` |
-| "Tool management not supported" | Use SDK backend (`-b sdk` or omit `-b`) |
-| "Provider not loaded" | Check API key with `agent-worker providers` |
-| Agent not responding | Check if process alive: `agent-worker agent status` |
-| Message stuck in "(processing...)" | Wait up to 60s (timeout), or check with `--debug` |
-| Send appears to hang | Use `agent-worker send "message" --debug` to see details |
-| Claude backend not working | Use SDK backend instead (Claude CLI has environment limitations) |
-
----
-
-## Command Reference
-
-```
-agent-worker new             Create agent (shorthand)
-agent-worker ls              List agents (shorthand)
-agent-worker agent new       Create agent
-agent-worker agent list      List agents
-agent-worker agent status    Check agent
-agent-worker agent use       Set default
-agent-worker agent end       End agent
-
-agent-worker send            Send message (async by default)
-  --wait                     Wait for response (synchronous mode)
-  --debug                    Show debug information
-agent-worker peek            View messages (default: last 10)
-  --all                      Show all messages
-  --last N                   Show last N messages
-  --find <text>              Search messages containing text
-agent-worker stats           Show statistics
-agent-worker export          Export transcript
-agent-worker clear           Clear messages
-
-agent-worker tool add        Add tool
-agent-worker tool import     Import from file
-agent-worker tool mock       Set mock response
-agent-worker tool list       List tools
-
-agent-worker pending         List pending approvals
-agent-worker approve         Approve tool call
-agent-worker deny            Deny tool call
-
-agent-worker agent schedule set    Set wakeup schedule
-agent-worker agent schedule get    View current schedule
-agent-worker agent schedule clear  Remove wakeup schedule
-
-agent-worker providers       Check SDK providers
-agent-worker backends        Check available backends
+# Runtime management
+agent-worker schedule set 5m
+agent-worker schedule set "0 */2 * * *" -p "Run health check"
+agent-worker schedule get
+agent-worker schedule clear
 ```
 
 ---
 
-## Multi-Agent Workflows
+## Multi-Agent Workflows (YAML)
 
 For complex tasks requiring multiple specialized agents:
 
@@ -492,13 +381,93 @@ See [reference/workflow.md](reference/workflow.md) for full configuration.
 
 ---
 
+## Programmatic Usage
+
+```typescript
+import { AgentSession } from 'agent-worker'
+
+const session = new AgentSession({
+  model: 'anthropic/claude-sonnet-4-5',
+  system: 'You are a helpful assistant.',
+  tools: [/* your tools */]
+})
+
+const response = await session.send('Hello')
+console.log(response.content)
+console.log(response.toolCalls)
+console.log(response.usage)
+
+for await (const chunk of session.sendStream('Tell me a story')) {
+  process.stdout.write(chunk)
+}
+
+const state = session.getState()
+```
+
+---
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| "No active agent" | Run `agent-worker new` first |
+| "Agent not found" | Check `agent-worker ls` |
+| "Tool management not supported" | Use SDK backend (`-b sdk` or omit `-b`) |
+| "Provider not loaded" | Check API key with `agent-worker providers` |
+| Agent not responding | Check if process alive: `agent-worker status` |
+| No response in peek | Agent may still be processing. Wait and `peek` again. |
+
+---
+
+## Command Reference
+
+```
+agent-worker new [name]      Create agent (auto-names if omitted: a0, a1, ...)
+agent-worker ls              List all agents (grouped by instance)
+agent-worker status [target] Check agent status
+agent-worker use <target>    Set default agent
+agent-worker stop [target]   Stop agent(s)
+  --all                      Stop all agents
+  --instance <name>          Stop all in instance
+
+agent-worker send <message>  Send to channel (@mention to route)
+agent-worker peek            View channel (default: last 10)
+  --all                      Show all messages
+  -n, --last <count>         Show last N messages
+  --find <text>              Search messages
+agent-worker stats [target]  Show agent statistics
+agent-worker export [target] Export transcript
+agent-worker clear [target]  Clear agent history
+
+agent-worker tool add        Add tool (SDK only)
+agent-worker tool import     Import from file
+agent-worker tool mock       Set mock response
+agent-worker tool list       List tools
+
+agent-worker pending         List pending approvals
+agent-worker approve         Approve tool call
+agent-worker deny            Deny tool call
+
+agent-worker schedule set    Set wakeup schedule
+agent-worker schedule get    View current schedule
+agent-worker schedule clear  Remove wakeup schedule
+
+agent-worker run <file>      Run YAML workflow (exit on complete)
+agent-worker start <file>    Start YAML workflow (keep running)
+
+agent-worker providers       Check SDK providers
+agent-worker backends        Check available backends
+```
+
+---
+
 ## Remember
 
 agent-worker is about **programmatic control** over AI conversations.
 
-- **Sessions**: Single agent, persistent state, tool injection
-- **Workflows**: Multi-agent, shared context, @mention coordination
+- **Instance**: Namespace for agents sharing context
+- **Channel**: @mention-based communication
 - **Backends**: SDK, Claude, Codex, Cursor
-- **Testing**: Mocks, approval workflows
+- **Workflows**: YAML or manual agent creation — same model
 
 不是手动对话，而是工程化的 AI 交互。

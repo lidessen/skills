@@ -14,11 +14,16 @@ import {
   registerSession,
   unregisterSession,
   resolveSchedule,
+  ensureInstanceContext,
+  getInstanceAgentNames,
+  getAgentDisplayName,
 } from "./registry.ts";
 import type { SessionInfo, ScheduleConfig } from "./registry.ts";
 import { handleRequest } from "./handler.ts";
 import type { ServerState, Request } from "./handler.ts";
 import { msUntilNextCron } from "./cron.ts";
+import { createFileContextProvider } from "../workflow/context/file-provider.ts";
+import type { ContextProvider } from "../workflow/context/provider.ts";
 
 const DEFAULT_SKILL_DIRS = [
   ".agents/skills",
@@ -256,6 +261,54 @@ function resetScheduleTimers(): void {
   // Cron intentionally not reset — fires at fixed times
 }
 
+const INBOX_POLL_MS = 2000; // Poll inbox every 2 seconds
+
+/**
+ * Start inbox polling — checks channel for @mentions and processes them via the LLM.
+ * This is how agents receive messages from `send` (which posts to the channel).
+ */
+function startInboxPolling(): void {
+  if (!state?.contextProvider || !state?.agentDisplayName) return;
+
+  const provider = state.contextProvider;
+  const agentName = state.agentDisplayName;
+
+  state.inboxPollTimer = setInterval(async () => {
+    if (!state || state.pendingRequests > 0) return;
+
+    try {
+      const inbox = await provider.getInbox(agentName);
+      if (inbox.length === 0) return;
+
+      const latestId = inbox[inbox.length - 1]!.entry.id;
+
+      // Build prompt from inbox messages
+      const prompt = inbox
+        .map((m) => `[${m.entry.from}]: ${m.entry.content}`)
+        .join("\n\n");
+
+      state.pendingRequests++;
+      resetIdleTimer();
+      resetScheduleTimers();
+
+      try {
+        const response = await state.session.send(prompt);
+        // Post response back to channel
+        await provider.appendChannel(agentName, response.content);
+        // Ack inbox
+        await provider.ackInbox(agentName, latestId);
+      } finally {
+        if (state) {
+          state.pendingRequests--;
+          resetIdleTimer();
+        }
+      }
+    } catch (error) {
+      console.error("[inbox] Poll error:", error instanceof Error ? error.message : error);
+    }
+  }, INBOX_POLL_MS);
+}
+
 async function gracefulShutdown(): Promise<void> {
   if (!state) {
     process.exit(0);
@@ -292,6 +345,9 @@ function cleanup(): void {
     if (state.cronTimer) {
       clearTimeout(state.cronTimer);
     }
+    if (state.inboxPollTimer) {
+      clearInterval(state.inboxPollTimer);
+    }
     if (existsSync(state.info.socketPath)) {
       unlinkSync(state.info.socketPath);
     }
@@ -309,6 +365,7 @@ export async function startDaemon(config: {
   model: string;
   system: string;
   name?: string;
+  instance?: string;
   idleTimeout?: number;
   backend?: BackendType;
   skills?: string[];
@@ -321,6 +378,7 @@ export async function startDaemon(config: {
 
   const backendType = config.backend || "sdk";
   const sessionId = crypto.randomUUID();
+  const instance = config.instance || "default";
 
   // Setup skills (both local and imported)
   const { tools, importer } = await setupSkills(
@@ -369,9 +427,17 @@ export async function startDaemon(config: {
     unlinkSync(socketPath);
   }
 
+  // Setup instance context (shared channel + documents)
+  const contextDir = ensureInstanceContext(instance);
+  const agentDisplayName = config.name ? getAgentDisplayName(config.name) : effectiveId.slice(0, 8);
+  const existingAgentNames = getInstanceAgentNames(instance);
+  const allAgentNames = [...new Set([...existingAgentNames, agentDisplayName, "user"])];
+  const contextProvider = createFileContextProvider(contextDir, allAgentNames);
+
   const info: SessionInfo = {
     id: effectiveId,
     name: config.name,
+    instance,
     model: config.model,
     system: config.system,
     backend: backendType,
@@ -435,6 +501,8 @@ export async function startDaemon(config: {
       pendingRequests: 0,
       importer,
       getFeedback,
+      contextProvider,
+      agentDisplayName,
     };
 
     // Write ready file (signals CLI that server is ready)
@@ -447,10 +515,14 @@ export async function startDaemon(config: {
     resetIntervalSchedule();
     startCronSchedule();
 
+    // Start inbox polling (listens for @mentions in channel)
+    startInboxPolling();
+
     const nameStr = config.name ? ` (${config.name})` : "";
     console.log(`Session started: ${effectiveId}${nameStr}`);
     console.log(`Model: ${config.model}`);
     console.log(`Backend: ${backendType}`);
+    console.log(`Instance: ${instance}`);
     if (config.schedule) {
       try {
         const resolved = resolveSchedule(config.schedule);

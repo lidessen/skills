@@ -128,17 +128,16 @@ describe('CLI Integration', () => {
       expect(result.stdout).toMatch(/No active agents|running/)
     })
 
-    test('shows short ID format', async () => {
-      // Create an agent
+    test('shows auto-named agent in list', async () => {
+      // Create an agent (auto-named: a0, a1, ...)
       await runCli(['new', '-m', 'anthropic/claude-sonnet-4-5'])
       await new Promise(resolve => setTimeout(resolve, 500))
 
       const result = await runCli(['ls'])
 
-      // Should show short ID (8 chars) if agent is running
+      // Should show auto-generated name (e.g. a0) with model
       if (!result.stdout.includes('No active agents')) {
-        // Format: shortId - model [status] or shortId (name) - model [status]
-        expect(result.stdout).toMatch(/[a-f0-9]{8}.*anthropic\/claude-sonnet-4-5/)
+        expect(result.stdout).toMatch(/[a-z]\d.*anthropic\/claude-sonnet-4-5/)
       }
     })
   })
@@ -196,29 +195,36 @@ describe('CLI Integration', () => {
     test('shows help for send command', async () => {
       const result = await runCli(['send', '--help'])
       expect(result.exitCode).toBe(0)
-      expect(result.stdout).toContain('--to')
+      expect(result.stdout).toContain('--instance')
     })
   })
 
   describe('send command', () => {
-    test('errors when no agent running', async () => {
+    test('posts to channel successfully', async () => {
+      // send always succeeds — it posts to the instance channel
       const result = await runCli(['send', 'hello'])
-      expect(result.exitCode).not.toBe(0)
-      expect(result.stderr).toMatch(/No active agent|Agent not found/i)
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout).toMatch(/broadcast/)
     })
 
-    test('errors when target agent not found', async () => {
-      const result = await runCli(['send', 'hello', '--to', 'nonexistent'])
-      expect(result.exitCode).not.toBe(0)
-      expect(result.stderr).toMatch(/not found/i)
+    test('detects @mention in message', async () => {
+      // Create an agent first so mention can be detected
+      await runCli(['new', 'sendtest', '-m', 'anthropic/claude-sonnet-4-5'])
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      const result = await runCli(['send', '@sendtest hello'])
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout).toMatch(/@sendtest/)
     })
   })
 
   describe('peek command', () => {
-    test('errors when no agent running', async () => {
-      const result = await runCli(['peek'])
-      expect(result.exitCode).not.toBe(0)
-      expect(result.stderr).toMatch(/No active agent|Agent not found/i)
+    test('shows empty channel when no messages', async () => {
+      // peek reads from channel — succeeds even with no agents
+      // Use unique instance to avoid seeing messages from other tests
+      const result = await runCli(['peek', '--instance', `empty-${Date.now()}`])
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout).toMatch(/No messages/)
     })
 
     test('shows help with --help', async () => {

@@ -1,143 +1,97 @@
 import type { Command } from "commander";
 import { sendRequest, isSessionActive } from "../client.ts";
 import { outputJson } from "../output.ts";
+import {
+  ensureInstanceContext,
+  getInstanceAgentNames,
+  getSessionInfo,
+  isSessionRunning,
+} from "@/daemon/index.ts";
+import { createFileContextProvider } from "@/workflow/context/file-provider.ts";
+import { DEFAULT_INSTANCE } from "../instance.ts";
+
+/**
+ * Get a context provider for the given instance.
+ * Auto-provisions the context directory if it doesn't exist.
+ */
+function getContextProvider(instance: string) {
+  const contextDir = ensureInstanceContext(instance);
+  const agentNames = [...getInstanceAgentNames(instance), "user"];
+  return createFileContextProvider(contextDir, agentNames);
+}
 
 export function registerSendCommands(program: Command) {
-  // Send command
+  // Send command — posts to instance channel with @mention routing
   program
     .command("send <message>")
-    .description("Send a message (async by default, use --wait to wait for response)")
-    .option("--to <target>", "Target agent (name or name@instance)")
-    .option("--json", "Output full JSON response")
-    .option("--auto-approve", "Auto-approve all tool calls (default)")
-    .option("--no-auto-approve", "Require manual approval")
-    .option("--wait", "Wait for response before returning (synchronous mode)")
-    .option("--debug", "Show debug information")
+    .description("Send message to channel (use @agent to route)")
+    .option("--instance <name>", "Target instance", DEFAULT_INSTANCE)
+    .option("--json", "Output as JSON")
     .action(async (message, options) => {
-      const target = options.to;
+      const instance = options.instance;
+      const provider = getContextProvider(instance);
 
-      if (!isSessionActive(target)) {
-        if (target) {
-          console.error(`Agent not found: ${target}`);
-        } else {
-          console.error("No active agent. Create one with: agent-worker new <name> -m <model>");
-        }
-        process.exit(1);
-      }
-
-      const autoApprove = options.autoApprove !== false;
-      // Default is async (wait=false means async=true)
-      const async = !options.wait;
-
-      const res = await sendRequest(
-        {
-          action: "send",
-          payload: { message, options: { autoApprove }, async },
-        },
-        target,
-        { debug: options.debug },
-      );
-
-      if (!res.success) {
-        console.error("Error:", res.error);
-        process.exit(1);
-      }
-
-      // Handle async response
-      if (async) {
-        const asyncData = res.data as { async: boolean; message: string };
-        console.log(asyncData.message);
-        return;
-      }
-
-      const response = res.data as {
-        content: string;
-        toolCalls: Array<{ name: string; arguments: unknown; result: unknown }>;
-        pendingApprovals: Array<{ id: string; toolName: string; arguments: unknown }>;
-      };
+      const entry = await provider.appendChannel("user", message);
 
       if (options.json) {
-        console.log(JSON.stringify(response, null, 2));
+        outputJson({
+          id: entry.id,
+          timestamp: entry.timestamp,
+          mentions: entry.mentions,
+        });
+      } else if (entry.mentions.length > 0) {
+        console.log(`→ @${entry.mentions.join(" @")}`);
       } else {
-        console.log(response.content);
-        if (response.toolCalls?.length > 0) {
-          console.log("\n--- Tool Calls ---");
-          for (const tc of response.toolCalls) {
-            console.log(
-              `${tc.name}(${JSON.stringify(tc.arguments)}) => ${JSON.stringify(tc.result)}`,
-            );
-          }
-        }
-        if (response.pendingApprovals?.length > 0) {
-          console.log("\n--- Pending Approvals ---");
-          for (const p of response.pendingApprovals) {
-            console.log(`[${p.id.slice(0, 8)}] ${p.toolName}(${JSON.stringify(p.arguments)})`);
-          }
-        }
+        console.log("→ (broadcast)");
       }
     });
 
-  // Peek command - view recent messages
+  // Peek command — read channel messages
   program
     .command("peek")
-    .description("View conversation messages (default: last 10)")
-    .option("--to <target>", "Target agent")
+    .description("View channel messages (default: last 10)")
+    .option("--instance <name>", "Target instance", DEFAULT_INSTANCE)
     .option("--json", "Output as JSON")
     .option("--all", "Show all messages")
     .option("-n, --last <count>", "Show last N messages", parseInt)
     .option("--find <text>", "Filter messages containing text (case-insensitive)")
     .action(async (options) => {
-      const target = options.to;
+      const instance = options.instance;
+      const provider = getContextProvider(instance);
 
-      if (!isSessionActive(target)) {
-        console.error(target ? `Agent not found: ${target}` : "No active agent");
-        process.exit(1);
-      }
+      const limit = options.all ? undefined : (options.last ?? 10);
+      let messages = await provider.readChannel({ limit });
 
-      const res = await sendRequest({ action: "history" }, target);
-      if (!res.success) {
-        console.error("Error:", res.error);
-        process.exit(1);
-      }
-
-      let messages = res.data as Array<{ role: string; content: string; status?: string }>;
-
-      // Apply filter if --find is specified
+      // Apply text filter
       if (options.find) {
         const searchText = options.find.toLowerCase();
-        messages = messages.filter((msg) => msg.content.toLowerCase().includes(searchText));
-      }
-
-      // Default to last 10 messages unless --all or --last is specified
-      if (!options.all) {
-        const count = options.last ?? 10;
-        messages = messages.slice(-count);
+        messages = messages.filter((msg) =>
+          msg.content.toLowerCase().includes(searchText),
+        );
       }
 
       if (options.json) {
-        console.log(JSON.stringify(messages, null, 2));
-      } else {
-        if (messages.length === 0) {
-          console.log(options.find ? "No messages found matching your search" : "No messages");
-          return;
-        }
-        for (const msg of messages) {
-          const role = msg.role === "user" ? "YOU" : msg.role.toUpperCase();
-          const status = msg.status === "responding" ? " (responding...)" : "";
-          console.log(`[${role}${status}] ${msg.content}`);
-        }
+        outputJson(messages);
+        return;
+      }
+
+      if (messages.length === 0) {
+        console.log(options.find ? "No messages found" : "No messages");
+        return;
+      }
+
+      for (const msg of messages) {
+        const mentions = msg.mentions.length > 0 ? ` → @${msg.mentions.join(" @")}` : "";
+        console.log(`[${msg.from}]${mentions} ${msg.content}`);
       }
     });
 
-  // Stats command
+  // Stats command — still per-agent (via daemon)
   program
-    .command("stats")
+    .command("stats [target]")
     .description("Show agent statistics")
-    .option("--to <target>", "Target agent")
     .option("--json", "Output as JSON")
-    .action(async (options) => {
-      const target = options.to;
-
+    .action(async (target, options) => {
       if (!isSessionActive(target)) {
         console.error(target ? `Agent not found: ${target}` : "No active agent");
         process.exit(1);
@@ -164,14 +118,11 @@ export function registerSendCommands(program: Command) {
       }
     });
 
-  // Export command
+  // Export command — still per-agent (via daemon)
   program
-    .command("export")
+    .command("export [target]")
     .description("Export agent transcript")
-    .option("--to <target>", "Target agent")
-    .action(async (options) => {
-      const target = options.to;
-
+    .action(async (target) => {
       if (!isSessionActive(target)) {
         console.error(target ? `Agent not found: ${target}` : "No active agent");
         process.exit(1);
@@ -186,14 +137,11 @@ export function registerSendCommands(program: Command) {
       console.log(JSON.stringify(res.data, null, 2));
     });
 
-  // Clear command
+  // Clear command — clears agent internal history (via daemon)
   program
-    .command("clear")
-    .description("Clear conversation history")
-    .option("--to <target>", "Target agent")
-    .action(async (options) => {
-      const target = options.to;
-
+    .command("clear [target]")
+    .description("Clear agent conversation history")
+    .action(async (target) => {
       if (!isSessionActive(target)) {
         console.error(target ? `Agent not found: ${target}` : "No active agent");
         process.exit(1);

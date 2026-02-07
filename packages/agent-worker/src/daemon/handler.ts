@@ -3,6 +3,7 @@ import { tool, jsonSchema } from "ai";
 import type { AgentSession } from "../agent/session.ts";
 import type { SkillImporter } from "../agent/skills/index.ts";
 import type { FeedbackEntry } from "../agent/tools/feedback.ts";
+import type { ContextProvider } from "../workflow/context/provider.ts";
 import { resolveSchedule, type SessionInfo, type ScheduleConfig } from "./registry.ts";
 import { parseCron } from "./cron.ts";
 
@@ -15,8 +16,11 @@ export interface ServerState {
   idleTimer?: ReturnType<typeof setTimeout>;
   scheduleTimer?: ReturnType<typeof setTimeout>; // Interval-based wakeup timer
   cronTimer?: ReturnType<typeof setTimeout>; // Cron-based wakeup timer
+  inboxPollTimer?: ReturnType<typeof setInterval>; // Inbox polling timer
   importer?: SkillImporter; // For cleaning up imported skills
   getFeedback?: () => FeedbackEntry[]; // Populated when --feedback is enabled
+  contextProvider?: ContextProvider; // Shared context for instance
+  agentDisplayName?: string; // Agent name for channel operations (part before @)
 }
 
 export interface Request {

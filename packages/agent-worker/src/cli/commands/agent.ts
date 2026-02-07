@@ -10,6 +10,8 @@ import {
   listSessions,
   setDefaultSession,
   waitForReady,
+  generateAutoName,
+  getAgentDisplayName,
 } from "@/daemon/index.ts";
 import { buildAgentId, parseAgentId, isValidInstanceName, DEFAULT_INSTANCE } from "../instance.ts";
 import { outputJson } from "../output.ts";
@@ -42,19 +44,24 @@ async function createAgentAction(
   const backend = (options.backend ?? "sdk") as BackendType;
   const model = options.model || getDefaultModel();
   const idleTimeout = parseInt(options.idleTimeout ?? "1800000", 10);
+  const instance = options.instance || DEFAULT_INSTANCE;
 
-  // Build agent name with instance
-  let agentName = name;
-  if (name && options.instance) {
+  // Auto-generate name if not provided (a0, a1, ..., z9)
+  const agentName = name || generateAutoName();
+
+  // Build full agent@instance name
+  let fullName: string;
+  if (agentName.includes("@")) {
+    fullName = agentName;
+  } else if (options.instance) {
     if (!isValidInstanceName(options.instance)) {
       console.error(`Invalid instance name: ${options.instance}`);
       console.error("Instance names must be alphanumeric, hyphen, or underscore");
       process.exit(1);
     }
-    agentName = buildAgentId(name, options.instance);
-  } else if (name && !name.includes("@")) {
-    // Add default instance if not already specified
-    agentName = buildAgentId(name, DEFAULT_INSTANCE);
+    fullName = buildAgentId(agentName, options.instance);
+  } else {
+    fullName = buildAgentId(agentName, DEFAULT_INSTANCE);
   }
 
   // Build schedule config if provided
@@ -69,7 +76,8 @@ async function createAgentAction(
     startDaemon({
       model,
       system,
-      name: agentName,
+      name: fullName,
+      instance,
       idleTimeout,
       backend,
       skills: options.skill,
@@ -80,10 +88,8 @@ async function createAgentAction(
     });
   } else {
     const scriptPath = process.argv[1] ?? "";
-    const args = [scriptPath, "new", "-m", model, "-b", backend, "-s", system, "--foreground"];
-    if (agentName) {
-      args.splice(2, 0, agentName);
-    }
+    const args = [scriptPath, "new", agentName, "-m", model, "-b", backend, "-s", system, "--foreground"];
+    args.push("--instance", instance);
     args.push("--idle-timeout", String(idleTimeout));
     if (options.feedback) {
       args.push("--feedback");
@@ -117,17 +123,14 @@ async function createAgentAction(
     child.unref();
 
     // Wait for ready signal instead of blind timeout
-    const info = await waitForReady(agentName, 5000);
+    const info = await waitForReady(fullName, 5000);
     if (info) {
-      const displayName = name || info.id.slice(0, 8);
-      const instanceStr = options.instance ? `@${options.instance}` : "";
+      const instanceStr = instance !== DEFAULT_INSTANCE ? `@${instance}` : "";
 
       if (options.json) {
-        outputJson({ name: `${displayName}${instanceStr}`, model: info.model, backend });
+        outputJson({ name: agentName, instance, model: info.model, backend });
       } else {
-        console.log(`Agent started: ${displayName}${instanceStr}`);
-        console.log(`Model: ${info.model}`);
-        console.log(`Backend: ${backend}`);
+        console.log(`${agentName}${instanceStr}`);
       }
     } else {
       console.error("Failed to start agent");
@@ -137,8 +140,13 @@ async function createAgentAction(
 }
 
 // Common action for listing agents
-function listAgentsAction(options?: { json?: boolean }) {
-  const sessions = listSessions();
+function listAgentsAction(options?: { json?: boolean; instance?: string }) {
+  let sessions = listSessions();
+
+  // Filter by instance if specified
+  if (options?.instance) {
+    sessions = sessions.filter((s) => s.instance === options.instance);
+  }
 
   if (options?.json) {
     outputJson(
@@ -147,7 +155,7 @@ function listAgentsAction(options?: { json?: boolean }) {
         return {
           id: s.id,
           name: parsed?.agent ?? null,
-          instance: parsed?.instance ?? null,
+          instance: s.instance,
           model: s.model,
           backend: s.backend,
           running: isSessionRunning(s.id),
@@ -162,19 +170,69 @@ function listAgentsAction(options?: { json?: boolean }) {
     return;
   }
 
+  // Group by instance
+  const byInstance = new Map<string, typeof sessions>();
   for (const s of sessions) {
-    const running = isSessionRunning(s.id);
-    const status = running ? "running" : "stopped";
-    const shortId = s.id.slice(0, 8);
+    const inst = s.instance || DEFAULT_INSTANCE;
+    if (!byInstance.has(inst)) byInstance.set(inst, []);
+    byInstance.get(inst)!.push(s);
+  }
 
-    // Show: shortId (name) - model [status] or shortId - model [status]
-    if (s.name) {
-      const parsed = parseAgentId(s.name);
-      const instanceStr = parsed.instance !== DEFAULT_INSTANCE ? `@${parsed.instance}` : "";
-      console.log(`  ${shortId} (${parsed.agent}${instanceStr}) - ${s.model} [${status}]`);
-    } else {
-      console.log(`  ${shortId} - ${s.model} [${status}]`);
+  for (const [inst, agents] of byInstance) {
+    if (byInstance.size > 1) {
+      console.log(`[${inst}]`);
     }
+    for (const s of agents) {
+      const running = isSessionRunning(s.id);
+      const status = running ? "running" : "stopped";
+      const displayName = s.name ? getAgentDisplayName(s.name) : s.id.slice(0, 8);
+      const prefix = byInstance.size > 1 ? "  " : "";
+      console.log(`${prefix}${displayName.padEnd(12)} ${s.model.padEnd(30)} [${status}]`);
+    }
+  }
+}
+
+// Common action for stopping agents
+async function stopAgentAction(target?: string, options?: { all?: boolean; instance?: string }) {
+  if (options?.all) {
+    const sessions = listSessions();
+    for (const s of sessions) {
+      if (isSessionRunning(s.id)) {
+        await sendRequest({ action: "shutdown" }, s.id);
+        const displayName = s.name ? getAgentDisplayName(s.name) : s.id.slice(0, 8);
+        console.log(`Stopped: ${displayName}`);
+      }
+    }
+    return;
+  }
+
+  if (options?.instance) {
+    const sessions = listSessions().filter((s) => s.instance === options.instance);
+    for (const s of sessions) {
+      if (isSessionRunning(s.id)) {
+        await sendRequest({ action: "shutdown" }, s.id);
+        const displayName = s.name ? getAgentDisplayName(s.name) : s.id.slice(0, 8);
+        console.log(`Stopped: ${displayName}`);
+      }
+    }
+    return;
+  }
+
+  if (!target) {
+    console.error("Specify target agent, or use --all / --instance");
+    process.exit(1);
+  }
+
+  if (!isSessionRunning(target)) {
+    console.log(`Agent not found: ${target}`);
+    return;
+  }
+
+  const res = await sendRequest({ action: "shutdown" }, target);
+  if (res.success) {
+    console.log("Agent stopped");
+  } else {
+    console.error("Error:", res.error);
   }
 }
 
@@ -195,28 +253,39 @@ function addNewCommandOptions(cmd: Command): Command {
     .option("--feedback", "Enable feedback tool (agent can report tool/workflow observations)")
     .option("--wakeup <value>", "Scheduled wakeup: ms number, duration (30s/5m/2h), or cron expr")
     .option("--wakeup-prompt <prompt>", "Custom prompt for scheduled wakeup")
-    .option("--instance <name>", "Instance name")
+    .option("--instance <name>", "Instance namespace (agents in same instance share context)")
     .option("--foreground", "Run in foreground")
     .option("--json", "Output as JSON");
 }
 
 export function registerAgentCommands(program: Command) {
   // ============================================================================
-  // Agent commands
+  // Top-level commands (primary interface)
   // ============================================================================
-  const agentCmd = program.command("agent").description("Manage agents");
 
-  addNewCommandOptions(agentCmd.command("new [name]").description("Create a new agent")).action(
-    createAgentAction,
-  );
+  // `new` — create agent
+  addNewCommandOptions(
+    program.command("new [name]").description("Create a new agent (auto-names if omitted: a0, a1, ...)"),
+  ).action(createAgentAction);
 
-  agentCmd
-    .command("list")
+  // `ls` — list agents
+  program
+    .command("ls")
     .description("List all agents")
     .option("--json", "Output as JSON")
+    .option("--instance <name>", "Filter by instance")
     .action(listAgentsAction);
 
-  agentCmd
+  // `stop` — stop agent(s)
+  program
+    .command("stop [target]")
+    .description("Stop agent(s)")
+    .option("--all", "Stop all agents")
+    .option("--instance <name>", "Stop all agents in instance")
+    .action(stopAgentAction);
+
+  // `status` — check agent status
+  program
     .command("status [target]")
     .description("Check agent status")
     .option("--json", "Output as JSON")
@@ -243,7 +312,8 @@ export function registerAgentCommands(program: Command) {
       }
     });
 
-  agentCmd
+  // `use` — set default agent
+  program
     .command("use <target>")
     .description("Set default agent")
     .action((target) => {
@@ -255,39 +325,10 @@ export function registerAgentCommands(program: Command) {
       }
     });
 
-  agentCmd
-    .command("end [target]")
-    .description("End an agent (or all with --all)")
-    .option("--all", "End all agents")
-    .action(async (target, options) => {
-      if (options.all) {
-        const sessions = listSessions();
-        for (const s of sessions) {
-          if (isSessionRunning(s.id)) {
-            await sendRequest({ action: "shutdown" }, s.id);
-            console.log(`Ended: ${s.name || s.id}`);
-          }
-        }
-        return;
-      }
-
-      if (!isSessionRunning(target)) {
-        console.log(target ? `Agent not found: ${target}` : "No active agent");
-        return;
-      }
-
-      const res = await sendRequest({ action: "shutdown" }, target);
-      if (res.success) {
-        console.log("Agent ended");
-      } else {
-        console.error("Error:", res.error);
-      }
-    });
-
   // ============================================================================
-  // Schedule commands
+  // Schedule commands (top-level)
   // ============================================================================
-  const scheduleCmd = agentCmd.command("schedule").description("Manage scheduled wakeup");
+  const scheduleCmd = program.command("schedule").description("Manage scheduled wakeup");
 
   scheduleCmd
     .command("get [target]")
@@ -353,20 +394,4 @@ export function registerAgentCommands(program: Command) {
         process.exit(1);
       }
     });
-
-  // ============================================================================
-  // Top-level shortcuts
-  // ============================================================================
-
-  // `new` as shorthand for `agent new`
-  addNewCommandOptions(
-    program.command("new [name]").description('Create a new agent (shorthand for "agent new")'),
-  ).action(createAgentAction);
-
-  // `ls` as alias for `agent list`
-  program
-    .command("ls")
-    .description('List all agents (alias for "agent list")')
-    .option("--json", "Output as JSON")
-    .action(listAgentsAction);
 }
