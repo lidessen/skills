@@ -118,6 +118,17 @@ export function buildAgentPrompt(ctx: AgentRunContext): string {
     "- **resource_create**: Store large content, get a reference (resource:id) for use anywhere.",
   );
   sections.push("- **resource_read**: Read resource content by ID.");
+
+  // Feedback tool (opt-in)
+  if (ctx.feedback) {
+    sections.push("");
+    sections.push("### Feedback Tool");
+    sections.push(
+      "- **feedback_submit**: Report observations about tools or workflows — friction, bugs, suggestions, or praise.",
+    );
+    sections.push("  Only use when you genuinely have something to say. Be specific.");
+  }
+
   sections.push("");
   sections.push("### Workflow");
   sections.push("1. Read your inbox messages above");

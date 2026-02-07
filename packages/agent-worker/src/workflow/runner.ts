@@ -62,6 +62,8 @@ export interface RunConfig {
   contextDir?: string;
   /** Whether context is persistent (bind mode) */
   persistent?: boolean;
+  /** Enable feedback tool on MCP server */
+  feedback?: boolean;
 }
 
 /**
@@ -112,6 +114,8 @@ export interface WorkflowRuntime {
   sendKickoff: () => Promise<void>;
   /** Shutdown all resources */
   shutdown: () => Promise<void>;
+  /** Retrieve collected feedback (only when feedback enabled) */
+  getFeedback?: () => import("../agent/tools/feedback.ts").FeedbackEntry[];
 }
 
 // ==================== Provider Creation ====================
@@ -178,6 +182,7 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
     instance = "default",
     onMention,
     debugLog,
+    feedback: feedbackEnabled,
   } = config;
 
   // Use provided logger, or create a silent one
@@ -209,15 +214,20 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
   const projectDir = process.cwd();
 
   // Create MCP server (HTTP)
-  const createMCPServerInstance = () =>
-    createContextMCPServer({
+  let mcpGetFeedback: (() => import("../agent/tools/feedback.ts").FeedbackEntry[]) | undefined;
+  const createMCPServerInstance = () => {
+    const mcp = createContextMCPServer({
       provider: contextProvider,
       validAgents: agentNames,
       name: `${workflow.name}-context`,
       version: "1.0.0",
       onMention,
+      feedback: feedbackEnabled,
       debugLog,
-    }).server;
+    });
+    mcpGetFeedback = mcp.getFeedback;
+    return mcp.server;
+  };
 
   const httpMcpServer = await runWithHttp({
     createServerInstance: createMCPServerInstance,
@@ -296,6 +306,8 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
       }
       await httpMcpServer.close();
     },
+
+    getFeedback: mcpGetFeedback,
   };
 
   logger.debug(`Workflow initialized in ${Date.now() - startTime}ms`);
@@ -410,6 +422,8 @@ export interface ControllerRunConfig {
   pollInterval?: number;
   /** Custom backend factory (optional, defaults to getBackendForModel) */
   createBackend?: (agentName: string, agent: ResolvedAgent) => Backend;
+  /** Enable feedback tool for all workflow agents */
+  feedback?: boolean;
 }
 
 /**
@@ -432,6 +446,8 @@ export interface ControllerRunResult {
   controllers?: Map<string, AgentController>;
   /** Shutdown function */
   shutdown?: () => Promise<void>;
+  /** Feedback entries collected during workflow (when --feedback enabled) */
+  feedback?: import("../agent/tools/feedback.ts").FeedbackEntry[];
 }
 
 /**
@@ -451,6 +467,7 @@ export async function runWorkflowWithControllers(
     mode = "run",
     pollInterval = 5000,
     createBackend,
+    feedback: feedbackEnabled,
   } = config;
   const startTime = Date.now();
 
@@ -491,6 +508,7 @@ export async function runWorkflowWithControllers(
         }
       },
       debugLog: (msg) => logger.debug(msg),
+      feedback: feedbackEnabled,
     });
 
     logger.debug("Runtime initialized", {
@@ -544,6 +562,7 @@ export async function runWorkflowWithControllers(
         backend,
         pollInterval,
         log: (msg) => controllerLogger.debug(msg),
+        feedback: feedbackEnabled,
       });
 
       controllers.set(agentName, controller);
@@ -611,6 +630,7 @@ export async function runWorkflowWithControllers(
         duration: Date.now() - startTime,
         mcpUrl: runtime.mcpUrl,
         contextProvider: runtime.contextProvider,
+        feedback: runtime.getFeedback?.(),
       };
     }
 
@@ -629,6 +649,7 @@ export async function runWorkflowWithControllers(
         await shutdownControllers(controllers, logger);
         await runtime.shutdown();
       },
+      feedback: runtime.getFeedback?.(),
     };
   } catch (error) {
     // Error during init — no channel logger available, fall back to console

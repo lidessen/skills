@@ -7,6 +7,7 @@
  * - Team:     team_members, team_doc_*, team_proposal_*, team_vote (shared workspace)
  * - My:       my_inbox, my_inbox_ack (personal agent tools)
  * - Resource: resource_create, resource_read (general-purpose reference mechanism)
+ * - Feedback: feedback_submit (agent observations about tools/workflows, opt-in)
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -14,6 +15,7 @@ import { z } from "zod";
 import type { ContextProvider, SendOptions } from "./provider.ts";
 import type { Message, InboxMessage, ResourceType } from "./types.ts";
 import { formatProposal, formatProposalList, type ProposalManager } from "./proposals.ts";
+import type { FeedbackEntry } from "../../agent/tools/feedback.ts";
 
 /**
  * MCP Server options
@@ -37,6 +39,11 @@ export interface ContextMCPServerOptions {
    * If not provided, proposal tools will not be registered
    */
   proposalManager?: ProposalManager;
+  /**
+   * Enable feedback tool (optional)
+   * When true, registers feedback_submit tool for agents to report observations
+   */
+  feedback?: boolean;
   /**
    * Debug log function for tool calls (optional)
    * When provided, logs all tool calls with agent and parameters
@@ -83,8 +90,12 @@ export function createContextMCPServer(options: ContextMCPServerOptions) {
     version = "1.0.0",
     onMention,
     proposalManager,
+    feedback: feedbackEnabled,
     debugLog,
   } = options;
+
+  // Feedback collection (populated only when feedbackEnabled)
+  const feedbackEntries: FeedbackEntry[] = [];
 
   // Helper to log tool calls
   const logTool = (tool: string, agent: string | undefined, params: Record<string, unknown>) => {
@@ -673,11 +684,65 @@ export function createContextMCPServer(options: ContextMCPServerOptions) {
     );
   }
 
+  // ==================== Feedback Tool ====================
+  // Only register if feedback is enabled
+
+  if (feedbackEnabled) {
+    server.tool(
+      "feedback_submit",
+      "Submit feedback about a tool, workflow, or process. Use when you notice friction, bugs, missing capabilities, or something that works well.",
+      {
+        target: z
+          .string()
+          .describe(
+            "What you are giving feedback on — a tool name, a workflow step, or a general area.",
+          ),
+        type: z
+          .enum(["bug", "suggestion", "friction", "praise"])
+          .describe(
+            "bug: something broken. suggestion: an improvement idea. friction: something awkward or slow. praise: something that works well.",
+          ),
+        description: z.string().describe("What you observed or suggest. Be specific."),
+        context: z
+          .string()
+          .optional()
+          .describe("Optional: what you were doing when you noticed this."),
+      },
+      async ({ target, type, description, context: ctx }, extra) => {
+        const from = getAgentId(extra) || "anonymous";
+        logTool("feedback_submit", from, { target, type });
+
+        const entry: FeedbackEntry = {
+          timestamp: new Date().toISOString(),
+          target,
+          type,
+          description,
+          ...(ctx ? { context: ctx } : {}),
+        };
+
+        if (feedbackEntries.length >= 50) {
+          feedbackEntries.shift();
+        }
+        feedbackEntries.push(entry);
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ status: "recorded" }),
+            },
+          ],
+        };
+      },
+    );
+  }
+
   return {
     server,
     agentConnections,
     validAgents,
     proposalManager,
+    getFeedback: () => [...feedbackEntries],
   };
 }
 

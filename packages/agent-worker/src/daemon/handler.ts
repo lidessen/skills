@@ -2,6 +2,7 @@ import type { Server } from "node:net";
 import { tool, jsonSchema } from "ai";
 import type { AgentSession } from "../agent/session.ts";
 import type { SkillImporter } from "../agent/skills/index.ts";
+import type { FeedbackEntry } from "../agent/tools/feedback.ts";
 import type { SessionInfo } from "./registry.ts";
 
 export interface ServerState {
@@ -12,6 +13,7 @@ export interface ServerState {
   pendingRequests: number;
   idleTimer?: ReturnType<typeof setTimeout>;
   importer?: SkillImporter; // For cleaning up imported skills
+  getFeedback?: () => FeedbackEntry[]; // Populated when --feedback is enabled
 }
 
 export interface Request {
@@ -206,6 +208,13 @@ export async function handleRequest(
         const { id, reason } = req.payload as { id: string; reason?: string };
         session.deny(id, reason);
         return { success: true };
+      }
+
+      case "feedback_list": {
+        if (!state.getFeedback) {
+          return { success: false, error: "Feedback not enabled. Start agent with --feedback" };
+        }
+        return { success: true, data: state.getFeedback() };
       }
 
       case "shutdown":

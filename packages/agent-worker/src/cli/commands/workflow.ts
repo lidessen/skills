@@ -10,6 +10,7 @@ export function registerWorkflowCommands(program: Command) {
     .description("Execute workflow and exit when complete")
     .option("--instance <name>", "Instance name", "default")
     .option("-d, --debug", "Show debug details (internal logs, MCP traces, idle checks)")
+    .option("--feedback", "Enable feedback tool (agents can report tool/workflow observations)")
     .option("--json", "Output results as JSON")
     .action(async (file, options) => {
       const { parseWorkflowFile, runWorkflowWithControllers } =
@@ -24,6 +25,7 @@ export function registerWorkflowCommands(program: Command) {
           debug: options.debug,
           log: console.log,
           mode: "run",
+          feedback: options.feedback,
         });
 
         if (!result.success) {
@@ -41,6 +43,7 @@ export function registerWorkflowCommands(program: Command) {
                   success: true,
                   duration: result.duration,
                   document: finalDoc,
+                  feedback: result.feedback,
                 },
                 null,
                 2,
@@ -49,6 +52,14 @@ export function registerWorkflowCommands(program: Command) {
           } else if (finalDoc) {
             console.log("\n--- Document ---");
             console.log(finalDoc);
+          }
+        }
+
+        // Print feedback summary
+        if (result.feedback && result.feedback.length > 0) {
+          console.log(`\n--- Feedback (${result.feedback.length}) ---`);
+          for (const entry of result.feedback) {
+            console.log(`  [${entry.type}] ${entry.target}: ${entry.description}`);
           }
         }
       } catch (error) {
@@ -63,6 +74,7 @@ export function registerWorkflowCommands(program: Command) {
     .description("Start workflow and keep agents running")
     .option("--instance <name>", "Instance name", "default")
     .option("-d, --debug", "Show debug details (internal logs, MCP traces, idle checks)")
+    .option("--feedback", "Enable feedback tool (agents can report tool/workflow observations)")
     .option("--background", "Run in background (daemonize)")
     .action(async (file, options) => {
       const { parseWorkflowFile, runWorkflowWithControllers } =
@@ -107,6 +119,7 @@ export function registerWorkflowCommands(program: Command) {
           debug: options.debug,
           log: console.log,
           mode: "start",
+          feedback: options.feedback,
         });
 
         if (!result.success) {

@@ -6,6 +6,8 @@ import { AgentSession } from "../agent/session.ts";
 import type { BackendType } from "../backends/types.ts";
 import { createBackend } from "../backends/index.ts";
 import { SkillsProvider, createSkillsTool, SkillImporter } from "../agent/skills/index.ts";
+import { createFeedbackTool, FEEDBACK_PROMPT } from "../agent/tools/feedback.ts";
+import type { FeedbackEntry } from "../agent/tools/feedback.ts";
 import { SESSIONS_DIR, ensureDirs, registerSession, unregisterSession } from "./registry.ts";
 import type { SessionInfo } from "./registry.ts";
 import { handleRequest } from "./handler.ts";
@@ -174,6 +176,7 @@ export async function startDaemon(config: {
   skills?: string[];
   skillDirs?: string[];
   importSkills?: string[];
+  feedback?: boolean;
 }): Promise<void> {
   ensureDirs();
 
@@ -188,6 +191,17 @@ export async function startDaemon(config: {
     config.importSkills,
   );
 
+  // Setup feedback tool if enabled
+  let getFeedback: (() => FeedbackEntry[]) | undefined;
+  if (config.feedback) {
+    const fb = createFeedbackTool();
+    tools.feedback = fb.tool;
+    getFeedback = fb.getFeedback;
+  }
+
+  // Build system prompt (append feedback instructions if enabled)
+  const system = config.feedback ? `${config.system}\n\n${FEEDBACK_PROMPT}` : config.system;
+
   // Create unified AgentSession (with CLI backend for non-SDK types)
   const cliBackend =
     backendType !== "sdk"
@@ -199,7 +213,7 @@ export async function startDaemon(config: {
 
   const session = new AgentSession({
     model: config.model,
-    system: config.system,
+    system,
     tools,
     backend: cliBackend,
   });
@@ -278,6 +292,7 @@ export async function startDaemon(config: {
       lastActivity: Date.now(),
       pendingRequests: 0,
       importer,
+      getFeedback,
     };
 
     // Write ready file (signals CLI that server is ready)
