@@ -1,7 +1,5 @@
 import type { Command } from "commander";
 import { spawn } from "node:child_process";
-import { sendRequest } from "../client.ts";
-import { isSessionRunning, listSessions } from "@/daemon/index.ts";
 
 export function registerWorkflowCommands(program: Command) {
   // Run workflow
@@ -138,95 +136,6 @@ export function registerWorkflowCommands(program: Command) {
         console.error("Error:", error instanceof Error ? error.message : String(error));
         await cleanup();
         process.exit(1);
-      }
-    });
-
-  // Stop workflow/agents
-  program
-    .command("stop [target]")
-    .description("Stop workflow agents")
-    .option("--all", "Stop all agents")
-    .option("--instance <name>", "Instance name to stop")
-    .action(async (target, options) => {
-      if (options.all) {
-        const sessions = listSessions();
-        for (const s of sessions) {
-          if (isSessionRunning(s.id)) {
-            await sendRequest({ action: "shutdown" }, s.id);
-            console.log(`Stopped: ${s.name || s.id}`);
-          }
-        }
-        return;
-      }
-
-      if (options.instance) {
-        // Stop all agents for this instance
-        const sessions = listSessions();
-        for (const s of sessions) {
-          if (s.name && s.name.includes(`@${options.instance}`) && isSessionRunning(s.id)) {
-            await sendRequest({ action: "shutdown" }, s.id);
-            console.log(`Stopped: ${s.name}`);
-          }
-        }
-        return;
-      }
-
-      if (!target) {
-        console.error("Specify target agent or use --all/--instance");
-        process.exit(1);
-      }
-
-      if (!isSessionRunning(target)) {
-        console.log(`Agent not found: ${target}`);
-        return;
-      }
-
-      const res = await sendRequest({ action: "shutdown" }, target);
-      if (res.success) {
-        console.log("Agent stopped");
-      } else {
-        console.error("Error:", res.error);
-      }
-    });
-
-  // List running workflows/agents
-  program
-    .command("list")
-    .description("List running agents")
-    .option("--json", "Output as JSON")
-    .action((options) => {
-      const sessions = listSessions();
-
-      if (sessions.length === 0) {
-        console.log("No running agents");
-        return;
-      }
-
-      if (options.json) {
-        console.log(
-          JSON.stringify(
-            sessions.map((s) => ({
-              name: s.name,
-              model: s.model,
-              backend: s.backend,
-              running: isSessionRunning(s.id),
-            })),
-            null,
-            2,
-          ),
-        );
-        return;
-      }
-
-      // Table header
-      console.log("NAME".padEnd(25) + "MODEL".padEnd(35) + "STATUS");
-      console.log("-".repeat(70));
-
-      for (const s of sessions) {
-        const running = isSessionRunning(s.id);
-        const status = running ? "running" : "stopped";
-        const name = s.name || s.id.slice(0, 8);
-        console.log(name.padEnd(25) + s.model.padEnd(35) + status);
       }
     });
 }

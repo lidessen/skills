@@ -22,6 +22,7 @@ import type { BackendType } from "../backends/types.ts";
 
 export const CONFIG_DIR = join(homedir(), ".agent-worker");
 export const SESSIONS_DIR = join(CONFIG_DIR, "sessions");
+export const CONTEXTS_DIR = join(CONFIG_DIR, "contexts");
 const DEFAULT_FILE = join(CONFIG_DIR, "default");
 
 /**
@@ -102,6 +103,8 @@ export function resolveSchedule(config: ScheduleConfig): ResolvedSchedule {
 export interface SessionInfo {
   id: string;
   name?: string;
+  /** Instance namespace (agents in the same instance share context) */
+  instance: string;
   model: string;
   system: string;
   backend: BackendType;
@@ -274,4 +277,78 @@ export async function waitForReady(
   }
 
   return null;
+}
+
+// ==================== Instance Context ====================
+
+/**
+ * Get the context directory path for an instance.
+ * All agents in the same instance share this directory for channel + documents.
+ */
+export function getInstanceContextDir(instance: string): string {
+  return join(CONTEXTS_DIR, instance);
+}
+
+/**
+ * Ensure instance context directory exists. Returns the path.
+ */
+export function ensureInstanceContext(instance: string): string {
+  const dir = getInstanceContextDir(instance);
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+/**
+ * Get all sessions belonging to an instance.
+ */
+export function getInstanceAgents(instance: string): SessionInfo[] {
+  return readAllSessions().filter((s) => s.instance === instance);
+}
+
+/**
+ * Get agent display names (before @) for all agents in an instance.
+ */
+export function getInstanceAgentNames(instance: string): string[] {
+  return getInstanceAgents(instance)
+    .map((s) => {
+      if (!s.name) return null;
+      const atIndex = s.name.indexOf("@");
+      return atIndex === -1 ? s.name : s.name.slice(0, atIndex);
+    })
+    .filter((n): n is string => n !== null);
+}
+
+/**
+ * Extract agent display name from session name (part before @).
+ */
+export function getAgentDisplayName(sessionName: string): string {
+  const atIndex = sessionName.indexOf("@");
+  return atIndex === -1 ? sessionName : sessionName.slice(0, atIndex);
+}
+
+// ==================== Auto-naming ====================
+
+/**
+ * Generate next available agent name in sequence: a0, a1, ..., a9, b0, ..., z9.
+ * Checks existing sessions to avoid collisions.
+ */
+export function generateAutoName(): string {
+  const sessions = readAllSessions();
+  const usedNames = new Set<string>();
+  for (const s of sessions) {
+    if (s.name) {
+      const atIndex = s.name.indexOf("@");
+      usedNames.add(atIndex === -1 ? s.name : s.name.slice(0, atIndex));
+    }
+  }
+
+  for (let letter = 0; letter < 26; letter++) {
+    for (let digit = 0; digit < 10; digit++) {
+      const name = String.fromCharCode(97 + letter) + digit;
+      if (!usedNames.has(name)) return name;
+    }
+  }
+
+  // Fallback if all 260 names taken
+  return `agent-${crypto.randomUUID().slice(0, 6)}`;
 }
