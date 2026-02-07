@@ -5,7 +5,12 @@
 import type { ContextConfig } from "./context/types.ts";
 
 // Re-export context types for convenience
-export type { ContextConfig, FileContextConfig, MemoryContextConfig } from "./context/types.ts";
+export type {
+  ContextConfig,
+  FileContextConfig,
+  MemoryContextConfig,
+  BindContextConfig,
+} from "./context/types.ts";
 
 // ==================== Workflow File ====================
 
@@ -105,6 +110,12 @@ export interface ResolvedFileContext {
   dir: string;
   /** Document owner (single-writer model, optional) */
   documentOwner?: string;
+  /**
+   * Whether this context is persistent (bound).
+   * When true, shutdown preserves ALL state (inbox, channel, docs).
+   * When false (default), shutdown clears transient state (inbox cursors).
+   */
+  persistent?: boolean;
 }
 
 /** Resolved memory context (for testing) */

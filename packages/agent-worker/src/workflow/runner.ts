@@ -16,7 +16,7 @@ import type {
   ResolvedFileContext,
 } from "./types.ts";
 import { interpolate, createContext, type VariableContext } from "./interpolate.ts";
-import { createFileContextProvider } from "./context/file-provider.ts";
+import { createFileContextProvider, FileContextProvider } from "./context/file-provider.ts";
 import { createMemoryContextProvider } from "./context/memory-provider.ts";
 import { createContextMCPServer } from "./context/mcp-server.ts";
 import { runWithHttp, type HttpMCPServer } from "./context/http-transport.ts";
@@ -148,7 +148,7 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
     contextProvider = createMemoryContextProvider(agentNames);
     contextDir = join(tmpdir(), `agent-worker-${workflow.name}-${instance}`);
   } else {
-    // File provider (default)
+    // File provider (default or bind)
     const fileContext = resolvedContext as ResolvedFileContext;
     contextDir = fileContext.dir;
 
@@ -157,12 +157,19 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
       mkdirSync(contextDir, { recursive: true });
     }
 
-    if (verbose) log(`Context directory: ${contextDir}`);
+    if (verbose) {
+      const mode = fileContext.persistent ? "persistent (bind)" : "ephemeral";
+      log(`Context directory: ${contextDir} [${mode}]`);
+    }
 
     const fileProvider = createFileContextProvider(contextDir, agentNames);
     fileProvider.acquireLock();
     contextProvider = fileProvider;
   }
+
+  // Determine if context is persistent (bind mode)
+  const isPersistent =
+    resolvedContext.provider === "file" && (resolvedContext as ResolvedFileContext).persistent === true;
 
   // Create MCP server (HTTP)
   const createMCPServerInstance = () =>
@@ -237,7 +244,15 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
 
     async shutdown() {
       if (verbose) log("\nShutting down workflow...");
-      await contextProvider.destroy();
+      if (isPersistent) {
+        // Persistent (bind) mode: only release lock, preserve all state for resume
+        if (contextProvider instanceof FileContextProvider) {
+          contextProvider.releaseLock();
+        }
+      } else {
+        // Ephemeral mode: clean up transient state + release lock
+        await contextProvider.destroy();
+      }
       await httpMcpServer.close();
     },
   };

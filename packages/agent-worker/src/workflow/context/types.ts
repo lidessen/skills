@@ -115,8 +115,9 @@ export interface InboxState {
  * - false: explicitly disabled
  * - { provider: 'file', config?: {...} }: file provider with optional config
  * - { provider: 'memory' }: memory provider (for testing)
+ * - { bind: './path' }: shorthand for persistent file provider (like docker compose volumes)
  */
-export type ContextConfig = false | FileContextConfig | MemoryContextConfig;
+export type ContextConfig = false | FileContextConfig | MemoryContextConfig | BindContextConfig;
 
 /** File-based context provider configuration */
 export interface FileContextConfig {
@@ -129,6 +130,24 @@ export interface FileContextConfig {
 /** Memory-based context provider configuration (for testing) */
 export interface MemoryContextConfig {
   provider: "memory";
+  /** Document owner (single-writer model, optional) */
+  documentOwner?: string;
+}
+
+/**
+ * Bind context configuration — persistent file provider.
+ * Like Docker Compose volumes: binds a directory for cross-run persistence.
+ *
+ * Key difference from `provider: 'file'`:
+ * - Shutdown preserves ALL state (inbox cursors, channel, documents)
+ * - Next run resumes where the previous left off
+ * - Path is relative to the workflow file (like docker-compose.yml)
+ *
+ * Supports ${{ instance }} template for per-instance directories.
+ */
+export interface BindContextConfig {
+  /** Directory path to bind (relative to workflow file, or absolute) */
+  bind: string;
   /** Document owner (single-writer model, optional) */
   documentOwner?: string;
 }
