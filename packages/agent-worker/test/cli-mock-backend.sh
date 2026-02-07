@@ -97,34 +97,13 @@ else
   fail "No inbox messages in agent prompts"
 fi
 
-# ==================== Test 2: Verbose mode output ====================
+# ==================== Test 2: Default mode shows channel output ====================
 
 echo ""
-echo "Test 2: Verbose mode output"
-echo "───────────────────────────"
+echo "Test 2: Default mode shows channel output"
+echo "──────────────────────────────────────────"
 
 OUTPUT="$OUTPUT_DIR/test2.txt"
-
-if timeout 60 npx tsx src/cli/index.ts run "$FIXTURE" --verbose > "$OUTPUT" 2>&1; then
-  pass "Exit code 0 (verbose)"
-else
-  fail "Exit code non-zero (verbose)"
-fi
-
-# Channel messages should be visible in non-debug mode
-if grep -q "alice\|bob" "$OUTPUT" 2>/dev/null; then
-  pass "Agent activity visible in verbose output"
-else
-  fail "No agent activity in verbose output"
-fi
-
-# ==================== Test 3: Default mode (no flags) ====================
-
-echo ""
-echo "Test 3: Default mode (no flags)"
-echo "────────────────────────────────"
-
-OUTPUT="$OUTPUT_DIR/test3.txt"
 
 if timeout 60 npx tsx src/cli/index.ts run "$FIXTURE" > "$OUTPUT" 2>&1; then
   pass "Exit code 0 (default mode)"
@@ -132,11 +111,27 @@ else
   fail "Exit code non-zero (default mode)"
 fi
 
-# Should show workflow name
-if grep -q "mock-test\|Running workflow" "$OUTPUT" 2>/dev/null; then
-  pass "Workflow header displayed"
+# Channel messages (agent activity + operational logs) should be visible by default
+if grep -q "alice\|bob" "$OUTPUT" 2>/dev/null; then
+  pass "Agent activity visible in default output"
 else
-  fail "No workflow header in output"
+  fail "No agent activity in default output"
+fi
+
+# ==================== Test 3: Operational logs visible by default ====================
+
+echo ""
+echo "Test 3: Operational logs visible by default"
+echo "────────────────────────────────────────────"
+
+# Reuse test2 output (same default mode)
+OUTPUT="$OUTPUT_DIR/test2.txt"
+
+# Should show workflow name via operational logs (kind="log")
+if grep -q "mock-test\|Running workflow" "$OUTPUT" 2>/dev/null; then
+  pass "Workflow info displayed via channel logs"
+else
+  fail "No workflow info in output"
 fi
 
 # ==================== Summary ====================

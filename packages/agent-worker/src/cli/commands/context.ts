@@ -34,12 +34,18 @@ export function registerContextCommands(program: Command) {
     .requiredOption("--dir <path>", "Context directory path")
     .option("--since <timestamp>", "Read entries after this timestamp")
     .option("--limit <count>", "Maximum entries to return", parseInt)
+    .option("-d, --debug", "Include debug entries")
     .option("--json", "Output as JSON")
     .action(async (options) => {
       const { createFileContextProvider } = await import("@/workflow/context/index.ts");
 
       const provider = createFileContextProvider(options.dir, []);
-      const entries = await provider.readChannel({ since: options.since, limit: options.limit });
+      let entries = await provider.readChannel({ since: options.since, limit: options.limit });
+
+      // Filter out debug entries unless --debug
+      if (!options.debug) {
+        entries = entries.filter((e) => e.kind !== "debug");
+      }
 
       if (options.json) {
         console.log(JSON.stringify(entries, null, 2));
@@ -53,7 +59,8 @@ export function registerContextCommands(program: Command) {
 
       for (const entry of entries) {
         const mentions = entry.mentions.length > 0 ? ` → @${entry.mentions.join(" @")}` : "";
-        console.log(`[${entry.timestamp}] ${entry.from}${mentions}`);
+        const kindTag = entry.kind ? ` [${entry.kind}]` : "";
+        console.log(`[${entry.timestamp}] ${entry.from}${kindTag}${mentions}`);
         console.log(`  ${entry.content.split("\n").join("\n  ")}`);
       }
     });
@@ -63,13 +70,19 @@ export function registerContextCommands(program: Command) {
     .description("Peek at recent channel messages")
     .requiredOption("--dir <path>", "Context directory path")
     .option("-n, --count <count>", "Number of messages", "5")
+    .option("-d, --debug", "Include debug entries")
     .option("--json", "Output as JSON")
     .action(async (options) => {
       const { createFileContextProvider } = await import("@/workflow/context/index.ts");
 
       const provider = createFileContextProvider(options.dir, []);
       const count = parseInt(options.count, 10);
-      const entries = await provider.readChannel({ limit: count });
+      let entries = await provider.readChannel({ limit: count });
+
+      // Filter out debug entries unless --debug
+      if (!options.debug) {
+        entries = entries.filter((e) => e.kind !== "debug");
+      }
 
       if (options.json) {
         console.log(JSON.stringify(entries, null, 2));
@@ -83,8 +96,9 @@ export function registerContextCommands(program: Command) {
 
       for (const entry of entries) {
         const mentions = entry.mentions.length > 0 ? ` → @${entry.mentions.join(" @")}` : "";
+        const kindTag = entry.kind ? ` [${entry.kind}]` : "";
         console.log(
-          `[${entry.from}]${mentions} ${entry.content.length > 80 ? entry.content.slice(0, 80) + "..." : entry.content}`,
+          `[${entry.from}]${kindTag}${mentions} ${entry.content.length > 80 ? entry.content.slice(0, 80) + "..." : entry.content}`,
         );
       }
     });

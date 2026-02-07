@@ -9,29 +9,21 @@ export function registerWorkflowCommands(program: Command) {
     .command("run <file>")
     .description("Execute workflow and exit when complete")
     .option("--instance <name>", "Instance name", "default")
-    .option("-v, --verbose", "Show detailed progress")
-    .option("-d, --debug", "Show debug logs (internal details, no channel output)")
+    .option("-d, --debug", "Show debug details (internal logs, MCP traces, idle checks)")
     .option("--json", "Output results as JSON")
     .action(async (file, options) => {
       const { parseWorkflowFile, runWorkflowWithControllers } =
         await import("@/workflow/index.ts");
 
       try {
-        // Parse workflow
         const workflow = await parseWorkflowFile(file, { instance: options.instance });
-
-        if (!options.debug) {
-          console.log(`Running workflow: ${workflow.name}`);
-          console.log(`Agents: ${Object.keys(workflow.agents).join(", ")}\n`);
-        }
 
         const result = await runWorkflowWithControllers({
           workflow,
           instance: options.instance,
-          verbose: options.verbose,
           debug: options.debug,
           log: console.log,
-          mode: "run", // Exit when all agents idle
+          mode: "run",
         });
 
         if (!result.success) {
@@ -39,12 +31,8 @@ export function registerWorkflowCommands(program: Command) {
           process.exit(1);
         }
 
-        if (options.verbose && !options.debug) {
-          console.log(`\nWorkflow completed in ${result.duration}ms`);
-        }
-
         // Read final document content as result
-        if (result.contextProvider && !options.debug) {
+        if (result.contextProvider) {
           const finalDoc = await result.contextProvider.readDocument();
           if (options.json) {
             console.log(
@@ -74,8 +62,7 @@ export function registerWorkflowCommands(program: Command) {
     .command("start <file>")
     .description("Start workflow and keep agents running")
     .option("--instance <name>", "Instance name", "default")
-    .option("-v, --verbose", "Show detailed progress")
-    .option("-d, --debug", "Show debug logs (internal details, no channel output)")
+    .option("-d, --debug", "Show debug details (internal logs, MCP traces, idle checks)")
     .option("--background", "Run in background (daemonize)")
     .action(async (file, options) => {
       const { parseWorkflowFile, runWorkflowWithControllers } =
@@ -85,7 +72,6 @@ export function registerWorkflowCommands(program: Command) {
       if (options.background) {
         const scriptPath = process.argv[1] ?? "";
         const args = [scriptPath, "start", file, "--instance", options.instance];
-        if (options.verbose) args.push("--verbose");
 
         const child = spawn(process.execPath, args, {
           detached: true,
@@ -113,21 +99,14 @@ export function registerWorkflowCommands(program: Command) {
       process.on("SIGTERM", cleanup);
 
       try {
-        // Parse workflow
         const workflow = await parseWorkflowFile(file, { instance: options.instance });
-
-        if (!options.debug) {
-          console.log(`Starting workflow: ${workflow.name}`);
-          console.log(`Agents: ${Object.keys(workflow.agents).join(", ")}\n`);
-        }
 
         const result = await runWorkflowWithControllers({
           workflow,
           instance: options.instance,
-          verbose: options.verbose,
           debug: options.debug,
           log: console.log,
-          mode: "start", // Keep running until stopped
+          mode: "start",
         });
 
         if (!result.success) {
@@ -136,10 +115,6 @@ export function registerWorkflowCommands(program: Command) {
         }
 
         shutdownFn = result.shutdown;
-
-        if (!options.debug) {
-          console.log("\nWorkflow started. Press Ctrl+C to stop.\n");
-        }
 
         // Keep process alive
         await new Promise(() => {});

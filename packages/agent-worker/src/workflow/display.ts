@@ -1,6 +1,12 @@
 /**
  * Channel display formatting
  * Terminal output formatting for workflow channel messages.
+ *
+ * All output flows through the channel. This module formats and filters
+ * channel entries for terminal display:
+ * - kind=undefined (agent messages): always shown
+ * - kind="log" (operational logs): always shown, dimmed
+ * - kind="debug" (debug details): only shown with --debug flag, dimmed
  */
 
 import type { ContextProvider } from "./context/provider.ts";
@@ -23,6 +29,8 @@ const colors = {
     "\x1b[91m", // bright red
   ],
   system: "\x1b[90m", // gray for system messages
+  yellow: "\x1b[33m",
+  red: "\x1b[31m",
 };
 
 /** Get consistent color for an agent name */
@@ -50,6 +58,13 @@ function sleep(ms: number): Promise<void> {
 /** Format a channel entry for display */
 export function formatChannelEntry(entry: Message, agentNames: string[]): string {
   const time = formatTime(entry.timestamp);
+
+  // Log/debug entries: dimmed, with source prefix
+  if (entry.kind === "log" || entry.kind === "debug") {
+    return formatLogEntry(entry, time);
+  }
+
+  // Normal agent messages
   const color = getAgentColor(entry.from, agentNames);
   const name = entry.from.padEnd(12);
 
@@ -63,11 +78,11 @@ export function formatChannelEntry(entry: Message, agentNames: string[]): string
   // Handle multi-line messages: indent continuation lines
   const lines = message.split("\n");
   if (lines.length === 1) {
-    return `${colors.dim}${time}${colors.reset} ${color}${name}${colors.reset} │ ${message}`;
+    return `${colors.dim}${time}${colors.reset} ${color}${name}${colors.reset} \u2502 ${message}`;
   }
 
-  const firstLine = `${colors.dim}${time}${colors.reset} ${color}${name}${colors.reset} │ ${lines[0]}`;
-  const indent = " ".repeat(22) + "│ ";
+  const firstLine = `${colors.dim}${time}${colors.reset} ${color}${name}${colors.reset} \u2502 ${lines[0]}`;
+  const indent = " ".repeat(22) + "\u2502 ";
   const rest = lines
     .slice(1)
     .map((l) => indent + l)
@@ -75,18 +90,54 @@ export function formatChannelEntry(entry: Message, agentNames: string[]): string
   return firstLine + "\n" + rest;
 }
 
+/** Format a log/debug channel entry */
+function formatLogEntry(entry: Message, time: string): string {
+  const source = entry.from.padEnd(12);
+  const isDebug = entry.kind === "debug";
+
+  // Detect warn/error from content prefix
+  const isWarn = entry.content.startsWith("[WARN]");
+  const isError = entry.content.startsWith("[ERROR]");
+
+  let contentColor = colors.dim;
+  if (isWarn) contentColor = colors.yellow;
+  if (isError) contentColor = colors.red;
+
+  const kindTag = isDebug ? `${colors.dim}DBG${colors.reset} ` : "";
+  const content = entry.content;
+
+  return `${colors.dim}${time} ${source}${colors.reset} ${kindTag}${contentColor}${content}${colors.reset}`;
+}
+
+/** Channel watcher configuration */
+export interface ChannelWatcherConfig {
+  /** Context provider to poll */
+  contextProvider: ContextProvider;
+  /** Agent names for color assignment */
+  agentNames: string[];
+  /** Output function */
+  log: (msg: string) => void;
+  /** Include kind="debug" entries (default: false) */
+  showDebug?: boolean;
+  /** Poll interval in ms (default: 500) */
+  pollInterval?: number;
+}
+
 /** Channel watcher state */
 export interface ChannelWatcher {
   stop: () => void;
 }
 
-/** Start watching channel and logging new entries */
-export function startChannelWatcher(
-  contextProvider: ContextProvider,
-  agentNames: string[],
-  log: (msg: string) => void,
-  pollInterval = 500,
-): ChannelWatcher {
+/** Start watching channel and displaying new entries */
+export function startChannelWatcher(config: ChannelWatcherConfig): ChannelWatcher {
+  const {
+    contextProvider,
+    agentNames,
+    log,
+    showDebug = false,
+    pollInterval = 500,
+  } = config;
+
   let lastTimestamp: string | undefined;
   let running = true;
 
@@ -97,6 +148,12 @@ export function startChannelWatcher(
         for (const entry of entries) {
           // Skip if we've already seen this (readChannel is "since", not "after")
           if (lastTimestamp && entry.timestamp <= lastTimestamp) continue;
+
+          // Filter: skip debug entries unless --debug is on
+          if (entry.kind === "debug" && !showDebug) {
+            lastTimestamp = entry.timestamp;
+            continue;
+          }
 
           log(formatChannelEntry(entry, agentNames));
           lastTimestamp = entry.timestamp;

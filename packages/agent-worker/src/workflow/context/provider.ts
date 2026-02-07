@@ -20,8 +20,8 @@ import type { StorageBackend } from "./storage.ts";
 export interface SendOptions {
   /** DM recipient (private to sender + recipient) */
   to?: string;
-  /** Entry kind ('log' = hidden from agents) */
-  kind?: "log";
+  /** Entry kind ('log' = operational log, 'debug' = debug detail; both hidden from agents) */
+  kind?: "log" | "debug";
 }
 
 /** Options for reading channel messages */
@@ -124,12 +124,12 @@ export class ContextProviderImpl implements ContextProvider {
 
     let entries = parseJsonl<Message>(raw);
 
-    // Visibility filtering: agent sees public msgs + DMs to/from them, no logs
+    // Visibility filtering: agent sees public msgs + DMs to/from them, no logs/debug
     if (options?.agent) {
       const agent = options.agent;
       entries = entries.filter((e) => {
-        // Logs are hidden from agents
-        if (e.kind === "log") return false;
+        // Logs and debug entries are hidden from agents
+        if (e.kind === "log" || e.kind === "debug") return false;
         // DMs: only visible to sender and recipient
         if (e.to) return e.to === agent || e.from === agent;
         // Public messages: visible to all
@@ -164,10 +164,10 @@ export class ContextProviderImpl implements ContextProvider {
     }
 
     // Inbox includes: @mentions to this agent OR DMs to this agent
-    // Excludes: logs, messages from self
+    // Excludes: logs, debug entries, messages from self
     return entries
       .filter((e) => {
-        if (e.kind === "log") return false;
+        if (e.kind === "log" || e.kind === "debug") return false;
         if (e.from === agent) return false;
         return e.mentions.includes(agent) || e.to === agent;
       })

@@ -1,6 +1,12 @@
 /**
  * Workflow Runner
- * Supports setup + kickoff model with shared context
+ *
+ * All output flows through the channel:
+ * - Operational events (init, setup, connect) → kind="log" (always visible)
+ * - Debug details (MCP traces, idle checks) → kind="debug" (visible with --debug)
+ * - Agent messages → kind=undefined (always visible)
+ *
+ * The display layer (display.ts) handles filtering and formatting.
  */
 
 import { exec } from "node:child_process";
@@ -30,7 +36,7 @@ import {
 } from "./controller/index.ts";
 import type { Backend } from "../backends/types.ts";
 import { startChannelWatcher } from "./display.ts";
-import { createLogger, type Logger } from "./logger.ts";
+import { createChannelLogger, createSilentLogger, type Logger } from "./logger.ts";
 
 const execAsync = promisify(exec);
 
@@ -42,16 +48,20 @@ export interface RunConfig {
   workflow: ParsedWorkflow;
   /** Instance name */
   instance?: string;
-  /** Verbose output */
-  verbose?: boolean;
-  /** Log function */
-  log?: (message: string) => void;
   /** Agent startup function */
   startAgent: (agentName: string, config: ResolvedAgent, mcpUrl: string) => Promise<void>;
   /** Callback when an agent @mentions another agent */
   onMention?: (from: string, target: string, msg: import("./context/types.ts").Message) => void;
   /** Debug log function for MCP tool calls */
   debugLog?: (message: string) => void;
+  /** Logger instance */
+  logger?: Logger;
+  /** Pre-created context provider (skips provider creation) */
+  contextProvider?: ContextProvider;
+  /** Pre-resolved context directory (required when contextProvider is provided) */
+  contextDir?: string;
+  /** Whether context is persistent (bind mode) */
+  persistent?: boolean;
 }
 
 /**
@@ -104,29 +114,18 @@ export interface WorkflowRuntime {
   shutdown: () => Promise<void>;
 }
 
-/**
- * Initialize workflow runtime
- *
- * This sets up:
- * 1. Context provider (file or memory)
- * 2. Context directory (for file provider)
- * 3. MCP server (HTTP)
- * 4. Runs setup commands
- */
-export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> {
-  const {
-    workflow,
-    instance = "default",
-    verbose = false,
-    log = console.log,
-    onMention,
-    debugLog,
-  } = config;
-  const startTime = Date.now();
+// ==================== Provider Creation ====================
 
+/**
+ * Create context provider and resolve context directory from workflow config.
+ * Extracted so the channel logger can be created before full init.
+ */
+export function createWorkflowProvider(
+  workflow: ParsedWorkflow,
+  instance: string,
+): { contextProvider: ContextProvider; contextDir: string; persistent: boolean } {
   const agentNames = Object.keys(workflow.agents);
 
-  // Ensure context is enabled (only false if explicitly disabled with `context: false`)
   if (!workflow.context) {
     throw new Error(
       'Workflow context is disabled. Remove "context: false" to enable agent collaboration.',
@@ -135,41 +134,79 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
 
   const resolvedContext = workflow.context as ResolvedContext;
 
-  // Create context provider based on provider type
+  if (resolvedContext.provider === "memory") {
+    return {
+      contextProvider: createMemoryContextProvider(agentNames),
+      contextDir: join(tmpdir(), `agent-worker-${workflow.name}-${instance}`),
+      persistent: false,
+    };
+  }
+
+  // File provider (default or bind)
+  const fileContext = resolvedContext as ResolvedFileContext;
+  const contextDir = fileContext.dir;
+  const persistent = fileContext.persistent === true;
+
+  if (!existsSync(contextDir)) {
+    mkdirSync(contextDir, { recursive: true });
+  }
+
+  const fileProvider = createFileContextProvider(contextDir, agentNames);
+  fileProvider.acquireLock();
+
+  return {
+    contextProvider: fileProvider,
+    contextDir,
+    persistent,
+  };
+}
+
+// ==================== Init ====================
+
+/**
+ * Initialize workflow runtime
+ *
+ * This sets up:
+ * 1. Context provider (file or memory) — or uses pre-created one
+ * 2. Context directory (for file provider)
+ * 3. MCP server (HTTP)
+ * 4. Runs setup commands
+ */
+export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> {
+  const {
+    workflow,
+    instance = "default",
+    onMention,
+    debugLog,
+  } = config;
+
+  // Use provided logger, or create a silent one
+  const logger = config.logger ?? createSilentLogger();
+
+  const startTime = Date.now();
+  const agentNames = Object.keys(workflow.agents);
+
+  // Use pre-created provider or create one
   let contextProvider: ContextProvider;
   let contextDir: string;
+  let isPersistent = false;
+
+  if (config.contextProvider && config.contextDir) {
+    contextProvider = config.contextProvider;
+    contextDir = config.contextDir;
+    isPersistent = config.persistent ?? false;
+    logger.debug("Using pre-created context provider");
+  } else {
+    const created = createWorkflowProvider(workflow, instance);
+    contextProvider = created.contextProvider;
+    contextDir = created.contextDir;
+    isPersistent = created.persistent;
+    const mode = isPersistent ? "persistent (bind)" : "ephemeral";
+    logger.debug(`Context directory: ${contextDir} [${mode}]`);
+  }
 
   // Project directory is where the workflow was invoked from
   const projectDir = process.cwd();
-
-  if (resolvedContext.provider === "memory") {
-    // Memory provider (for testing) - use temp directory for workspaces
-    if (verbose) log("Using memory context provider");
-    contextProvider = createMemoryContextProvider(agentNames);
-    contextDir = join(tmpdir(), `agent-worker-${workflow.name}-${instance}`);
-  } else {
-    // File provider (default or bind)
-    const fileContext = resolvedContext as ResolvedFileContext;
-    contextDir = fileContext.dir;
-
-    // Create context directory
-    if (!existsSync(contextDir)) {
-      mkdirSync(contextDir, { recursive: true });
-    }
-
-    if (verbose) {
-      const mode = fileContext.persistent ? "persistent (bind)" : "ephemeral";
-      log(`Context directory: ${contextDir} [${mode}]`);
-    }
-
-    const fileProvider = createFileContextProvider(contextDir, agentNames);
-    fileProvider.acquireLock();
-    contextProvider = fileProvider;
-  }
-
-  // Determine if context is persistent (bind mode)
-  const isPersistent =
-    resolvedContext.provider === "file" && (resolvedContext as ResolvedFileContext).persistent === true;
 
   // Create MCP server (HTTP)
   const createMCPServerInstance = () =>
@@ -186,24 +223,24 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
     createServerInstance: createMCPServerInstance,
     port: 0,
     onConnect: (agentId, sessionId) => {
-      if (verbose) log(`Agent connected: ${agentId} (${sessionId.slice(0, 8)})`);
+      logger.debug(`Agent connected: ${agentId} (${sessionId.slice(0, 8)})`);
     },
     onDisconnect: (agentId, sessionId) => {
-      if (verbose) log(`Agent disconnected: ${agentId} (${sessionId.slice(0, 8)})`);
+      logger.debug(`Agent disconnected: ${agentId} (${sessionId.slice(0, 8)})`);
     },
   });
 
-  if (verbose) log(`MCP server: ${httpMcpServer.url}`);
+  logger.debug(`MCP server: ${httpMcpServer.url}`);
 
   // Run setup commands
   const setupResults: Record<string, string> = {};
   const context = createContext(workflow.name, instance, setupResults);
 
   if (workflow.setup && workflow.setup.length > 0) {
-    if (verbose) log("\nRunning setup...");
+    logger.info("Running setup...");
     for (const task of workflow.setup) {
       try {
-        const result = await runSetupTask(task, context, verbose, log);
+        const result = await runSetupTask(task, context, logger);
         if (task.as) {
           setupResults[task.as] = result;
           context[task.as] = result;
@@ -236,18 +273,18 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
 
     async sendKickoff() {
       if (!interpolatedKickoff) {
-        if (verbose) log("No kickoff message configured");
+        logger.debug("No kickoff message configured");
         return;
       }
 
-      if (verbose) log(`\nKickoff: ${interpolatedKickoff.slice(0, 100)}...`);
+      logger.debug(`Kickoff: ${interpolatedKickoff.slice(0, 100)}...`);
 
       // Send kickoff as 'system' to the channel
       await contextProvider.appendChannel("system", interpolatedKickoff);
     },
 
     async shutdown() {
-      if (verbose) log("\nShutting down workflow...");
+      logger.debug("Shutting down...");
       if (isPersistent) {
         // Persistent (bind) mode: only release lock, preserve all state for resume
         if (contextProvider instanceof FileContextProvider) {
@@ -261,10 +298,8 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
     },
   };
 
-  if (verbose) {
-    log(`\nWorkflow initialized in ${Date.now() - startTime}ms`);
-    log(`Agents: ${agentNames.join(", ")}`);
-  }
+  logger.debug(`Workflow initialized in ${Date.now() - startTime}ms`);
+  logger.debug(`Agents: ${agentNames.join(", ")}`);
 
   return runtime;
 }
@@ -275,23 +310,20 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
 async function runSetupTask(
   task: SetupTask,
   context: VariableContext,
-  verbose: boolean,
-  log: (message: string) => void,
+  logger: Logger,
 ): Promise<string> {
   const command = interpolate(task.shell, context);
 
-  if (verbose) {
-    const displayCmd = command.length > 60 ? command.slice(0, 60) + "..." : command;
-    log(`  $ ${displayCmd}`);
-  }
+  const displayCmd = command.length > 60 ? command.slice(0, 60) + "..." : command;
+  logger.debug(`  $ ${displayCmd}`);
 
   try {
     const { stdout } = await execAsync(command);
     const result = stdout.trim();
 
-    if (verbose && task.as) {
+    if (task.as) {
       const displayResult = result.length > 60 ? result.slice(0, 60) + "..." : result;
-      log(`  ${task.as} = ${displayResult}`);
+      logger.debug(`  ${task.as} = ${displayResult}`);
     }
 
     return result;
@@ -309,7 +341,8 @@ async function runSetupTask(
  * Agents remain running until explicitly stopped.
  */
 export async function runWorkflow(config: RunConfig): Promise<RunResult> {
-  const { workflow, instance: _instance = "default", verbose = false, log = console.log } = config;
+  const { workflow } = config;
+  const logger = config.logger ?? createSilentLogger();
   const startTime = Date.now();
 
   try {
@@ -317,13 +350,13 @@ export async function runWorkflow(config: RunConfig): Promise<RunResult> {
     const runtime = await initWorkflow(config);
 
     // Start all agents with MCP config
-    if (verbose) log("\nStarting agents...");
+    logger.info("Starting agents...");
 
     for (const agentName of runtime.agentNames) {
       const agentDef = workflow.agents[agentName]!;
       try {
         await config.startAgent(agentName, agentDef, runtime.mcpUrl);
-        if (verbose) log(`  Started: ${agentName}`);
+        logger.debug(`Started: ${agentName}`);
       } catch (error) {
         await runtime.shutdown();
         return {
@@ -367,11 +400,9 @@ export interface ControllerRunConfig {
   workflow: ParsedWorkflow;
   /** Instance name */
   instance?: string;
-  /** Verbose output (show channel in real-time) */
-  verbose?: boolean;
-  /** Debug mode (show detailed internal logs, no channel output) */
+  /** Debug mode (show debug channel entries in output) */
   debug?: boolean;
-  /** Log function */
+  /** Log function (for terminal output) */
   log?: (message: string) => void;
   /** Run mode: 'run' exits when idle, 'start' runs until stopped */
   mode?: "run" | "start";
@@ -406,10 +437,8 @@ export interface ControllerRunResult {
 /**
  * Run a workflow with agent controllers
  *
- * This is the controller-based alternative to runWorkflow().
- * Uses AgentController for lifecycle management and automatic retry.
- *
- * @param config Controller run configuration
+ * All output flows through the channel. The channel watcher (display layer)
+ * filters what to show: --debug includes kind="debug" entries.
  */
 export async function runWorkflowWithControllers(
   config: ControllerRunConfig,
@@ -417,7 +446,6 @@ export async function runWorkflowWithControllers(
   const {
     workflow,
     instance = "default",
-    verbose = false,
     debug = false,
     log = console.log,
     mode = "run",
@@ -426,24 +454,31 @@ export async function runWorkflowWithControllers(
   } = config;
   const startTime = Date.now();
 
-  // Create logger
-  const logger = createLogger({ debug, log, prefix: "workflow" });
-
-  logger.debug("Starting workflow with controllers", { mode, instance, pollInterval });
-
   try {
-    // Create controllers map for wake() on mention
+    // 1. Create context provider first (so channel logger can use it)
+    const { contextProvider, contextDir, persistent } = createWorkflowProvider(workflow, instance);
+
+    // 2. Create channel logger — all output goes to channel
+    const logger = createChannelLogger({ provider: contextProvider, from: "workflow" });
+
+    logger.info(`Running workflow: ${workflow.name}`);
+    logger.info(`Agents: ${Object.keys(workflow.agents).join(", ")}`);
+    logger.debug("Starting workflow with controllers", { mode, instance, pollInterval });
+
+    // 3. Create controllers map for wake() on mention
     const controllers = new Map<string, AgentController>();
 
     logger.debug("Initializing workflow runtime...");
 
-    // Initialize runtime with onMention callback
+    // 4. Initialize runtime with pre-created provider and channel logger
     const runtime = await initWorkflow({
       workflow,
       instance,
-      verbose: debug, // Use debug for internal verbose logging
-      log,
       startAgent: async () => {}, // Not used; controllers start agents below
+      logger,
+      contextProvider,
+      contextDir,
+      persistent,
       onMention: (from, target, entry) => {
         const controller = controllers.get(target);
         if (controller) {
@@ -455,7 +490,7 @@ export async function runWorkflowWithControllers(
           logger.debug(`@mention: ${from} → @${target} (no controller found!)`);
         }
       },
-      debugLog: debug ? (msg) => logger.debug(msg) : undefined,
+      debugLog: (msg) => logger.debug(msg),
     });
 
     logger.debug("Runtime initialized", {
@@ -463,9 +498,8 @@ export async function runWorkflowWithControllers(
       mcpUrl: runtime.mcpUrl,
     });
 
-    // Create and start controllers for each agent
-    logger.debug("Starting agent controllers...");
-    if (!debug && verbose) log("Starting agents...");
+    // 5. Create and start controllers for each agent
+    logger.info("Starting agents...");
 
     for (const agentName of runtime.agentNames) {
       const agentDef = workflow.agents[agentName]!;
@@ -476,8 +510,7 @@ export async function runWorkflowWithControllers(
       });
 
       // Get backend for this agent
-      // Priority: 1. Custom createBackend, 2. Explicit backend field, 3. Infer from model
-      const backendDebugLog = debug ? (msg: string) => logger.debug(msg) : undefined;
+      const backendDebugLog = (msg: string) => logger.debug(msg);
       let backend: Backend;
       if (createBackend) {
         backend = createBackend(agentName, agentDef);
@@ -510,7 +543,7 @@ export async function runWorkflowWithControllers(
         projectDir: runtime.projectDir,
         backend,
         pollInterval,
-        log: debug ? (msg) => controllerLogger.debug(msg) : undefined,
+        log: (msg) => controllerLogger.debug(msg),
       });
 
       controllers.set(agentName, controller);
@@ -519,19 +552,20 @@ export async function runWorkflowWithControllers(
       logger.debug(`Controller started: ${agentName}`);
     }
 
-    // Send kickoff
+    // 6. Send kickoff
     logger.debug("Sending kickoff message...");
     await runtime.sendKickoff();
     logger.debug("Kickoff sent");
 
-    // Start channel watcher for real-time output
-    // Always enabled - this is the primary way to see agent communication
-    const channelWatcher = startChannelWatcher(
-      runtime.contextProvider,
-      runtime.agentNames,
+    // 7. Start channel watcher — the unified display layer
+    // Filters output based on --debug flag
+    const channelWatcher = startChannelWatcher({
+      contextProvider: runtime.contextProvider,
+      agentNames: runtime.agentNames,
       log,
-      250, // Fast polling for responsive output
-    );
+      showDebug: debug,
+      pollInterval: 250, // Fast polling for responsive output
+    });
 
     // Handle run mode vs start mode
     if (mode === "run") {
@@ -543,11 +577,9 @@ export async function runWorkflowWithControllers(
         idleCheckCount++;
 
         if (idleCheckCount % 10 === 0) {
-          // Log every 10 seconds with detailed state
           const states = [...controllers.entries()].map(([n, c]) => `${n}=${c.state}`).join(", ");
           logger.debug(`Idle check #${idleCheckCount}: ${states}`);
 
-          // Also check inbox state for each agent
           for (const [agentName] of controllers) {
             const inbox = await runtime.contextProvider.getInbox(agentName);
             if (inbox.length > 0) {
@@ -559,17 +591,16 @@ export async function runWorkflowWithControllers(
         }
 
         if (isIdle) {
-          logger.debug("Workflow complete - all agents idle");
-          if (verbose) log("\nWorkflow complete");
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          logger.info(`Workflow complete (${elapsed}s)`);
           break;
         }
-        // Check every second
         await sleep(1000);
       }
 
       // Stop channel watcher and shutdown
       channelWatcher?.stop();
-      await shutdownControllers(controllers, debug, logger);
+      await shutdownControllers(controllers, logger);
       await runtime.shutdown();
 
       logger.debug(`Workflow finished in ${Date.now() - startTime}ms`);
@@ -595,15 +626,17 @@ export async function runWorkflowWithControllers(
       controllers,
       shutdown: async () => {
         channelWatcher?.stop();
-        await shutdownControllers(controllers, debug, logger);
+        await shutdownControllers(controllers, logger);
         await runtime.shutdown();
       },
     };
   } catch (error) {
-    logger.error("Workflow failed", error);
+    // Error during init — no channel logger available, fall back to console
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    log(`Error: ${errorMsg}`);
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMsg,
       setupResults: {},
       duration: Date.now() - startTime,
     };
@@ -615,7 +648,6 @@ export async function runWorkflowWithControllers(
  */
 async function shutdownControllers(
   controllers: Map<string, AgentController>,
-  _debug: boolean,
   logger: Logger,
 ): Promise<void> {
   logger.debug("Stopping controllers...");
