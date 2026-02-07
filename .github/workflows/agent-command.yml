@@ -74,7 +74,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.resolve.outputs.file != ''
-        run: bun install
+        run: bun install && bun add @ai-sdk/deepseek
 
       - name: Build agent-worker
         if: steps.resolve.outputs.file != ''
@@ -83,7 +83,6 @@ jobs:
 
       - name: Run workflow
         if: steps.resolve.outputs.file != ''
-        id: workflow
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
@@ -91,24 +90,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.issue.number }}
         run: |
-          OUTPUT=$(bun packages/agent-worker/src/cli/index.ts run --json ${{ steps.resolve.outputs.file }})
-          REVIEW=$(echo "$OUTPUT" | jq -r '.document // empty')
-          if [ -n "$REVIEW" ]; then
-            echo "has_review=true" >> "$GITHUB_OUTPUT"
-            # Write review to file to avoid shell escaping issues
-            echo "$REVIEW" > /tmp/review.md
-          else
-            echo "has_review=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Post review comment
-        if: steps.workflow.outputs.has_review == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr comment ${{ github.event.issue.number }} \
-            --repo ${{ github.repository }} \
-            --body-file /tmp/review.md
+          bun packages/agent-worker/src/cli/index.ts run ${{ steps.resolve.outputs.file }}
 
       - name: Report unknown command
         if: steps.parse.outputs.command != '' && steps.resolve.outputs.file == ''

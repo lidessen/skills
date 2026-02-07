@@ -140,12 +140,6 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
         if (lastResult.success) {
           log(`[${name}] Success (${lastResult.duration}ms)`);
 
-          // SDK agents can't use MCP tools to post output — write response to document
-          if (lastResult.content) {
-            await contextProvider.writeDocument(lastResult.content);
-            log(`[${name}] Response written to document (${lastResult.content.length} chars)`);
-          }
-
           // Acknowledge inbox on success
           await contextProvider.ackInbox(name, latestId);
           break;
@@ -238,6 +232,7 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
 
 import type { Backend } from "@/backends/types.ts";
 import { runMockAgent } from "./mock-runner.ts";
+import { runSdkAgent } from "./sdk-runner.ts";
 
 /**
  * Run an agent: build prompt, configure workspace, call backend.send()
@@ -245,40 +240,42 @@ import { runMockAgent } from "./mock-runner.ts";
  * This is the single orchestration function that the controller calls.
  * All the "how to run an agent" logic lives here — backends just send().
  *
- * Mock backend is special: it needs MCP tool bridge + AI SDK for integration
- * testing, so it gets its own orchestration path in mock-runner.ts.
+ * SDK and mock backends get special runners with MCP tool bridge + bash,
+ * because they can't manage tools on their own (unlike CLI backends).
  */
 async function runAgent(
   backend: Backend,
   ctx: AgentRunContext,
   log: (msg: string) => void,
 ): Promise<AgentRunResult> {
-  // Mock backend: use dedicated mock runner with MCP tool bridge
+  // Mock backend: scripted tool calls for integration testing
   if (backend.type === "mock") {
     return runMockAgent(ctx, (msg) => log(msg));
   }
 
+  // SDK backend: real model with MCP tools + bash
+  if (backend.type === "sdk") {
+    return runSdkAgent(ctx, (msg) => log(msg));
+  }
+
+  // CLI backends (claude, codex, cursor): manage their own tools
   const startTime = Date.now();
 
   try {
-    // 1. Configure workspace with MCP
+    // Configure workspace with MCP
     if (backend.setWorkspace) {
       const mcpConfig = generateWorkflowMCPConfig(ctx.mcpUrl, ctx.name);
       backend.setWorkspace(ctx.workspaceDir, mcpConfig);
     }
 
-    // 2. Build prompt from context
+    // Build prompt from context
     const prompt = buildAgentPrompt(ctx);
     log(`[${ctx.name}] Prompt (${prompt.length} chars) → ${backend.type} backend`);
 
-    // 3. Send via backend
-    const response = await backend.send(prompt, { system: ctx.agent.resolvedSystemPrompt });
+    // Send via backend
+    await backend.send(prompt, { system: ctx.agent.resolvedSystemPrompt });
 
-    // SDK agents can't use MCP tools — return their text response
-    // so the controller can write it to the document for output capture
-    const content = !backend.setWorkspace ? response.content : undefined;
-
-    return { success: true, duration: Date.now() - startTime, content };
+    return { success: true, duration: Date.now() - startTime };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     log(`[${ctx.name}] Error: ${errorMsg}`);
