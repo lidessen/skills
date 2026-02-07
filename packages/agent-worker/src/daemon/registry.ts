@@ -1,13 +1,20 @@
+/**
+ * Session Registry — Directory-per-session design.
+ *
+ * Each session is stored as its own file: sessions/{id}.json
+ * Only the owning daemon process writes to its session file.
+ * No shared mutable state → no locks needed.
+ *
+ * Default session ID is stored in a separate file: default
+ */
+
 import {
   existsSync,
   unlinkSync,
   writeFileSync,
   readFileSync,
   mkdirSync,
-  openSync,
-  closeSync,
-  writeSync,
-  constants,
+  readdirSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -15,16 +22,7 @@ import type { BackendType } from "../backends/types.ts";
 
 export const CONFIG_DIR = join(homedir(), ".agent-worker");
 export const SESSIONS_DIR = join(CONFIG_DIR, "sessions");
-export const REGISTRY_FILE = join(CONFIG_DIR, "registry.json");
-const REGISTRY_LOCK = join(CONFIG_DIR, "registry.lock");
-const LOCK_STALE_MS = 5_000;
-const LOCK_TIMEOUT_MS = 3_000;
-const LOCK_RETRY_INTERVAL_MS = 10;
-
-export interface SessionRegistry {
-  sessions: Record<string, SessionInfo>;
-  defaultSession?: string;
-}
+const DEFAULT_FILE = join(CONFIG_DIR, "default");
 
 export interface SessionInfo {
   id: string;
@@ -41,200 +39,119 @@ export interface SessionInfo {
 }
 
 export function ensureDirs(): void {
-  if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true });
-  }
-  if (!existsSync(SESSIONS_DIR)) {
-    mkdirSync(SESSIONS_DIR, { recursive: true });
-  }
+  mkdirSync(SESSIONS_DIR, { recursive: true });
 }
 
-export function loadRegistry(): SessionRegistry {
-  ensureDirs();
-  if (!existsSync(REGISTRY_FILE)) {
-    return { sessions: {} };
-  }
-  try {
-    return JSON.parse(readFileSync(REGISTRY_FILE, "utf-8"));
-  } catch {
-    return { sessions: {} };
-  }
+/** Path to a session's metadata file */
+function sessionFile(id: string): string {
+  return join(SESSIONS_DIR, `${id}.json`);
 }
 
-export function saveRegistry(registry: SessionRegistry): void {
+/** Read all session metadata files from the sessions directory */
+function readAllSessions(): SessionInfo[] {
   ensureDirs();
-  writeFileSync(REGISTRY_FILE, JSON.stringify(registry, null, 2));
-}
-
-/**
- * Acquire an exclusive file lock on the registry using O_CREAT|O_EXCL.
- * Stale locks from dead processes are automatically cleaned up.
- */
-function acquireRegistryLock(): void {
-  ensureDirs();
-  const deadline = Date.now() + LOCK_TIMEOUT_MS;
-
-  while (true) {
+  const entries: SessionInfo[] = [];
+  for (const file of readdirSync(SESSIONS_DIR)) {
+    if (!file.endsWith(".json")) continue;
     try {
-      const fd = openSync(
-        REGISTRY_LOCK,
-        constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY,
-      );
-      writeSync(fd, JSON.stringify({ pid: process.pid, ts: Date.now() }));
-      closeSync(fd);
-      return;
-    } catch (e: unknown) {
-      if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
-
-      // Lock file exists — check if stale
-      try {
-        const lock = JSON.parse(readFileSync(REGISTRY_LOCK, "utf-8"));
-        const stale = Date.now() - lock.ts > LOCK_STALE_MS;
-        let dead = false;
-        if (!stale) {
-          try {
-            process.kill(lock.pid, 0);
-          } catch {
-            dead = true;
-          }
-        }
-        if (stale || dead) {
-          try {
-            unlinkSync(REGISTRY_LOCK);
-          } catch {}
-          continue;
-        }
-      } catch {
-        try {
-          unlinkSync(REGISTRY_LOCK);
-        } catch {}
-        continue;
-      }
-
-      if (Date.now() >= deadline) {
-        throw new Error(
-          `Timeout acquiring registry lock after ${LOCK_TIMEOUT_MS}ms`,
-        );
-      }
-
-      // Brief spin wait
-      const until = Date.now() + LOCK_RETRY_INTERVAL_MS;
-      while (Date.now() < until) {
-        /* spin */
-      }
+      entries.push(JSON.parse(readFileSync(join(SESSIONS_DIR, file), "utf-8")));
+    } catch {
+      // Ignore malformed files
     }
   }
+  return entries;
 }
 
-function releaseRegistryLock(): void {
+function readDefault(): string | undefined {
   try {
-    unlinkSync(REGISTRY_LOCK);
-  } catch {}
-}
-
-/**
- * Execute a function while holding an exclusive lock on the registry file.
- * Prevents concurrent read-modify-write races between processes.
- */
-function withRegistryLock<T>(fn: () => T): T {
-  acquireRegistryLock();
-  try {
-    return fn();
-  } finally {
-    releaseRegistryLock();
+    return readFileSync(DEFAULT_FILE, "utf-8").trim() || undefined;
+  } catch {
+    return undefined;
   }
 }
 
 export function registerSession(info: SessionInfo): void {
-  withRegistryLock(() => {
-    const registry = loadRegistry();
-    registry.sessions[info.id] = info;
-    if (info.name) {
-      // Also register by name for easy lookup
-      registry.sessions[info.name] = info;
-    }
-    // Set as default if first session
-    if (Object.keys(registry.sessions).length <= 2) {
-      registry.defaultSession = info.id;
-    }
-    saveRegistry(registry);
-  });
+  ensureDirs();
+  writeFileSync(sessionFile(info.id), JSON.stringify(info, null, 2));
+  // Set as default if it's the first session
+  if (!readDefault()) {
+    writeFileSync(DEFAULT_FILE, info.id);
+  }
 }
 
 export function unregisterSession(idOrName: string): void {
-  withRegistryLock(() => {
-    const registry = loadRegistry();
-    const info = registry.sessions[idOrName];
-    if (info) {
-      delete registry.sessions[info.id];
-      if (info.name) {
-        delete registry.sessions[info.name];
-      }
-      if (registry.defaultSession === info.id) {
-        // Set another session as default
-        const remaining = Object.values(registry.sessions).filter((s) => s.id !== info.id);
-        registry.defaultSession = remaining[0]?.id;
-      }
+  const info = getSessionInfo(idOrName);
+  if (!info) return;
+  try {
+    unlinkSync(sessionFile(info.id));
+  } catch {
+    // Already removed
+  }
+  // Update default if needed
+  const currentDefault = readDefault();
+  if (currentDefault === info.id) {
+    const remaining = readAllSessions();
+    if (remaining.length > 0) {
+      writeFileSync(DEFAULT_FILE, remaining[0]!.id);
+    } else {
+      try {
+        unlinkSync(DEFAULT_FILE);
+      } catch {}
     }
-    saveRegistry(registry);
-  });
+  }
 }
 
 export function getSessionInfo(idOrName?: string): SessionInfo | null {
-  const registry = loadRegistry();
   if (!idOrName) {
     // Return default session
-    if (registry.defaultSession) {
-      return registry.sessions[registry.defaultSession] || null;
+    const defaultId = readDefault();
+    if (defaultId) {
+      return getSessionInfo(defaultId);
     }
     // Return the only session if there's just one
-    const sessions = Object.values(registry.sessions);
-    const uniqueSessions = sessions.filter(
-      (s, i, arr) => arr.findIndex((x) => x.id === s.id) === i,
-    );
-    if (uniqueSessions.length === 1) {
-      return uniqueSessions[0] ?? null;
+    const sessions = readAllSessions();
+    if (sessions.length === 1) {
+      return sessions[0] ?? null;
     }
     return null;
   }
 
-  // Try exact match first (by id or name)
-  if (registry.sessions[idOrName]) {
-    return registry.sessions[idOrName]!;
+  // Try exact ID match (direct file lookup — O(1))
+  const filePath = sessionFile(idOrName);
+  if (existsSync(filePath)) {
+    try {
+      return JSON.parse(readFileSync(filePath, "utf-8"));
+    } catch {
+      return null;
+    }
   }
 
-  // Try prefix match on IDs (supports short IDs like "e8ab33e7")
-  const sessions = Object.values(registry.sessions);
-  const matches = sessions.filter((s) => s.id.startsWith(idOrName));
-  // Dedupe and return if exactly one match
-  const unique = matches.filter((s, i, arr) => arr.findIndex((x) => x.id === s.id) === i);
-  if (unique.length === 1) {
-    return unique[0]!;
+  // Scan for name match or ID prefix match
+  const sessions = readAllSessions();
+
+  // Name match
+  const byName = sessions.find((s) => s.name === idOrName);
+  if (byName) return byName;
+
+  // Prefix match on IDs (supports short IDs like "e8ab33e7")
+  const prefixMatches = sessions.filter((s) => s.id.startsWith(idOrName));
+  if (prefixMatches.length === 1) {
+    return prefixMatches[0]!;
   }
 
   return null;
 }
 
 export function listSessions(): SessionInfo[] {
-  const registry = loadRegistry();
-  // Deduplicate (since we store by both id and name)
-  const seen = new Set<string>();
-  return Object.values(registry.sessions).filter((info) => {
-    if (seen.has(info.id)) return false;
-    seen.add(info.id);
-    return true;
-  });
+  return readAllSessions();
 }
 
 export function setDefaultSession(idOrName: string): boolean {
-  return withRegistryLock(() => {
-    const registry = loadRegistry();
-    const info = registry.sessions[idOrName];
-    if (!info) return false;
-    registry.defaultSession = info.id;
-    saveRegistry(registry);
-    return true;
-  });
+  const info = getSessionInfo(idOrName);
+  if (!info) return false;
+  ensureDirs();
+  writeFileSync(DEFAULT_FILE, info.id);
+  return true;
 }
 
 export function isSessionRunning(idOrName?: string): boolean {
