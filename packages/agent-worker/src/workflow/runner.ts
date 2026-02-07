@@ -446,8 +446,10 @@ export interface ControllerRunResult {
   controllers?: Map<string, AgentController>;
   /** Shutdown function */
   shutdown?: () => Promise<void>;
-  /** Feedback entries collected during workflow (when --feedback enabled) */
+  /** Feedback entries collected during workflow (when --feedback enabled, run mode) */
   feedback?: import("../agent/tools/feedback.ts").FeedbackEntry[];
+  /** Live feedback accessor (when --feedback enabled, start mode) */
+  getFeedback?: () => import("../agent/tools/feedback.ts").FeedbackEntry[];
 }
 
 /**
@@ -649,7 +651,7 @@ export async function runWorkflowWithControllers(
         await shutdownControllers(controllers, logger);
         await runtime.shutdown();
       },
-      feedback: runtime.getFeedback?.(),
+      getFeedback: runtime.getFeedback,
     };
   } catch (error) {
     // Error during init — no channel logger available, fall back to console
