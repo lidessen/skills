@@ -15,8 +15,8 @@ export interface Message {
   mentions: string[];
   /** DM recipient — if set, only visible to sender and recipient */
   to?: string;
-  /** Entry kind — undefined = normal message, 'log' = system log (hidden from agents) */
-  kind?: "log";
+  /** Entry kind — undefined = normal message, 'log' = operational log, 'debug' = debug detail */
+  kind?: "log" | "debug";
 }
 
 // ==================== Resource System ====================
