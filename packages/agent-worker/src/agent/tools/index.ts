@@ -7,6 +7,7 @@
  * Available tools:
  * - Skills: Access and read agent skills
  * - Bash: Execute bash commands in sandboxed environment (includes readFile, writeFile)
+ * - Feedback: Let agents report observations about tools and workflows
  *
  * Future tools:
  * - Git: Git operations
@@ -24,3 +25,7 @@ export {
   createBashTool,
 } from "./bash.ts";
 export type { BashToolsOptions, BashToolkit, CreateBashToolOptions } from "./bash.ts";
+
+// Feedback tool
+export { createFeedbackTool, FEEDBACK_PROMPT } from "./feedback.ts";
+export type { FeedbackEntry, FeedbackToolOptions, FeedbackToolResult } from "./feedback.ts";

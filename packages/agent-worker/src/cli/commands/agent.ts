@@ -29,6 +29,7 @@ async function createAgentAction(
     foreground?: boolean;
     instance?: string;
     json?: boolean;
+    feedback?: boolean;
   },
 ) {
   let system = options.system ?? "You are a helpful assistant.";
@@ -64,6 +65,7 @@ async function createAgentAction(
       skills: options.skill,
       skillDirs: options.skillDir,
       importSkills: options.importSkill,
+      feedback: options.feedback,
     });
   } else {
     const scriptPath = process.argv[1] ?? "";
@@ -72,6 +74,9 @@ async function createAgentAction(
       args.splice(2, 0, agentName);
     }
     args.push("--idle-timeout", String(idleTimeout));
+    if (options.feedback) {
+      args.push("--feedback");
+    }
     if (options.skill) {
       for (const skillPath of options.skill) {
         args.push("--skill", skillPath);
@@ -170,6 +175,7 @@ function addNewCommandOptions(cmd: Command): Command {
     .option("--skill <path...>", "Add individual skill directories")
     .option("--skill-dir <path...>", "Scan directories for skills")
     .option("--import-skill <spec...>", "Import skills from Git (owner/repo:{skill1,skill2})")
+    .option("--feedback", "Enable feedback tool (agent can report tool/workflow observations)")
     .option("--instance <name>", "Instance name")
     .option("--foreground", "Run in foreground")
     .option("--json", "Output as JSON");

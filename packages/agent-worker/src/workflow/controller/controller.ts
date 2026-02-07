@@ -47,6 +47,7 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
     backend,
     onRunComplete,
     log = () => {},
+    feedback,
   } = config;
 
   const pollInterval = config.pollInterval ?? CONTROLLER_DEFAULTS.pollInterval;
@@ -130,6 +131,7 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
           workspaceDir,
           projectDir,
           retryAttempt: attempt,
+          feedback,
         };
 
         // Orchestrate: build prompt → configure workspace → send

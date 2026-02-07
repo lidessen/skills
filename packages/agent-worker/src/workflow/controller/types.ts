@@ -65,6 +65,8 @@ export interface AgentControllerConfig {
   onRunComplete?: (result: AgentRunResult) => void;
   /** Log function */
   log?: (message: string) => void;
+  /** Enable feedback tool in agent prompts */
+  feedback?: boolean;
 }
 
 // ==================== Agent Run ====================
@@ -89,6 +91,8 @@ export interface AgentRunContext {
   projectDir: string;
   /** Retry attempt number (1 = first try, 2+ = retry) */
   retryAttempt: number;
+  /** Whether feedback tool is enabled */
+  feedback?: boolean;
 }
 
 /** Result of an agent run */

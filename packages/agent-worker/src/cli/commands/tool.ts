@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { join } from "node:path";
 import type { ToolInfo } from "@/agent/types.ts";
+import type { FeedbackEntry } from "@/agent/tools/feedback.ts";
 import { sendRequest, isSessionActive } from "../client.ts";
 import { outputJson } from "../output.ts";
 
@@ -152,6 +153,54 @@ export function registerToolCommands(program: Command) {
         for (const t of tools) {
           const approval = t.needsApproval ? " [needs approval]" : "";
           console.log(`  ${t.name}${approval} - ${t.description ?? "(no description)"}`);
+        }
+      }
+    });
+
+  // ── Feedback subcommand ────────────────────────────────────────────
+
+  toolCmd
+    .command("feedback")
+    .description("List feedback collected from agent (requires --feedback on agent)")
+    .option("--to <target>", "Target agent")
+    .option("--json", "Output as JSON")
+    .action(async (options) => {
+      const target = options.to;
+
+      if (!isSessionActive(target)) {
+        console.error(target ? `Agent not found: ${target}` : "No active agent");
+        process.exit(1);
+      }
+
+      const res = await sendRequest({ action: "feedback_list" }, target);
+      if (!res.success) {
+        console.error("Error:", res.error);
+        process.exit(1);
+      }
+
+      const entries = res.data as FeedbackEntry[];
+
+      if (options.json) {
+        outputJson(entries);
+        return;
+      }
+
+      if (entries.length === 0) {
+        console.log("No feedback yet");
+      } else {
+        for (const entry of entries) {
+          const icon =
+            entry.type === "bug"
+              ? "[bug]"
+              : entry.type === "friction"
+                ? "[friction]"
+                : entry.type === "praise"
+                  ? "[praise]"
+                  : "[suggestion]";
+          console.log(`  ${icon} ${entry.target}: ${entry.description}`);
+          if (entry.context) {
+            console.log(`         context: ${entry.context}`);
+          }
         }
       }
     });
