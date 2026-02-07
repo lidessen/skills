@@ -21,10 +21,10 @@ You're here to create sessions, orchestrate agents, manage tools—all from the 
 
 ```bash
 # Create a session (SDK backend, default)
-agent-worker session new -m anthropic/claude-sonnet-4-5
+agent-worker new -m anthropic/claude-sonnet-4-5
 
 # Create with Claude CLI backend
-agent-worker session new -b claude
+agent-worker new -b claude
 
 # Send a message (async by default)
 agent-worker send "What is 2+2?"
@@ -36,7 +36,7 @@ agent-worker peek
 agent-worker send "What is 3+3?" --wait
 
 # End session
-agent-worker session end
+agent-worker agent end
 ```
 
 That's it. Session persists across commands. State maintained until you end it.
@@ -59,12 +59,12 @@ That's it. Session persists across commands. State maintained until you end it.
 agent-worker backends
 
 # SDK backend with specific model
-agent-worker session new -m openai/gpt-5.2
+agent-worker new -m openai/gpt-5.2
 
 # CLI backends
-agent-worker session new -b claude
-agent-worker session new -b codex
-agent-worker session new -b cursor
+agent-worker new -b claude
+agent-worker new -b codex
+agent-worker new -b cursor
 ```
 
 **Important Notes**:
@@ -80,49 +80,49 @@ agent-worker session new -b cursor
 
 ```bash
 # Basic session
-agent-worker session new
+agent-worker new
 
 # With custom system prompt
-agent-worker session new -s "You are a code reviewer."
+agent-worker new -s "You are a code reviewer."
 
 # From file
-agent-worker session new -f ./prompts/reviewer.txt
+agent-worker new -f ./prompts/reviewer.txt
 
 # Named session (easier reference)
-agent-worker session new -n my-session
+agent-worker new -n my-session
 
 # Custom idle timeout (ms, 0 = no timeout)
-agent-worker session new --idle-timeout 3600000
+agent-worker new --idle-timeout 3600000
 
 # With scheduled wakeup (see Scheduled Wakeup section)
-agent-worker session new --wakeup 5m
-agent-worker session new --wakeup "0 */2 * * *"
+agent-worker new --wakeup 5m
+agent-worker new --wakeup "0 */2 * * *"
 ```
 
 ### Multiple Sessions
 
 ```bash
 # List all
-agent-worker session list
+agent-worker ls
 
 # Switch default
-agent-worker session use my-session
+agent-worker agent use my-session
 
 # Target specific session
 agent-worker send "Hello" --to my-session
 
 # End specific
-agent-worker session end my-session
+agent-worker agent end my-session
 
 # End all
-agent-worker session end --all
+agent-worker agent end --all
 ```
 
 ### Session Info
 
 ```bash
 # Status
-agent-worker session status
+agent-worker agent status
 
 # Statistics (tokens, messages)
 agent-worker stats
@@ -224,15 +224,15 @@ SDK backend supports multiple formats:
 
 ```bash
 # Gateway format (recommended)
-agent-worker session new -m openai/gpt-5.2
-agent-worker session new -m anthropic/claude-sonnet-4-5
+agent-worker new -m openai/gpt-5.2
+agent-worker new -m anthropic/claude-sonnet-4-5
 
 # Provider-only (uses provider's frontier model)
-agent-worker session new -m openai
-agent-worker session new -m anthropic
+agent-worker new -m openai
+agent-worker new -m anthropic
 
 # Direct provider format
-agent-worker session new -m deepseek:deepseek-chat
+agent-worker new -m deepseek:deepseek-chat
 ```
 
 Check available providers:
@@ -248,7 +248,7 @@ agent-worker providers
 
 ```bash
 # Create session with your system prompt
-agent-worker session new -f ./my-prompt.txt -n test
+agent-worker new -f ./my-prompt.txt -n test
 
 # Run test cases (async)
 agent-worker send "Test case 1: ..." --to test
@@ -261,14 +261,14 @@ agent-worker peek --to test
 agent-worker send "Test case 3: ..." --to test --wait
 
 # Clean up
-agent-worker session end test
+agent-worker agent end test
 ```
 
 ### Tool Development
 
 ```bash
 # Start session
-agent-worker session new -n dev
+agent-worker new -n dev
 
 # Add tool with mock
 agent-worker tool add my_api -d "Call my API" -p "endpoint:string"
@@ -286,8 +286,8 @@ agent-worker send "Call my API at /users"
 
 ```bash
 # Same prompt, different backends
-agent-worker session new -m anthropic/claude-sonnet-4-5 -n anthropic
-agent-worker session new -b claude -n claude-cli
+agent-worker new -m anthropic/claude-sonnet-4-5 -n anthropic
+agent-worker new -b claude -n claude-cli
 
 agent-worker send "Explain recursion" --to anthropic
 agent-worker send "Explain recursion" --to claude-cli
@@ -340,13 +340,13 @@ Agents can be configured to wake up periodically. Two modes:
 
 ```bash
 # Wake every 5 minutes of inactivity
-agent-worker session new --wakeup 5m
+agent-worker new --wakeup 5m
 
 # Wake every 2 hours (fixed, cron)
-agent-worker session new --wakeup "0 */2 * * *"
+agent-worker new --wakeup "0 */2 * * *"
 
 # With custom wakeup prompt
-agent-worker session new --wakeup 30s --wakeup-prompt "Check for new tasks"
+agent-worker new --wakeup 30s --wakeup-prompt "Check for new tasks"
 ```
 
 ### Runtime management
@@ -380,11 +380,11 @@ The `--wakeup` value is automatically detected:
 
 | Issue | Solution |
 |-------|----------|
-| "No active session" | Run `agent-worker session new` first |
-| "Session not found" | Check `agent-worker session list` |
+| "No active session" | Run `agent-worker new` first |
+| "Session not found" | Check `agent-worker ls` |
 | "Tool management not supported" | Use SDK backend (`-b sdk` or omit `-b`) |
 | "Provider not loaded" | Check API key with `agent-worker providers` |
-| Session not responding | Check if process alive: `agent-worker session status` |
+| Agent not responding | Check if process alive: `agent-worker agent status` |
 | Message stuck in "(processing...)" | Wait up to 60s (timeout), or check with `--debug` |
 | Send appears to hang | Use `agent-worker send "message" --debug` to see details |
 | Claude backend not working | Use SDK backend instead (Claude CLI has environment limitations) |
@@ -394,11 +394,13 @@ The `--wakeup` value is automatically detected:
 ## Command Reference
 
 ```
-agent-worker session new     Create session
-agent-worker session list    List sessions
-agent-worker session status  Check session
-agent-worker session use     Set default
-agent-worker session end     End session
+agent-worker new             Create agent (shorthand)
+agent-worker ls              List agents (shorthand)
+agent-worker agent new       Create agent
+agent-worker agent list      List agents
+agent-worker agent status    Check agent
+agent-worker agent use       Set default
+agent-worker agent end       End agent
 
 agent-worker send            Send message (async by default)
   --wait                     Wait for response (synchronous mode)
