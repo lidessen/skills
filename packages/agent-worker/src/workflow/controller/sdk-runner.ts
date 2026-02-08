@@ -13,7 +13,6 @@
 import { generateText, tool, stepCountIs, jsonSchema } from "ai";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { z } from "zod";
 import { execSync } from "node:child_process";
 import { createModelAsync } from "@/agent/models.ts";
 import type { AgentRunContext, AgentRunResult } from "./types.ts";
@@ -38,7 +37,7 @@ async function createMCPToolBridge(mcpUrl: string, agentName: string) {
     const toolName = mcpTool.name;
     aiTools[toolName] = tool({
       description: mcpTool.description || toolName,
-      parameters: z.record(z.unknown()),
+      parameters: jsonSchema(mcpTool.inputSchema as Parameters<typeof jsonSchema>[0]),
       execute: async (args: Record<string, unknown>) => {
         const result = await client.callTool({ name: toolName, arguments: args });
         return result.content;
