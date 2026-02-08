@@ -50,6 +50,8 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
     feedback,
   } = config;
 
+  const errorLog = config.errorLog ?? log;
+
   const pollInterval = config.pollInterval ?? CONTROLLER_DEFAULTS.pollInterval;
   const retryConfig = {
     maxAttempts: config.retry?.maxAttempts ?? CONTROLLER_DEFAULTS.retry.maxAttempts,
@@ -145,7 +147,7 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
           break;
         }
 
-        log(`[${name}] Failed: ${lastResult.error}`);
+        errorLog(`[${name}] Failed: ${lastResult.error}`);
 
         // Retry with backoff (unless last attempt)
         if (attempt < retryConfig.maxAttempts && shouldContinue(state)) {
@@ -158,7 +160,7 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
 
       // If all retries exhausted, still acknowledge to prevent infinite loop
       if (lastResult && !lastResult.success) {
-        log(`[${name}] Max retries exhausted, acknowledging inbox to prevent retry loop`);
+        errorLog(`[${name}] Max retries exhausted, acknowledging inbox to prevent retry loop`);
         await contextProvider.ackInbox(name, latestId);
       }
 
@@ -190,7 +192,7 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
 
       // Start loop (don't await - runs in background)
       runLoop().catch((error) => {
-        log(
+        errorLog(
           `[${name}] Controller error: ${error instanceof Error ? error.message : String(error)}`,
         );
         state = "stopped";
