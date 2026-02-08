@@ -16,6 +16,12 @@ setup:
   - shell: gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json files --jq '.files[].path'
     as: changed_files
 
+  # Post status comment on PR — agent will edit this with the final review
+  - shell: |
+      gh api repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments \
+        -f body='> ⏳ **Reviewing...**' --jq '.id'
+    as: comment_id
+
 kickoff: |
   @reviewer Please review this pull request.
 
@@ -28,5 +34,8 @@ kickoff: |
   ## Diff
   ${{ pr_diff }}
 
-  Post your review using the bash tool:
-  gh pr comment "${{ env.PR_NUMBER }}" --repo "${{ env.GITHUB_REPOSITORY }}" --body "<review>"
+  When done, write your review to /tmp/review.md, then update the status comment:
+  ```
+  gh api repos/$GITHUB_REPOSITORY/issues/comments/${{ comment_id }} \
+    -X PATCH -F body=@/tmp/review.md
+  ```
