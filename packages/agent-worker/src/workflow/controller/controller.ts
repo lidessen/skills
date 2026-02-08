@@ -142,6 +142,11 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
         if (lastResult.success) {
           log(`[${name}] Success (${lastResult.duration}ms)`);
 
+          // Write agent's final response to channel (so it's visible to user)
+          if (lastResult.content) {
+            await contextProvider.appendChannel(name, lastResult.content);
+          }
+
           // Acknowledge inbox on success
           await contextProvider.ackInbox(name, latestId);
           break;

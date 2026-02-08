@@ -114,8 +114,8 @@ export async function runSdkAgent(
       tools,
       system: ctx.agent.resolvedSystemPrompt,
       prompt,
-      maxOutputTokens: 8192,
-      stopWhen: stepCountIs(15),
+      maxOutputTokens: ctx.agent.max_tokens ?? 8192,
+      stopWhen: stepCountIs(ctx.agent.max_steps ?? 30),
     });
 
     log(`[${ctx.name}] Completed: ${result.text?.slice(0, 100) || "(tool calls only)"}`);
