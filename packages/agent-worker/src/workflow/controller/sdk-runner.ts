@@ -20,6 +20,20 @@ import { buildAgentPrompt } from "./prompt.ts";
 
 // ==================== Debug Formatting ====================
 
+/** Extract useful details from AI SDK errors (statusCode, url, responseBody) */
+function formatError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const e = error as Record<string, unknown>;
+  const parts: string[] = [error.message];
+  if (e.statusCode) parts[0] = `HTTP ${e.statusCode}: ${error.message}`;
+  if (e.url) parts.push(`url=${e.url}`);
+  if (e.responseBody && typeof e.responseBody === "string") {
+    const body = e.responseBody.length > 200 ? e.responseBody.slice(0, 200) + "…" : e.responseBody;
+    parts.push(`body=${body}`);
+  }
+  return parts.join(" ");
+}
+
 /** Truncate string, flatten newlines */
 function truncate(s: string, max: number): string {
   const flat = s.replace(/\s+/g, " ").trim();
@@ -149,7 +163,7 @@ export async function runSdkAgent(
     await mcp.close();
     return { success: true, duration: Date.now() - startTime, content: result.text };
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorMsg = formatError(error);
     log(`ERROR ${errorMsg}`);
     return { success: false, error: errorMsg, duration: Date.now() - startTime };
   }
