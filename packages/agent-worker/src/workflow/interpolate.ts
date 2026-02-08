@@ -26,10 +26,18 @@ const VARIABLE_PATTERN = /\$\{\{\s*([^}]+)\s*\}\}/g;
 
 /**
  * Interpolate variables in a template string
+ * @param warn Optional callback for unresolved variables
  */
-export function interpolate(template: string, context: VariableContext): string {
+export function interpolate(
+  template: string,
+  context: VariableContext,
+  warn?: (msg: string) => void,
+): string {
   return template.replace(VARIABLE_PATTERN, (match, expression) => {
     const value = resolveExpression(expression.trim(), context);
+    if (value === undefined && warn) {
+      warn(`Unresolved variable: ${{ ${expression.trim()} }} — no setup task defines it`);
+    }
     return value ?? match; // Keep original if not found
   });
 }

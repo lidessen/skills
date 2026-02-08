@@ -267,7 +267,9 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
   }
 
   // Interpolate kickoff with setup results
-  const interpolatedKickoff = workflow.kickoff ? interpolate(workflow.kickoff, context) : undefined;
+  const interpolatedKickoff = workflow.kickoff
+    ? interpolate(workflow.kickoff, context, (msg) => logger.warn(msg))
+    : undefined;
 
   // Build runtime
   const runtime: WorkflowRuntime = {
