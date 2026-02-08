@@ -123,7 +123,6 @@ export interface SessionInfo {
   schedule?: ScheduleConfig; // periodic wakeup when idle
 }
 
-
 export function ensureDirs(): void {
   mkdirSync(SESSIONS_DIR, { recursive: true });
 }

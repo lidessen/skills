@@ -150,11 +150,7 @@ function buildDisplay(agent: string | undefined, workflow: string, tag: string):
 /**
  * Build full target identifier from parts
  */
-export function buildTarget(
-  agent: string | undefined,
-  workflow?: string,
-  tag?: string,
-): string {
+export function buildTarget(agent: string | undefined, workflow?: string, tag?: string): string {
   const wf = workflow || DEFAULT_WORKFLOW;
   const t = tag || DEFAULT_TAG;
 

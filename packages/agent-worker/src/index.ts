@@ -42,7 +42,11 @@ export {
 } from "./agent/skills/index.ts";
 export type { SupportedProvider } from "./agent/models.ts";
 export type { BashToolkit, BashToolsOptions, CreateBashToolOptions } from "./agent/tools/bash.ts";
-export type { FeedbackEntry, FeedbackToolOptions, FeedbackToolResult } from "./agent/tools/feedback.ts";
+export type {
+  FeedbackEntry,
+  FeedbackToolOptions,
+  FeedbackToolResult,
+} from "./agent/tools/feedback.ts";
 export type {
   Backend,
   BackendType,

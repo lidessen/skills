@@ -17,12 +17,9 @@ import {
   parseTarget,
   buildTarget,
   buildTargetDisplay,
-  isValidName,
   DEFAULT_WORKFLOW,
   DEFAULT_TAG,
   // Backward compat
-  parseAgentId,
-  buildAgentId,
   DEFAULT_INSTANCE,
 } from "../target.ts";
 import { outputJson } from "../output.ts";
@@ -99,7 +96,18 @@ async function createAgentAction(
     });
   } else {
     const scriptPath = process.argv[1] ?? "";
-    const args = [scriptPath, "new", agentName, "-m", model, "-b", backend, "-s", system, "--foreground"];
+    const args = [
+      scriptPath,
+      "new",
+      agentName,
+      "-m",
+      model,
+      "-b",
+      backend,
+      "-s",
+      system,
+      "--foreground",
+    ];
     args.push("--idle-timeout", String(idleTimeout));
     if (options.feedback) {
       args.push("--feedback");
@@ -261,7 +269,9 @@ async function stopAgentAction(targetInput?: string, options?: { all?: boolean }
     });
 
     if (sessions.length === 0) {
-      console.error(`No agents found in ${buildTargetDisplay(undefined, target.workflow, target.tag)}`);
+      console.error(
+        `No agents found in ${buildTargetDisplay(undefined, target.workflow, target.tag)}`,
+      );
       process.exit(1);
     }
 
@@ -319,9 +329,12 @@ export function registerAgentCommands(program: Command) {
 
   // `new` — create agent
   addNewCommandOptions(
-    program.command("new [name]")
+    program
+      .command("new [name]")
       .description("Create a new standalone agent (auto-names if omitted: a0, a1, ...)")
-      .addHelpText('after', `
+      .addHelpText(
+        "after",
+        `
 Examples:
   $ agent-worker new alice -m anthropic/claude-sonnet-4-5    # Create standalone agent
   $ agent-worker new -b mock                                 # Quick testing without API key
@@ -329,7 +342,8 @@ Examples:
 
 Note: Agent Mode creates standalone agents in the global workflow.
       For coordinated multi-agent workflows, use Workflow Mode (YAML files).
-      `),
+      `,
+      ),
   ).action(createAgentAction);
 
   // `ls` — list agents
@@ -338,13 +352,16 @@ Note: Agent Mode creates standalone agents in the global workflow.
     .description("List agents (default: global workflow)")
     .option("--json", "Output as JSON")
     .option("--all", "Show agents from all workflows")
-    .addHelpText('after', `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ agent-worker ls                # List global workflow agents (default)
   $ agent-worker ls @review        # List review workflow agents
   $ agent-worker ls @review:pr-123 # List specific workflow:tag agents
   $ agent-worker ls --all          # List all agents from all workflows
-    `)
+    `,
+    )
     .action(listAgentsAction);
 
   // `stop` — stop agent(s)
@@ -352,13 +369,16 @@ Examples:
     .command("stop [target]")
     .description("Stop agent(s)")
     .option("--all", "Stop all agents")
-    .addHelpText('after', `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ agent-worker stop alice           # Stop alice in global workflow
   $ agent-worker stop alice@review    # Stop alice in review workflow
   $ agent-worker stop @review:pr-123  # Stop all agents in review:pr-123
   $ agent-worker stop --all           # Stop all agents
-    `)
+    `,
+    )
     .action(stopAgentAction);
 
   // `status` — check agent status
@@ -369,7 +389,10 @@ Examples:
     .action(async (target, options) => {
       if (!isSessionRunning(target)) {
         if (options.json) {
-          outputJson({ running: false, error: target ? `Not found: ${target}` : "No active agent" });
+          outputJson({
+            running: false,
+            error: target ? `Not found: ${target}` : "No active agent",
+          });
         } else {
           console.error(target ? `Agent not found: ${target}` : "No active agent");
         }
@@ -410,15 +433,19 @@ Examples:
   // ============================================================================
   // Schedule commands (top-level)
   // ============================================================================
-  const scheduleCmd = program.command("schedule")
+  const scheduleCmd = program
+    .command("schedule")
     .description("Manage scheduled wakeup for agents")
-    .addHelpText('after', `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ agent-worker schedule alice set 30s                    # Wake alice every 30 seconds
   $ agent-worker schedule alice set 5m --prompt "Status?"  # With custom prompt
   $ agent-worker schedule alice get                        # View current schedule
   $ agent-worker schedule alice clear                      # Remove schedule
-    `);
+    `,
+    );
 
   scheduleCmd
     .command("get [target]")
@@ -458,10 +485,7 @@ Examples:
       if (options.prompt) {
         payload.prompt = options.prompt;
       }
-      const res = await sendRequest(
-        { action: "schedule_set", payload },
-        options.to,
-      );
+      const res = await sendRequest({ action: "schedule_set", payload }, options.to);
       if (res.success) {
         if (options.json) {
           outputJson({ wakeup: wakeupValue, prompt: options.prompt || null });

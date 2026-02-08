@@ -110,7 +110,9 @@ export function buildAgentPrompt(ctx: AgentRunContext): string {
   sections.push(
     "- **team_vote**: Cast your vote on an active proposal. You can change your vote by voting again.",
   );
-  sections.push("- **team_proposal_status**: Check status of a proposal, or list all active proposals.");
+  sections.push(
+    "- **team_proposal_status**: Check status of a proposal, or list all active proposals.",
+  );
   sections.push("- **team_proposal_cancel**: Cancel a proposal you created.");
   sections.push("");
   sections.push("### Resource Tools");

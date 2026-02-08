@@ -2,13 +2,12 @@ import type { Command } from "commander";
 import { mkdirSync } from "node:fs";
 import { sendRequest, isSessionActive } from "../client.ts";
 import { outputJson } from "../output.ts";
+import { getInstanceAgentNames } from "@/daemon/index.ts";
 import {
-  getInstanceAgentNames,
-  getSessionInfo,
-  isSessionRunning,
-} from "@/daemon/index.ts";
-import { createFileContextProvider, getDefaultContextDir } from "@/workflow/context/file-provider.ts";
-import { DEFAULT_WORKFLOW, DEFAULT_TAG, parseTarget } from "../target.ts";
+  createFileContextProvider,
+  getDefaultContextDir,
+} from "@/workflow/context/file-provider.ts";
+import { DEFAULT_WORKFLOW, parseTarget } from "../target.ts";
 
 /**
  * Get a context provider for the given workflow:tag.
@@ -25,16 +24,21 @@ export function registerSendCommands(program: Command) {
   // Send command — posts to workflow channel with @mention routing
   program
     .command("send <target> <message>")
-    .description("Send message to agent or workflow. Use @workflow for broadcast or @mentions within workflow.")
+    .description(
+      "Send message to agent or workflow. Use @workflow for broadcast or @mentions within workflow.",
+    )
     .option("--json", "Output as JSON")
-    .addHelpText('after', `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ agent-worker send alice "analyze this code"              # Send to alice@global:main
   $ agent-worker send alice@review "hello"                   # Send to alice@review:main
   $ agent-worker send alice@review:pr-123 "check this"       # Send to specific workflow:tag
   $ agent-worker send @review "team update"                  # Broadcast to review workflow
   $ agent-worker send @review "@alice @bob discuss this"     # @mention within workflow
-    `)
+    `,
+    )
     .action(async (targetInput: string, message: string, options) => {
       // Parse target identifier
       const target = parseTarget(targetInput);
@@ -65,12 +69,15 @@ Examples:
     .option("--all", "Show all messages")
     .option("-n, --last <count>", "Show last N messages", parseInt)
     .option("--find <text>", "Filter messages containing text (case-insensitive)")
-    .addHelpText('after', `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ agent-worker peek                    # View @global:main
   $ agent-worker peek @review            # View @review:main
   $ agent-worker peek @review:pr-123     # View specific workflow:tag
-    `)
+    `,
+    )
     .action(async (targetInput: string | undefined, options) => {
       // Parse target identifier (default to @global)
       const target = parseTarget(targetInput || `@${DEFAULT_WORKFLOW}`);
@@ -83,9 +90,7 @@ Examples:
       // Apply text filter
       if (options.find) {
         const searchText = options.find.toLowerCase();
-        messages = messages.filter((msg) =>
-          msg.content.toLowerCase().includes(searchText),
-        );
+        messages = messages.filter((msg) => msg.content.toLowerCase().includes(searchText));
       }
 
       if (options.json) {

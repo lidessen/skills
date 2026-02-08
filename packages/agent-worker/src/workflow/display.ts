@@ -43,8 +43,8 @@ const C = {
 
 /** Separators — box-drawing for TTY, plain for pipe */
 const SEP = {
-  agent: isTTY ? "\u2502" : "|",  // │ or |
-  log: isTTY ? "\u250a" : ":",    // ┊ or :
+  agent: isTTY ? "\u2502" : "|", // │ or |
+  log: isTTY ? "\u250a" : ":", // ┊ or :
 };
 
 // ==================== Internal Helpers ====================
@@ -166,13 +166,7 @@ export interface ChannelWatcher {
 
 /** Start watching channel and displaying new entries */
 export function startChannelWatcher(config: ChannelWatcherConfig): ChannelWatcher {
-  const {
-    contextProvider,
-    agentNames,
-    log,
-    showDebug = false,
-    pollInterval = 500,
-  } = config;
+  const { contextProvider, agentNames, log, showDebug = false, pollInterval = 500 } = config;
 
   let cursor = config.initialCursor ?? 0;
   let running = true;

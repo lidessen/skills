@@ -122,14 +122,21 @@ export class FileContextProvider extends ContextProviderImpl {
  */
 export function resolveContextDir(
   dirTemplate: string,
-  opts: { workflowName?: string; workflow?: string; tag?: string; instance?: string; baseDir?: string },
+  opts: {
+    workflowName?: string;
+    workflow?: string;
+    tag?: string;
+    instance?: string;
+    baseDir?: string;
+  },
 ): string {
   // Support new workflow:tag format
   const workflow = opts.workflow ?? opts.workflowName ?? opts.instance ?? "global";
+  const workflowName = opts.workflowName ?? workflow;
   const tag = opts.tag ?? "main";
 
   let dir = dirTemplate
-    .replace("${{ workflow.name }}", workflow)
+    .replace("${{ workflow.name }}", workflowName)
     .replace("${{ workflow.tag }}", tag)
     .replace("${{ instance }}", opts.instance ?? workflow); // Backward compat
 

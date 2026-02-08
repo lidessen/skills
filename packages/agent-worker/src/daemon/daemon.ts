@@ -21,8 +21,10 @@ import type { SessionInfo, ScheduleConfig } from "./registry.ts";
 import { handleRequest } from "./handler.ts";
 import type { ServerState, Request } from "./handler.ts";
 import { msUntilNextCron } from "./cron.ts";
-import { createFileContextProvider, getDefaultContextDir } from "../workflow/context/file-provider.ts";
-import type { ContextProvider } from "../workflow/context/provider.ts";
+import {
+  createFileContextProvider,
+  getDefaultContextDir,
+} from "../workflow/context/file-provider.ts";
 import { buildTargetDisplay } from "../cli/target.ts";
 
 const DEFAULT_SKILL_DIRS = [
@@ -283,9 +285,7 @@ function startInboxPolling(): void {
       const latestId = inbox[inbox.length - 1]!.entry.id;
 
       // Build prompt from inbox messages
-      const prompt = inbox
-        .map((m) => `[${m.entry.from}]: ${m.entry.content}`)
-        .join("\n\n");
+      const prompt = inbox.map((m) => `[${m.entry.from}]: ${m.entry.content}`).join("\n\n");
 
       state.pendingRequests++;
       resetIdleTimer();
@@ -293,7 +293,11 @@ function startInboxPolling(): void {
 
       // Log: agent received messages
       const senders = [...new Set(inbox.map((m) => m.entry.from))];
-      await provider.appendChannel(agentName, `read ${inbox.length} message(s) from ${senders.join(", ")}`, { kind: "log" });
+      await provider.appendChannel(
+        agentName,
+        `read ${inbox.length} message(s) from ${senders.join(", ")}`,
+        { kind: "log" },
+      );
 
       try {
         const response = await state.session.send(prompt);
@@ -408,7 +412,9 @@ export async function startDaemon(config: {
     try {
       const module = await import(toolPath);
       // Support array of tools or object with tools
-      const toolsList = Array.isArray(module.default) ? module.default : module.default?.tools || [];
+      const toolsList = Array.isArray(module.default)
+        ? module.default
+        : module.default?.tools || [];
       for (const toolDef of toolsList) {
         if (toolDef && toolDef.name) {
           tools[toolDef.name] = toolDef;
@@ -500,9 +506,22 @@ export async function startDaemon(config: {
 
         try {
           const req: Request = JSON.parse(line);
-          const resetActivity = () => { resetIdleTimer(); resetScheduleTimers(); };
-          const resetAll = () => { resetIdleTimer(); resetIntervalSchedule(); startCronSchedule(); };
-          const res = await handleRequest(() => state, req, resetActivity, gracefulShutdown, resetAll);
+          const resetActivity = () => {
+            resetIdleTimer();
+            resetScheduleTimers();
+          };
+          const resetAll = () => {
+            resetIdleTimer();
+            resetIntervalSchedule();
+            startCronSchedule();
+          };
+          const res = await handleRequest(
+            () => state,
+            req,
+            resetActivity,
+            gracefulShutdown,
+            resetAll,
+          );
           socket.write(JSON.stringify(res) + "\n");
         } catch (error) {
           socket.write(

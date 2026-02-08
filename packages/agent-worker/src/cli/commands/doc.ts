@@ -7,11 +7,14 @@ export function registerDocCommands(program: Command) {
   docCmd
     .command("read <target>")
     .description("Read the workflow document")
-    .addHelpText('after', `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ agent-worker doc read @review            # Read @review:main document
   $ agent-worker doc read @review:pr-123     # Read specific workflow:tag document
-    `)
+    `,
+    )
     .action(async (targetInput: string) => {
       const dir = await resolveDir(targetInput);
       const { createFileContextProvider } = await import("@/workflow/context/index.ts");
@@ -25,11 +28,14 @@ Examples:
     .description("Write content to the workflow document")
     .option("--content <text>", "Content to write")
     .option("--file <path>", "Read content from file")
-    .addHelpText('after', `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ agent-worker doc write @review --content "Document content"
   $ agent-worker doc write @review:pr-123 --file content.txt
-    `)
+    `,
+    )
     .action(async (targetInput: string, options) => {
       let content = options.content;
       if (options.file) {
@@ -54,11 +60,14 @@ Examples:
     .description("Append content to the workflow document")
     .option("--content <text>", "Content to append (use $'...' for newlines in bash)")
     .option("--file <path>", "Read content from file")
-    .addHelpText('after', `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ agent-worker doc append @review --content $'\\nNew line'
   $ agent-worker doc append @review:pr-123 --file content.txt
-    `)
+    `,
+    )
     .action(async (targetInput: string, options) => {
       let content = options.content;
       if (options.file) {
