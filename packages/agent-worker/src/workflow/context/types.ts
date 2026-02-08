@@ -112,8 +112,6 @@ export interface InboxState {
   readCursors: Record<string, string>;
   /** Per-agent seen cursor: agent name → ID of last seen (picked up by controller) message */
   seenCursors?: Record<string, string>;
-  /** Run epoch: ID of last channel message at run start. Inbox ignores messages before this. */
-  runStartId?: string;
 }
 
 /**

@@ -106,6 +106,8 @@ export class ContextProviderImpl implements ContextProvider {
   private channelOffset = 0;
   /** Guards concurrent syncChannel calls (share one in-flight read) */
   private syncPromise: Promise<Message[]> | null = null;
+  /** Run epoch: channel entry count at run start. Inbox ignores entries before this index. */
+  private runStartIndex = 0;
 
   constructor(
     private storage: StorageBackend,
@@ -201,11 +203,8 @@ export class ContextProviderImpl implements ContextProvider {
     let entries = await this.syncChannel();
 
     // Run epoch floor: skip messages from before this run started
-    if (state.runStartId) {
-      const startIdx = entries.findIndex((e) => e.id === state.runStartId);
-      if (startIdx >= 0) {
-        entries = entries.slice(startIdx + 1);
-      }
+    if (this.runStartIndex > 0) {
+      entries = entries.slice(this.runStartIndex);
     }
 
     // Skip messages up to and including the last acked message
@@ -262,7 +261,6 @@ export class ContextProviderImpl implements ContextProvider {
       return {
         readCursors: data.readCursors || {},
         seenCursors: data.seenCursors,
-        runStartId: data.runStartId,
       };
     } catch {
       return { readCursors: {} };
@@ -330,14 +328,7 @@ export class ContextProviderImpl implements ContextProvider {
 
   async markRunStart(): Promise<void> {
     const entries = await this.syncChannel();
-    const state = await this.loadInboxState();
-    if (entries.length > 0) {
-      state.runStartId = entries[entries.length - 1]!.id;
-    }
-    // Reset per-agent cursors for new run
-    state.readCursors = {};
-    state.seenCursors = {};
-    await this.storage.write(KEYS.inboxState, JSON.stringify(state, null, 2));
+    this.runStartIndex = entries.length;
   }
 
   async destroy(): Promise<void> {
