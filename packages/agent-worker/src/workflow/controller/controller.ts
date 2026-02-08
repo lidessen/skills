@@ -103,7 +103,7 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
           msg.entry.content.length > 120
             ? msg.entry.content.slice(0, 120) + "..."
             : msg.entry.content;
-        log(`  ← @${msg.entry.from}: ${preview}`);
+        log(`  from @${msg.entry.from}: ${preview}`);
       }
 
       // Get latest message ID for acknowledgment
@@ -143,7 +143,7 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
         lastResult = await runAgent(backend, runContext, log);
 
         if (lastResult.success) {
-          log(`✓ Done (${lastResult.duration}ms)`);
+          log(`DONE (${lastResult.duration}ms)`);
 
           // Write agent's final response to channel (so it's visible to user)
           if (lastResult.content) {
@@ -155,7 +155,7 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
           break;
         }
 
-        errorLog(`✗ Failed: ${lastResult.error}`);
+        errorLog(`ERROR ${lastResult.error}`);
 
         // Retry with backoff (unless last attempt)
         if (attempt < retryConfig.maxAttempts && shouldContinue(state)) {
@@ -168,7 +168,7 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
 
       // If all retries exhausted, still acknowledge to prevent infinite loop
       if (lastResult && !lastResult.success) {
-        errorLog(`✗ Max retries exhausted, acknowledging to prevent loop`);
+        errorLog(`ERROR max retries exhausted, acknowledging to prevent loop`);
         await contextProvider.ackInbox(name, latestId);
       }
 
@@ -200,7 +200,7 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
 
       // Start loop (don't await - runs in background)
       runLoop().catch((error) => {
-        errorLog(`✗ ${error instanceof Error ? error.message : String(error)}`);
+        errorLog(`ERROR ${error instanceof Error ? error.message : String(error)}`);
         state = "stopped";
       });
     },
@@ -286,7 +286,7 @@ async function runAgent(
     return { success: true, duration: Date.now() - startTime };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    log(`✗ ${errorMsg}`);
+    log(`ERROR ${errorMsg}`);
     return { success: false, error: errorMsg, duration: Date.now() - startTime };
   }
 }

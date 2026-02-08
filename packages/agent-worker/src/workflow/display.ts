@@ -132,7 +132,9 @@ function formatLogEntry(entry: Message, time: string): string {
   }
 
   // TTY: dimmed, aligned, with ┊ separator
-  const source = entry.from.padEnd(NAME_WIDTH);
+  // Shorten source: "workflow:introducer" → "introducer"
+  const sourceName = entry.from.includes(":") ? entry.from.split(":").pop()! : entry.from;
+  const source = sourceName.padEnd(NAME_WIDTH);
 
   let contentColor = C.dim;
   if (isWarn) contentColor = C.yellow;
