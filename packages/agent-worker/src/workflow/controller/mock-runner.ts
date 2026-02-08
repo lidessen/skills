@@ -9,11 +9,10 @@
  * The mock backend itself is just a simple send() adapter.
  */
 
-import { generateText, tool, stepCountIs } from "ai";
+import { generateText, tool, stepCountIs, jsonSchema } from "ai";
 import { MockLanguageModelV3, mockValues } from "ai/test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { z } from "zod";
 import type { AgentRunContext, AgentRunResult } from "./types.ts";
 import { buildAgentPrompt } from "./prompt.ts";
 
@@ -40,7 +39,7 @@ async function createMCPToolBridge(mcpUrl: string, agentName: string): Promise<M
     const toolName = mcpTool.name;
     aiTools[toolName] = tool({
       description: mcpTool.description || toolName,
-      parameters: z.record(z.unknown()),
+      parameters: jsonSchema(mcpTool.inputSchema as Parameters<typeof jsonSchema>[0]),
       execute: async (args: Record<string, unknown>) => {
         const result = await client.callTool({ name: toolName, arguments: args });
         return result.content;
