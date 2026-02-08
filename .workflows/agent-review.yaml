@@ -16,14 +16,40 @@ setup:
   - shell: gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json files --jq '.files[].path'
     as: changed_files
 
-  # Post status comment on PR — agent will edit this with the final review
+  # Find existing review comment or create new one
   - shell: |
-      gh api repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments \
-        -f body='> ⏳ **Reviewing...**' --jq '.id'
+      EXISTING=$(gh api repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments \
+        --jq '.[] | select(.body | startswith("<!-- agent-review -->")) | .id' | head -1)
+
+      if [ -n "$EXISTING" ]; then
+        echo "$EXISTING"
+      else
+        gh api repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments \
+          -f body='<!-- agent-review -->
+      > ⏳ **Reviewing...**' --jq '.id'
+      fi
     as: comment_id
+
+  # Get commit range for incremental review
+  - shell: |
+      if [ "$TRIGGER_TYPE" = "synchronize" ]; then
+        # Get commits from the PR
+        COMMITS=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json commits --jq '.commits[].oid' | tail -5)
+        echo "Recent commits (last 5):"
+        echo "$COMMITS"
+
+        # Get diff for recent commits
+        gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
+      else
+        echo "Initial review - checking all changes"
+        gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
+      fi
+    as: incremental_diff
 
 kickoff: |
   @reviewer Please review this pull request.
+
+  **Review Type**: ${{ env.TRIGGER_TYPE == 'synchronize' && 'Incremental (new commits)' || 'Initial (full review)' }}
 
   ## PR Info
   ${{ pr_info }}
@@ -32,9 +58,14 @@ kickoff: |
   ${{ changed_files }}
 
   ## Diff
-  ${{ pr_diff }}
+  ${{ incremental_diff }}
 
-  When done, write your review to /tmp/review.md, then update the status comment:
+  When done, write your review to /tmp/review.md with the following format:
+  - Start with the comment marker: `<!-- agent-review -->`
+  - For incremental reviews, note which commits were reviewed
+  - Provide clear, actionable feedback
+
+  Then update the review comment:
   ```
   gh api repos/$GITHUB_REPOSITORY/issues/comments/${{ comment_id }} \
     -X PATCH -F body=@/tmp/review.md
