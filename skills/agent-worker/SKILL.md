@@ -70,15 +70,15 @@ agents:
 ```
 
 ```bash
-# Run workflow agents
-agent-worker run review.yaml -w review
+# Run workflow agents (workflow name from YAML)
+agent-worker run review.yaml
 
 # Send to specific agent in workflow
 agent-worker send reviewer@review "Check this code"
 
 # Multiple isolated instances (tags)
-agent-worker run review.yaml -w review:pr-123
-agent-worker run review.yaml -w review:pr-456
+agent-worker run review.yaml --tag pr-123
+agent-worker run review.yaml --tag pr-456
 
 # Each tag has independent context
 agent-worker send reviewer@review:pr-123 "LGTM"
@@ -111,7 +111,7 @@ agent-worker ls [target]                 # List agents (default: global)
 agent-worker ls --all                    # List all agents from all workflows
 agent-worker status <target>             # Check status
 agent-worker stop <target>               # Stop agent
-agent-worker stop -w <workflow:tag>      # Stop all in workflow
+agent-worker stop @workflow:tag          # Stop all in workflow:tag
 
 # Interaction
 agent-worker send <target> <message>
@@ -170,8 +170,8 @@ agents:
 ```
 
 ```bash
-# Run workflow
-agent-worker run review.yaml -w review:pr-123
+# Run workflow (workflow name from YAML)
+agent-worker run review.yaml --tag pr-123
 
 # Interact with agents
 agent-worker send reviewer@review:pr-123 "Review recent changes"
@@ -211,7 +211,7 @@ agent-worker run review.yaml
 agent-worker start review.yaml
 
 # With specific tag
-agent-worker run review.yaml -w review:pr-123
+agent-worker run review.yaml --tag pr-123
 ```
 
 ### Workflow Structure
@@ -347,7 +347,7 @@ kickoff: |
 ```
 
 ```bash
-PR_NUMBER=123 agent-worker run review.yaml -w review:pr-123
+PR_NUMBER=123 agent-worker run review.yaml --tag pr-123
 ```
 
 **Research & Summarize:**
@@ -675,18 +675,18 @@ agent-worker new [name]              Create agent (auto-names if omitted)
   -b, --backend <type>               Backend: sdk, claude, cursor, codex, mock
   -s, --system <prompt>              System prompt
   -f, --system-file <path>           System prompt from file
-  -w, --workflow <workflow:tag>      Workflow namespace and tag
+  --tool <file>                      Import MCP tools from file (SDK backend)
   --wakeup <interval|cron>           Periodic wakeup schedule
   --wakeup-prompt <text>             Prompt for wakeup
   --idle-timeout <ms>                Idle timeout (0 = no timeout)
 
-agent-worker ls                      List all agents
-  -w, --workflow <workflow:tag>      Filter by workflow:tag
+agent-worker ls [target]             List agents (default: global)
+  --all                              Show agents from all workflows
 
 agent-worker status <target>         Check agent status
 agent-worker stop <target>           Stop agent
   --all                              Stop all agents
-  -w, --workflow <workflow:tag>      Stop all in workflow
+  Target: agent, agent@workflow:tag, or @workflow:tag
 
 # Communication
 agent-worker send <target> <message> Send to agent or workflow
@@ -730,14 +730,16 @@ agent-worker deny <id> -r <reason>   Deny tool call
 
 # Workflows (YAML)
 agent-worker run <file>              Run workflow (exit on complete)
-  -w, --workflow <workflow:tag>      Workflow instance
+  --tag <tag>                        Workflow instance tag (default: main)
   --json                             JSON output
   --debug                            Show debug logs
   --feedback                         Enable feedback tool
+  Note: Workflow name inferred from YAML 'name' field or filename
 
 agent-worker start <file>            Start workflow (keep running)
-  -w, --workflow <workflow:tag>      Workflow instance
+  --tag <tag>                        Workflow instance tag (default: main)
   --background                       Run in background
+  Note: Workflow name inferred from YAML 'name' field or filename
 
 # Utilities
 agent-worker providers               Check SDK providers

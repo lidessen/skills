@@ -229,12 +229,10 @@ function listAgentsAction(targetInput?: string, options?: { json?: boolean; all?
 }
 
 // Common action for stopping agents
-async function stopAgentAction(target?: string, options?: { all?: boolean; workflow?: string }) {
-  if (options?.all || options?.workflow) {
-    let sessions = listSessions();
-    if (options.workflow) {
-      sessions = sessions.filter((s) => s.instance === options.workflow);
-    }
+async function stopAgentAction(targetInput?: string, options?: { all?: boolean }) {
+  // Stop all agents
+  if (options?.all) {
+    const sessions = listSessions();
     for (const s of sessions) {
       if (isSessionRunning(s.id)) {
         await sendRequest({ action: "shutdown" }, s.id);
@@ -245,17 +243,46 @@ async function stopAgentAction(target?: string, options?: { all?: boolean; workf
     return;
   }
 
-  if (!target) {
-    console.error("Specify target agent, or use --all / --workflow");
+  if (!targetInput) {
+    console.error("Specify target agent or use --all");
     process.exit(1);
   }
 
-  if (!isSessionRunning(target)) {
-    console.error(`Agent not found: ${target}`);
+  // Parse target
+  const target = parseTarget(targetInput);
+
+  // If no agent name specified (e.g., @review:pr-123), stop all agents in that workflow:tag
+  if (!target.agent) {
+    let sessions = listSessions();
+    sessions = sessions.filter((s) => {
+      const sessionWorkflow = s.workflow || s.instance || DEFAULT_WORKFLOW;
+      const sessionTag = s.tag || DEFAULT_TAG;
+      return sessionWorkflow === target.workflow && sessionTag === target.tag;
+    });
+
+    if (sessions.length === 0) {
+      console.error(`No agents found in ${buildTargetDisplay(undefined, target.workflow, target.tag)}`);
+      process.exit(1);
+    }
+
+    for (const s of sessions) {
+      if (isSessionRunning(s.id)) {
+        await sendRequest({ action: "shutdown" }, s.id);
+        const displayName = s.name ? getAgentDisplayName(s.name) : s.id.slice(0, 8);
+        console.log(`Stopped: ${displayName}`);
+      }
+    }
+    return;
+  }
+
+  // Stop specific agent
+  const fullTarget = buildTarget(target.agent, target.workflow, target.tag);
+  if (!isSessionRunning(fullTarget)) {
+    console.error(`Agent not found: ${targetInput}`);
     process.exit(1);
   }
 
-  const res = await sendRequest({ action: "shutdown" }, target);
+  const res = await sendRequest({ action: "shutdown" }, fullTarget);
   if (res.success) {
     console.log("Agent stopped");
   } else {
@@ -325,7 +352,13 @@ Examples:
     .command("stop [target]")
     .description("Stop agent(s)")
     .option("--all", "Stop all agents")
-    .option("-w, --workflow <name>", "Stop all agents in workflow")
+    .addHelpText('after', `
+Examples:
+  $ agent-worker stop alice           # Stop alice in global workflow
+  $ agent-worker stop alice@review    # Stop alice in review workflow
+  $ agent-worker stop @review:pr-123  # Stop all agents in review:pr-123
+  $ agent-worker stop --all           # Stop all agents
+    `)
     .action(stopAgentAction);
 
   // `status` — check agent status

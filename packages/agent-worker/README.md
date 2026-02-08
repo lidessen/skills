@@ -60,8 +60,8 @@ agents:
 ```
 
 ```bash
-# Run workflow agents
-agent-worker run review.yaml -w review
+# Run workflow agents (workflow name from YAML)
+agent-worker run review.yaml
 
 # Send to specific agent in workflow
 agent-worker send reviewer@review "Check this code"
@@ -75,8 +75,8 @@ Run multiple isolated instances of the same workflow using **tags**:
 
 ```bash
 # Different PRs, isolated contexts
-agent-worker run review.yaml -w review:pr-123
-agent-worker run review.yaml -w review:pr-456
+agent-worker run review.yaml --tag pr-123
+agent-worker run review.yaml --tag pr-456
 
 # Each has its own conversation history
 agent-worker send reviewer@review:pr-123 "LGTM"
@@ -206,9 +206,9 @@ agent-worker start review.yaml --background
 Run the same workflow definition with different contexts:
 
 ```bash
-# Each PR gets its own isolated instance
-agent-worker run review.yaml -w review:pr-123
-agent-worker run review.yaml -w review:pr-456
+# Each PR gets its own isolated instance (workflow name from YAML)
+agent-worker run review.yaml --tag pr-123
+agent-worker run review.yaml --tag pr-456
 
 # Context isolation
 ├── .workflow/
@@ -269,11 +269,11 @@ kickoff: |
 ### Workflow Commands
 
 ```bash
-# Execution
-agent-worker run <file> [-w workflow:tag] [--json]    # Run once
-agent-worker start <file> [-w workflow:tag]           # Keep alive
-agent-worker start <file> --background                # Daemon mode
-agent-worker stop @<workflow:tag>                     # Stop workflow
+# Execution (workflow name inferred from YAML)
+agent-worker run <file> [--tag tag] [--json]    # Run once
+agent-worker start <file> [--tag tag]           # Keep alive
+agent-worker start <file> --background          # Daemon mode
+agent-worker stop @<workflow:tag>               # Stop workflow
 
 # Monitoring
 agent-worker ls @<workflow:tag>          # List agents in workflow
@@ -357,7 +357,7 @@ kickoff: |
 ```
 
 ```bash
-PR_NUMBER=123 agent-worker run review.yaml -w review:pr-123
+PR_NUMBER=123 agent-worker run review.yaml --tag pr-123
 ```
 
 **Research & Summarize:**
