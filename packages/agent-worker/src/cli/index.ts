@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+
+// Suppress AI SDK compatibility warnings (specificationVersion v2 mode, etc.)
+// These are noise for end users — the SDK works correctly in compatibility mode
+(globalThis as Record<string, unknown>).AI_SDK_LOG_WARNINGS = false;
+
 import { Command } from "commander";
 import { registerAgentCommands } from "./commands/agent.ts";
 import { registerSendCommands } from "./commands/send.ts";
