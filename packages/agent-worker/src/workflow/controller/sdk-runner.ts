@@ -26,33 +26,14 @@ function truncate(s: string, max: number): string {
   return flat.length > max ? flat.slice(0, max) + "…" : flat;
 }
 
-/** Format a tool call for concise single-line debug output */
+/** Format a tool call for concise single-line debug output (unified format for all tools) */
 function formatToolCall(tc: { toolName: string } & Record<string, unknown>): string {
   const input = (tc.input ?? tc.args ?? {}) as Record<string, unknown>;
-  const name = tc.toolName;
-
-  // bash → $ command
-  if (name === "bash" && typeof input.command === "string") {
-    return `$ ${truncate(input.command, 80)}`;
-  }
-
-  // channel_send → already visible in channel output
-  if (name === "channel_send") {
-    return `channel_send "${truncate(String(input.message ?? ""), 50)}"`;
-  }
-
-  // document tools → show file + snippet
-  if (name.startsWith("document_") && typeof input.content === "string") {
-    const file = input.file ? `${input.file}: ` : "";
-    return `${name} ${file}"${truncate(input.content, 40)}"`;
-  }
-
-  // Default: tool_name key=val key=val
   const pairs = Object.entries(input).map(([k, v]) => {
     const s = typeof v === "string" ? v : JSON.stringify(v);
-    return `${k}=${truncate(s, 40)}`;
+    return `${k}=${truncate(s, 60)}`;
   });
-  return pairs.length ? `${name} ${pairs.join(" ")}` : name;
+  return pairs.length ? `${tc.toolName} ${pairs.join(" ")}` : tc.toolName;
 }
 
 // ==================== MCP Tool Bridge ====================
@@ -156,20 +137,20 @@ export async function runSdkAgent(
         stepNum++;
         if (step.toolCalls?.length) {
           for (const tc of step.toolCalls) {
-            log(`▸ ${formatToolCall(tc)}`);
+            log(`CALL ${formatToolCall(tc)}`);
           }
         }
       },
     });
 
     const totalToolCalls = result.steps.reduce((n, s) => n + s.toolCalls.length, 0);
-    log(`✓ ${result.steps.length} steps, ${totalToolCalls} tool calls`);
+    log(`DONE ${result.steps.length} steps, ${totalToolCalls} tool calls`);
 
     await mcp.close();
     return { success: true, duration: Date.now() - startTime, content: result.text };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    log(`✗ ${errorMsg}`);
+    log(`ERROR ${errorMsg}`);
     return { success: false, error: errorMsg, duration: Date.now() - startTime };
   }
 }

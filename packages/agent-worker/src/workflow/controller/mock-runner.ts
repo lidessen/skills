@@ -132,13 +132,13 @@ export async function runMockAgent(
     });
 
     const totalToolCalls = result.steps.reduce((n, s) => n + s.toolCalls.length, 0);
-    log(`✓ ${result.steps.length} steps, ${totalToolCalls} tool calls`);
+    log(`DONE ${result.steps.length} steps, ${totalToolCalls} tool calls`);
 
     await mcp.close();
     return { success: true, duration: Date.now() - startTime };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    log(`✗ ${errorMsg}`);
+    log(`ERROR ${errorMsg}`);
     return { success: false, error: errorMsg, duration: Date.now() - startTime };
   }
 }
