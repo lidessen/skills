@@ -41,18 +41,18 @@ export interface ReadOptions {
  */
 /** Result of an incremental channel read */
 export interface TailResult {
-  /** New entries since last offset */
+  /** New entries since last cursor */
   entries: Message[];
-  /** Updated byte offset for next call */
-  offset: number;
+  /** Updated cursor for next call (entry index) */
+  cursor: number;
 }
 
 export interface ContextProvider {
   // Channel
   appendChannel(from: string, content: string, options?: SendOptions): Promise<Message>;
   readChannel(options?: ReadOptions): Promise<Message[]>;
-  /** Read new channel entries incrementally from a byte offset */
-  tailChannel(offset: number): Promise<TailResult>;
+  /** Read new channel entries incrementally from an entry cursor */
+  tailChannel(cursor: number): Promise<TailResult>;
 
   // Inbox
   getInbox(agent: string): Promise<InboxMessage[]>;
@@ -96,6 +96,13 @@ const KEYS = {
  * Inbox state: JSON cursor file (ID-based)
  */
 export class ContextProviderImpl implements ContextProvider {
+  /** Cached parsed channel entries — incrementally synced from storage */
+  private channelEntries: Message[] = [];
+  /** Storage byte offset up to which the cache is synced */
+  private channelOffset = 0;
+  /** Guards concurrent syncChannel calls (share one in-flight read) */
+  private syncPromise: Promise<Message[]> | null = null;
+
   constructor(
     private storage: StorageBackend,
     private validAgents: string[],
@@ -107,6 +114,29 @@ export class ContextProviderImpl implements ContextProvider {
   }
 
   // ==================== Channel ====================
+
+  /**
+   * Sync cached entries from storage via incremental read.
+   * Only parses newly appended JSONL lines since last sync.
+   * Concurrent callers share the same in-flight read to avoid duplicate pushes.
+   */
+  private syncChannel(): Promise<Message[]> {
+    if (!this.syncPromise) {
+      this.syncPromise = this.doSyncChannel().finally(() => {
+        this.syncPromise = null;
+      });
+    }
+    return this.syncPromise;
+  }
+
+  private async doSyncChannel(): Promise<Message[]> {
+    const result = await this.storage.readFrom(KEYS.channel, this.channelOffset);
+    if (result.content) {
+      this.channelEntries.push(...parseJsonl<Message>(result.content));
+      this.channelOffset = result.offset;
+    }
+    return this.channelEntries;
+  }
 
   async appendChannel(from: string, content: string, options?: SendOptions): Promise<Message> {
     const id = nanoid();
@@ -126,10 +156,7 @@ export class ContextProviderImpl implements ContextProvider {
   }
 
   async readChannel(options?: ReadOptions): Promise<Message[]> {
-    const raw = await this.storage.read(KEYS.channel);
-    if (!raw) return [];
-
-    let entries = parseJsonl<Message>(raw);
+    let entries = await this.syncChannel();
 
     // Visibility filtering: agent sees public msgs + DMs to/from them, no logs/debug
     if (options?.agent) {
@@ -155,10 +182,9 @@ export class ContextProviderImpl implements ContextProvider {
     return entries;
   }
 
-  async tailChannel(offset: number): Promise<TailResult> {
-    const result = await this.storage.readFrom(KEYS.channel, offset);
-    if (!result.content) return { entries: [], offset };
-    return { entries: parseJsonl<Message>(result.content), offset: result.offset };
+  async tailChannel(cursor: number): Promise<TailResult> {
+    const entries = await this.syncChannel();
+    return { entries: entries.slice(cursor), cursor: entries.length };
   }
 
   // ==================== Inbox ====================
@@ -167,11 +193,7 @@ export class ContextProviderImpl implements ContextProvider {
     const state = await this.loadInboxState();
     const lastAckId = state.readCursors[agent];
 
-    // Read all messages (unfiltered)
-    const raw = await this.storage.read(KEYS.channel);
-    if (!raw) return [];
-
-    let entries = parseJsonl<Message>(raw);
+    let entries = await this.syncChannel();
 
     // Skip messages up to and including the last acked message
     if (lastAckId) {
