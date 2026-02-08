@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-// @ts-nocheck
 /**
  * Mock CLI for testing cursor-agent, claude, and codex backends
  *
@@ -57,7 +56,7 @@ if (command === 'cursor-agent') {
   // cursor-agent -p "message" or cursor-agent "message" -p
   const pIndex = args.indexOf('-p')
   if (pIndex !== -1 && args[pIndex + 1]) {
-    message = args[pIndex + 1]
+    message = args[pIndex + 1]!
   } else {
     // Try finding message before -p
     for (let i = 1; i < args.length; i++) {
@@ -71,7 +70,7 @@ if (command === 'cursor-agent') {
   // claude -p "message"
   const pIndex = args.indexOf('-p')
   if (pIndex !== -1 && args[pIndex + 1]) {
-    message = args[pIndex + 1]
+    message = args[pIndex + 1]!
   }
 } else if (command === 'codex') {
   // codex "message"

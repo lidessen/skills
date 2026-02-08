@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * AgentSession.send() Tests
  *
@@ -11,11 +10,11 @@
  */
 
 import { describe, test, expect, mock, beforeEach } from 'bun:test'
-import { MockLanguageModelV3, mockValues } from 'ai/test'
+import { MockLanguageModelV3 } from 'ai/test'
 import { tool, jsonSchema } from 'ai'
-import { textModel, sequenceModel, failingModel, toolCallModel } from '../helpers/mock-model.ts'
+import { textModel, sequenceModel, toolCallModel } from '../helpers/mock-model.ts'
 import { recordingBackend } from '../helpers/mock-backend.ts'
-import type { Backend, BackendResponse } from '../../src/backends/types.ts'
+import type { Backend } from '../../src/backends/types.ts'
 
 // ==================== Backend Delegation Path ====================
 // When session has a backend, send() delegates to backend.send()
@@ -400,14 +399,20 @@ describe('AgentSession.send() via SDK (mock model)', () => {
 
     const { AgentSession } = await import('../../src/agent/session.ts')
 
-    const weatherTool = tool({
+    const weatherTool = tool<
+      { location: string },
+      { temperature: number; location: string }
+    >({
       description: 'Get weather',
-      parameters: jsonSchema<Record<string, unknown>>({
+      inputSchema: jsonSchema<{ location: string }>({
         type: 'object',
         properties: { location: { type: 'string' } },
         required: ['location'],
       }),
-      execute: async (args) => ({ temperature: 25, location: (args as any).location }),
+      execute: async (args: { location: string }) => ({
+        temperature: 25,
+        location: args.location,
+      }),
     })
 
     const session = new AgentSession({
@@ -500,14 +505,14 @@ describe('AgentSession.send() via SDK (mock model)', () => {
 
     const { AgentSession } = await import('../../src/agent/session.ts')
 
-    const calcTool = tool({
+    const calcTool = tool<{ expression: string }, { result: number }>({
       description: 'Calculate expression',
-      parameters: jsonSchema<Record<string, unknown>>({
+      inputSchema: jsonSchema<{ expression: string }>({
         type: 'object',
         properties: { expression: { type: 'string' } },
         required: ['expression'],
       }),
-      execute: async () => ({ result: 4 }),
+      execute: async (_args: { expression: string }) => ({ result: 4 }),
     })
 
     const session = new AgentSession({
@@ -545,13 +550,13 @@ describe('AgentSession approval workflow', () => {
       system: 'Test',
     })
 
-    const testTool = tool({
+    const testTool = tool<Record<string, never>, string>({
       description: 'Dangerous tool',
-      parameters: jsonSchema<Record<string, unknown>>({
+      inputSchema: jsonSchema<Record<string, never>>({
         type: 'object',
         properties: {},
       }),
-      execute: async () => 'executed',
+      execute: async (_args: Record<string, never>) => 'executed',
     })
 
     session.addTool('dangerous', testTool)
@@ -569,15 +574,15 @@ describe('AgentSession approval workflow', () => {
     })
 
     let executed = false
-    const testTool = tool({
+    const testTool = tool<{ target: string }, { deleted: string }>({
       description: 'Dangerous tool',
-      parameters: jsonSchema<Record<string, unknown>>({
+      inputSchema: jsonSchema<{ target: string }>({
         type: 'object',
         properties: { target: { type: 'string' } },
       }),
-      execute: async (args) => {
+      execute: async (args: { target: string }) => {
         executed = true
-        return { deleted: (args as any).target }
+        return { deleted: args.target }
       },
     })
 
@@ -585,7 +590,6 @@ describe('AgentSession approval workflow', () => {
     session.setApproval('delete_file', true)
 
     // Manually create a pending approval (simulating what send() does)
-    const state = session.getState()
     const approval = {
       id: 'test-approval-1',
       toolName: 'delete_file',
@@ -607,10 +611,13 @@ describe('AgentSession approval workflow', () => {
       system: 'Test',
     })
 
-    const testTool = tool({
+    const testTool = tool<Record<string, never>, string>({
       description: 'Dangerous',
-      parameters: jsonSchema<Record<string, unknown>>({ type: 'object', properties: {} }),
-      execute: async () => 'executed',
+      inputSchema: jsonSchema<Record<string, never>>({
+        type: 'object',
+        properties: {},
+      }),
+      execute: async (_args: Record<string, never>) => 'executed',
     })
 
     session.addTool('danger', testTool)
@@ -661,10 +668,13 @@ describe('AgentSession approval workflow', () => {
       system: 'Test',
     })
 
-    const testTool = tool({
+    const testTool = tool<Record<string, never>, string>({
       description: 'Test',
-      parameters: jsonSchema<Record<string, unknown>>({ type: 'object', properties: {} }),
-      execute: async () => 'ok',
+      inputSchema: jsonSchema<Record<string, never>>({
+        type: 'object',
+        properties: {},
+      }),
+      execute: async (_args: Record<string, never>) => 'ok',
     })
     session.addTool('test', testTool)
 
