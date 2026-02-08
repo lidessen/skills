@@ -174,15 +174,13 @@ export function startChannelWatcher(config: ChannelWatcherConfig): ChannelWatche
     pollInterval = 500,
   } = config;
 
-  let offset = 0;
+  let cursor = 0;
   let running = true;
 
   const poll = async () => {
     while (running) {
       try {
-        // Incremental read: only parse bytes appended since last poll.
-        // JSONL's line-per-entry format makes byte-offset tailing safe.
-        const tail = await contextProvider.tailChannel(offset);
+        const tail = await contextProvider.tailChannel(cursor);
         for (const entry of tail.entries) {
           // Filter: skip debug entries unless --debug
           if (entry.kind === "debug" && !showDebug) {
@@ -191,7 +189,7 @@ export function startChannelWatcher(config: ChannelWatcherConfig): ChannelWatche
 
           log(formatChannelEntry(entry, agentNames));
         }
-        offset = tail.offset;
+        cursor = tail.cursor;
       } catch {
         // Ignore errors during polling
       }
