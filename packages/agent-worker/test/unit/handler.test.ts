@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Daemon Handler Unit Tests
  *
@@ -9,8 +8,8 @@
  * Previously only tested indirectly through CLI integration tests.
  */
 
-import { describe, test, expect, beforeEach, mock } from 'bun:test'
-import { handleRequest, type ServerState, type Request, type Response } from '../../src/daemon/handler.ts'
+import { describe, test, expect, beforeEach } from 'bun:test'
+import { handleRequest, type ServerState } from '../../src/daemon/handler.ts'
 import { AgentSession } from '../../src/agent/session.ts'
 import type { Backend } from '../../src/backends/types.ts'
 import type { SessionInfo } from '../../src/daemon/registry.ts'
@@ -35,11 +34,17 @@ function createTestState(overrides?: Partial<ServerState>): ServerState {
   const info: SessionInfo = {
     id: 'test-session-id',
     name: 'test-agent',
+    workflow: 'test',
+    tag: 'main',
+    contextDir: '/tmp/test',
     socketPath: '/tmp/test.sock',
     pid: process.pid,
     backend: 'claude',
     model: 'test/model',
+    system: 'Test system prompt',
     pidFile: '/tmp/test.pid',
+    readyFile: '/tmp/test.ready',
+    createdAt: new Date().toISOString(),
   }
 
   return {
