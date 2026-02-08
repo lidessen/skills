@@ -215,8 +215,8 @@ async function stopAgentAction(target?: string, options?: { all?: boolean; workf
   }
 
   if (!isSessionRunning(target)) {
-    console.log(`Agent not found: ${target}`);
-    return;
+    console.error(`Agent not found: ${target}`);
+    process.exit(1);
   }
 
   const res = await sendRequest({ action: "shutdown" }, target);
@@ -232,7 +232,7 @@ function addNewCommandOptions(cmd: Command): Command {
     .option("-m, --model <model>", `Model identifier (default: ${getDefaultModel()})`)
     .addOption(
       new Option("-b, --backend <type>", "Backend type")
-        .choices(["sdk", "claude", "codex", "cursor"])
+        .choices(["sdk", "claude", "codex", "cursor", "mock"])
         .default("sdk"),
     )
     .option("-s, --system <prompt>", "System prompt", "You are a helpful assistant.")
@@ -285,9 +285,9 @@ export function registerAgentCommands(program: Command) {
         if (options.json) {
           outputJson({ running: false, error: target ? `Not found: ${target}` : "No active agent" });
         } else {
-          console.log(target ? `Agent not found: ${target}` : "No active agent");
+          console.error(target ? `Agent not found: ${target}` : "No active agent");
         }
-        return;
+        process.exit(1);
       }
 
       const res = await sendRequest({ action: "ping" }, target);

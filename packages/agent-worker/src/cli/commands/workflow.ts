@@ -17,11 +17,14 @@ export function registerWorkflowCommands(program: Command) {
       try {
         const workflow = await parseWorkflowFile(file, { instance: options.workflow });
 
+        // In JSON mode, route logs to stderr to keep stdout clean
+        const log = options.json ? console.error : console.log;
+
         const result = await runWorkflowWithControllers({
           workflow,
           instance: options.workflow,
           debug: options.debug,
-          log: console.log,
+          log,
           mode: "run",
           feedback: options.feedback,
         });
@@ -53,8 +56,8 @@ export function registerWorkflowCommands(program: Command) {
           }
         }
 
-        // Print feedback summary
-        if (result.feedback && result.feedback.length > 0) {
+        // Print feedback summary (to stderr in JSON mode)
+        if (result.feedback && result.feedback.length > 0 && !options.json) {
           console.log(`\n--- Feedback (${result.feedback.length}) ---`);
           for (const entry of result.feedback) {
             console.log(`  [${entry.type}] ${entry.target}: ${entry.description}`);
