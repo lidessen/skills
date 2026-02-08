@@ -114,9 +114,9 @@ agent-worker doc read <target>
 agent-worker doc write <target> --content "..."
 agent-worker doc append <target> --file notes.txt
 
-# Tools (for testing/mocking)
-agent-worker tool mock <tool-name> <response-json>
-agent-worker tool list
+# Testing & Debugging
+agent-worker mock tool <name> <response>    # Mock tool response
+agent-worker feedback [target]              # View agent feedback/observations
 ```
 
 ### Backend Options
@@ -126,6 +126,10 @@ agent-worker new alice -m anthropic/claude-sonnet-4-5  # SDK (default)
 agent-worker new alice -b claude                       # Claude CLI
 agent-worker new alice -b cursor                       # Cursor Agent
 agent-worker new alice -b mock                         # Testing (no API)
+
+# Specify tools at creation (SDK backend only)
+agent-worker new alice --tool ./custom-tools.ts
+agent-worker new alice --skill ./skills --tool ./tools.ts
 ```
 
 ### Examples

@@ -524,22 +524,19 @@ agent-worker schedule <target> clear
 
 ## Tool Management (SDK Backend Only)
 
-### Adding Tools
+### Specifying Tools at Creation
+
+Tools are specified when creating an agent using the `--tool` parameter:
 
 ```bash
-# Simple tool
-agent-worker tool add get_weather \
-  -d "Get weather for a location" \
-  -p "location:string:City name"
+# Create agent with custom tools
+agent-worker new alice --tool ./my-tools.ts
 
-# With approval requirement
-agent-worker tool add delete_file \
-  -d "Delete a file" \
-  -p "path:string:File path" \
-  --needs-approval
+# Combine with skills
+agent-worker new alice --skill ./skills --tool ./tools.ts
 ```
 
-### Importing Tools
+### Tool File Format
 
 ```typescript
 // my-tools.ts
@@ -554,6 +551,7 @@ export default [
       },
       required: ['query']
     },
+    needsApproval: false,  // Optional: require approval before execution
     execute: async (args) => {
       return { results: ['doc1', 'doc2'] }
     }
@@ -561,15 +559,14 @@ export default [
 ]
 ```
 
-```bash
-agent-worker tool import ./my-tools.ts
-```
-
 ### Mocking Tools (Testing)
 
 ```bash
-agent-worker tool mock get_weather '{"temp": 72, "condition": "sunny"}'
-agent-worker tool list
+# Mock tool response for testing
+agent-worker mock tool get_weather '{"temp": 72, "condition": "sunny"}'
+
+# View agent feedback/observations
+agent-worker feedback alice
 ```
 
 ### Approval Workflow
@@ -722,11 +719,9 @@ agent-worker doc write <target> --content <text>
 agent-worker doc append <target> --file <path>
   Target: @workflow:tag (e.g., @review:pr-123)
 
-# Tools (SDK Backend Only)
-agent-worker tool add <name>         Add tool
-agent-worker tool import <file>      Import tools from file
-agent-worker tool mock <name> <json> Mock tool response
-agent-worker tool list               List tools
+# Testing & Debugging
+agent-worker mock tool <name> <response>  Mock tool response (SDK backend)
+agent-worker feedback [target]            View agent feedback/observations
 
 # Approvals
 agent-worker pending                 List pending approvals
