@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'bun:test'
 
-// ==================== Instance Utilities Tests ====================
+// ==================== Instance Utilities Tests (Backward Compat) ====================
+// These test deprecated APIs for backward compatibility
 
 import {
   parseAgentId,
@@ -9,33 +10,33 @@ import {
   DEFAULT_INSTANCE,
 } from '../src/cli/instance.ts'
 
-describe('parseAgentId', () => {
+describe('parseAgentId (backward compat)', () => {
   test('parses simple agent name', () => {
     const result = parseAgentId('reviewer')
     expect(result.agent).toBe('reviewer')
-    expect(result.instance).toBe(DEFAULT_INSTANCE)
-    expect(result.full).toBe('reviewer@default')
+    expect(result.instance).toBe('global') // Maps to DEFAULT_WORKFLOW
+    expect(result.full).toBe('reviewer@global') // No tag in backward compat
   })
 
   test('parses agent@instance format', () => {
     const result = parseAgentId('reviewer@pr-123')
     expect(result.agent).toBe('reviewer')
-    expect(result.instance).toBe('pr-123')
+    expect(result.instance).toBe('pr-123') // Instance maps to workflow
     expect(result.full).toBe('reviewer@pr-123')
   })
 
-  test('handles explicit default instance', () => {
-    const result = parseAgentId('assistant@default')
+  test('handles explicit global instance', () => {
+    const result = parseAgentId('assistant@global')
     expect(result.agent).toBe('assistant')
-    expect(result.instance).toBe('default')
-    expect(result.full).toBe('assistant@default')
+    expect(result.instance).toBe('global')
+    expect(result.full).toBe('assistant@global')
   })
 
   test('handles empty instance after @', () => {
     const result = parseAgentId('agent@')
     expect(result.agent).toBe('agent')
-    expect(result.instance).toBe(DEFAULT_INSTANCE)
-    expect(result.full).toBe('agent@default')
+    expect(result.instance).toBe('global')
+    expect(result.full).toBe('agent@global')
   })
 
   test('handles multiple @ symbols', () => {
@@ -64,22 +65,23 @@ describe('parseAgentId', () => {
   })
 })
 
-describe('buildAgentId', () => {
-  test('builds with explicit instance', () => {
-    expect(buildAgentId('agent', 'prod')).toBe('agent@prod')
+describe('buildAgentId (backward compat)', () => {
+  test('builds with explicit instance (includes tag)', () => {
+    // buildAgentId now calls buildTarget which includes tag
+    expect(buildAgentId('agent', 'prod')).toBe('agent@prod:main')
   })
 
   test('builds with default instance when undefined', () => {
-    expect(buildAgentId('agent', undefined)).toBe('agent@default')
+    expect(buildAgentId('agent', undefined)).toBe('agent@global:main')
   })
 
   test('builds with default instance when empty', () => {
-    expect(buildAgentId('agent', '')).toBe('agent@default')
+    expect(buildAgentId('agent', '')).toBe('agent@global:main')
   })
 
   test('preserves special characters in instance', () => {
-    expect(buildAgentId('agent', 'pr-123')).toBe('agent@pr-123')
-    expect(buildAgentId('agent', 'feature_branch')).toBe('agent@feature_branch')
+    expect(buildAgentId('agent', 'pr-123')).toBe('agent@pr-123:main')
+    expect(buildAgentId('agent', 'feature_branch')).toBe('agent@feature_branch:main')
   })
 })
 
@@ -100,6 +102,11 @@ describe('isValidInstanceName', () => {
     expect(isValidInstanceName('test_123')).toBe(true)
   })
 
+  test('accepts dots', () => {
+    expect(isValidInstanceName('test.instance')).toBe(true)
+    expect(isValidInstanceName('v1.2.3')).toBe(true)
+  })
+
   test('accepts mixed valid characters', () => {
     expect(isValidInstanceName('my-test_instance-123')).toBe(true)
   })
@@ -110,7 +117,6 @@ describe('isValidInstanceName', () => {
 
   test('rejects special characters', () => {
     expect(isValidInstanceName('test@instance')).toBe(false)
-    expect(isValidInstanceName('test.instance')).toBe(false)
     expect(isValidInstanceName('test/instance')).toBe(false)
     expect(isValidInstanceName('test:instance')).toBe(false)
     expect(isValidInstanceName('test!instance')).toBe(false)
@@ -122,32 +128,35 @@ describe('isValidInstanceName', () => {
 })
 
 describe('DEFAULT_INSTANCE', () => {
-  test('is "default"', () => {
-    expect(DEFAULT_INSTANCE).toBe('default')
+  test('is "global" (maps to DEFAULT_WORKFLOW)', () => {
+    expect(DEFAULT_INSTANCE).toBe('global')
   })
 })
 
 // ==================== Integration: parseAgentId + buildAgentId ====================
+// Note: These don't roundtrip perfectly due to tag inclusion in buildAgentId
 
-describe('parseAgentId + buildAgentId roundtrip', () => {
-  test('roundtrips simple name', () => {
-    const id = buildAgentId('agent', 'instance')
-    const parsed = parseAgentId(id)
-    const rebuilt = buildAgentId(parsed.agent, parsed.instance)
-    expect(rebuilt).toBe(id)
+describe('parseAgentId + buildAgentId', () => {
+  test('parseAgentId extracts workflow part', () => {
+    const parsed = parseAgentId('agent@prod')
+    expect(parsed.instance).toBe('prod')
+    expect(parsed.full).toBe('agent@prod')
   })
 
-  test('roundtrips complex names', () => {
-    const testCases = [
-      'reviewer@pr-123',
-      'code-assistant@feature-branch',
-      'worker_1@prod_env',
-    ]
+  test('buildAgentId includes tag', () => {
+    const built = buildAgentId('agent', 'prod')
+    expect(built).toBe('agent@prod:main') // Includes :main tag
+  })
 
-    for (const original of testCases) {
-      const parsed = parseAgentId(original)
-      const rebuilt = buildAgentId(parsed.agent, parsed.instance)
-      expect(rebuilt).toBe(original)
-    }
+  test('parsing built IDs extracts workflow part', () => {
+    // Build with instance -> parse -> extract instance
+    const built = buildAgentId('agent', 'instance')
+    expect(built).toBe('agent@instance:main') // Includes tag
+
+    const parsed = parseAgentId(built) // Parses "agent@instance:main"
+    expect(parsed.agent).toBe('agent')
+    // parseAgentId extracts workflow part only (not tag)
+    expect(parsed.instance).toBe('instance')
+    expect(parsed.full).toBe('agent@instance') // No tag in backward compat format
   })
 })
