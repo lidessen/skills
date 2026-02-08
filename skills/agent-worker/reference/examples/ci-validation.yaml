@@ -81,20 +81,13 @@ context:
     bind: ./ci-runs/${{ workflow.tag }}/
 
 setup:
-  - shell: git show --stat ${{ env.COMMIT_SHA }}
+  - shell: git show ${{ env.COMMIT_SHA }} 2>/dev/null || echo "Error: Commit ${{ env.COMMIT_SHA }} not found"
     as: commit_info
-
-  - shell: git diff ${{ env.COMMIT_SHA }}~1..${{ env.COMMIT_SHA }} --stat
-    as: changes
 
 kickoff: |
   CI/CD Validation for Commit: ${{ env.COMMIT_SHA }}
 
-  Commit Info:
   ${{ commit_info }}
-
-  Changes:
-  ${{ changes }}
 
   @test-runner @security-scanner @performance-checker
 

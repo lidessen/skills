@@ -65,14 +65,15 @@ agents:
          - Grammar and style issues
          - Missing table of contents
 
-      3. Edit the document to:
-         - Fix inconsistencies
-         - Add cross-references (use relative links)
-         - Improve clarity
-         - Add a table of contents at the top
-         - Ensure consistent formatting
+      3. Create a polished final version that:
+         - Fixes all inconsistencies
+         - Includes cross-references (use relative links)
+         - Improves clarity throughout
+         - Starts with a comprehensive table of contents
+         - Uses consistent formatting
 
-      4. Write final version under "## Final Documentation"
+      4. Use document_write to replace the entire document with your
+         polished version (overwrite, not append)
 
 context:
   provider: file
@@ -80,7 +81,7 @@ context:
     bind: ./docs-output/${{ workflow.tag }}/
 
 setup:
-  - shell: find "${{ env.REPO_PATH }}" -name "*.ts" -o -name "*.js" | head -20
+  - shell: find "${{ env.REPO_PATH }}" -name "*.ts" -o -name "*.js" 2>/dev/null | head -20 || echo "No TypeScript/JavaScript files found"
     as: source_files
 
   - shell: cat "${{ env.REPO_PATH }}/README.md" 2>/dev/null || echo "No README found"

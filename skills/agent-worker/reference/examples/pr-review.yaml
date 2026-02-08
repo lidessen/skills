@@ -78,13 +78,13 @@ agents:
 context:
   provider: file
   config:
-    dir: ./.workflow/${{ workflow.name }}/${{ workflow.tag }}/
+    bind: ./pr-reviews/${{ workflow.tag }}/
 
 setup:
-  - shell: gh pr diff ${{ env.PR_NUMBER }}
+  - shell: gh pr diff ${{ env.PR_NUMBER }} 2>/dev/null || echo "Error: Unable to fetch PR diff. Check PR_NUMBER and gh authentication."
     as: diff
 
-  - shell: gh pr view ${{ env.PR_NUMBER }} --json title,body,additions,deletions
+  - shell: gh pr view ${{ env.PR_NUMBER }} --json title,body,additions,deletions 2>/dev/null || echo '{"error": "Unable to fetch PR info"}'
     as: pr_info
 
 kickoff: |

@@ -89,7 +89,7 @@ context:
     bind: ./bug-investigations/${{ workflow.tag }}/
 
 setup:
-  - shell: git log --oneline -20
+  - shell: git log --oneline -20 2>/dev/null || echo "No git history available"
     as: recent_commits
 
   - shell: date '+%Y-%m-%d %H:%M:%S'

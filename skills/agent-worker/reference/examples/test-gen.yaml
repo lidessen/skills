@@ -61,14 +61,11 @@ agents:
 context:
   provider: file
   config:
-    dir: ./.workflow/${{ workflow.name }}/${{ workflow.tag }}/
+    bind: ./test-gen-output/${{ workflow.tag }}/
 
 setup:
-  - shell: cat "${{ env.FILE_PATH }}"
+  - shell: cat "${{ env.FILE_PATH }}" 2>/dev/null || echo "Error: File not found at ${{ env.FILE_PATH }}"
     as: source_code
-
-  - shell: head -n 5 "${{ env.FILE_PATH }}"
-    as: imports
 
 kickoff: |
   Test Generation Request for: ${{ env.FILE_PATH }}
