@@ -7,32 +7,31 @@ export function registerWorkflowCommands(program: Command) {
   program
     .command("run <file>")
     .description("Execute workflow and exit when complete")
-    .option("-w, --workflow <name>", "Workflow name or workflow:tag", `${DEFAULT_WORKFLOW}`)
+    .option("--tag <tag>", "Workflow instance tag (default: main)", DEFAULT_TAG)
     .option("-d, --debug", "Show debug details (internal logs, MCP traces, idle checks)")
     .option("--feedback", "Enable feedback tool (agents can report tool/workflow observations)")
     .option("--json", "Output results as JSON")
     .addHelpText('after', `
 Examples:
-  $ agent-worker run review.yaml                        # One-shot execution
-  $ agent-worker run review.yaml -w review:pr-123       # With specific tag
+  $ agent-worker run review.yaml                        # Run review:main
+  $ agent-worker run review.yaml --tag pr-123           # Run review:pr-123
   $ agent-worker run review.yaml --json | jq .document  # Machine-readable output
+
+Note: Workflow name is inferred from YAML 'name' field or filename
     `)
     .action(async (file, options) => {
       const { parseWorkflowFile, runWorkflowWithControllers } =
         await import("@/workflow/index.ts");
 
-      // Parse workflow:tag format
-      const workflowInput = options.workflow;
-      const colonIndex = workflowInput.indexOf(":");
-      const workflowName = colonIndex === -1 ? workflowInput : workflowInput.slice(0, colonIndex);
-      const tag = colonIndex === -1 ? DEFAULT_TAG : workflowInput.slice(colonIndex + 1);
+      const tag = options.tag || DEFAULT_TAG;
+
+      // Parse workflow file to get the workflow name
+      const parsedWorkflow = await parseWorkflowFile(file, {
+        tag,
+      });
+      const workflowName = parsedWorkflow.name;
 
       try {
-        const parsedWorkflow = await parseWorkflowFile(file, {
-          workflow: workflowName,
-          tag,
-          instance: workflowInput, // Backward compat
-        });
 
         // In JSON mode, route logs to stderr to keep stdout clean
         const log = options.json ? console.error : console.log;
@@ -41,7 +40,7 @@ Examples:
           workflow: parsedWorkflow,
           workflowName,
           tag,
-          instance: workflowInput, // Backward compat
+          instance: `${workflowName}:${tag}`, // Backward compat
           debug: options.debug,
           log,
           mode: "run",
@@ -92,7 +91,7 @@ Examples:
   program
     .command("start <file>")
     .description("Start workflow and keep agents running")
-    .option("-w, --workflow <name>", "Workflow name or workflow:tag", `${DEFAULT_WORKFLOW}`)
+    .option("--tag <tag>", "Workflow instance tag (default: main)", DEFAULT_TAG)
     .option("-d, --debug", "Show debug details (internal logs, MCP traces, idle checks)")
     .option("--feedback", "Enable feedback tool (agents can report tool/workflow observations)")
     .option("--background", "Run in background (daemonize)")
@@ -100,17 +99,21 @@ Examples:
 Examples:
   $ agent-worker start review.yaml                    # Foreground (Ctrl+C to stop)
   $ agent-worker start review.yaml --background       # Background daemon
-  $ agent-worker start review.yaml -w review:pr-123   # With specific tag
+  $ agent-worker start review.yaml --tag pr-123       # Start review:pr-123
+
+Note: Workflow name is inferred from YAML 'name' field or filename
     `)
     .action(async (file, options) => {
       const { parseWorkflowFile, runWorkflowWithControllers } =
         await import("@/workflow/index.ts");
 
-      // Parse workflow:tag format
-      const workflowInput = options.workflow;
-      const colonIndex = workflowInput.indexOf(":");
-      const workflowName = colonIndex === -1 ? workflowInput : workflowInput.slice(0, colonIndex);
-      const tag = colonIndex === -1 ? DEFAULT_TAG : workflowInput.slice(colonIndex + 1);
+      const tag = options.tag || DEFAULT_TAG;
+
+      // Parse workflow file to get the workflow name
+      const parsedWorkflow = await parseWorkflowFile(file, {
+        tag,
+      });
+      const workflowName = parsedWorkflow.name;
 
       // Background mode: spawn detached process
       if (options.background) {
@@ -118,7 +121,10 @@ Examples:
         const contextDir = getDefaultContextDir(workflowName, tag);
 
         const scriptPath = process.argv[1] ?? "";
-        const args = [scriptPath, "start", file, "--workflow", options.workflow];
+        const args = [scriptPath, "start", file];
+        if (tag !== DEFAULT_TAG) {
+          args.push("--tag", tag);
+        }
         if (options.feedback) {
           args.push("--feedback");
         }
@@ -129,14 +135,14 @@ Examples:
         });
         child.unref();
 
-        console.log(`Workflow: ${options.workflow}`);
+        console.log(`Workflow: ${workflowName}:${tag}`);
         console.log(`PID: ${child.pid}`);
         console.log(`Context: ${contextDir}`);
         console.log(`\nTo monitor:`);
-        console.log(`  agent-worker ls -w ${options.workflow}`);
-        console.log(`  agent-worker peek @${options.workflow}`);
+        console.log(`  agent-worker ls @${workflowName}:${tag}`);
+        console.log(`  agent-worker peek @${workflowName}:${tag}`);
         console.log(`\nTo stop:`);
-        console.log(`  agent-worker stop -w ${options.workflow}`);
+        console.log(`  agent-worker stop @${workflowName}:${tag}`);
         return;
       }
 
@@ -155,17 +161,12 @@ Examples:
       process.on("SIGTERM", cleanup);
 
       try {
-        const parsedWorkflow = await parseWorkflowFile(file, {
-          workflow: workflowName,
-          tag,
-          instance: workflowInput, // Backward compat
-        });
 
         const result = await runWorkflowWithControllers({
           workflow: parsedWorkflow,
           workflowName,
           tag,
-          instance: workflowInput, // Backward compat
+          instance: `${workflowName}:${tag}`, // Backward compat
           debug: options.debug,
           log: console.log,
           mode: "start",
