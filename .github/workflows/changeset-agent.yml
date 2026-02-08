@@ -41,11 +41,16 @@ jobs:
       - name: Run changeset generation workflow
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          bun packages/agent-worker/src/cli/index.ts run .workflows/agent-changeset.yaml
+          set -e  # Exit on error
+          bun packages/agent-worker/src/cli/index.ts run .workflows/agent-changeset.yaml || {
+            echo "❌ Changeset generation failed"
+            exit 1
+          }
 
       - name: Summary
         run: |
