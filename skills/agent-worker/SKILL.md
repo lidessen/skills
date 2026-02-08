@@ -7,206 +7,490 @@ description: Create and manage AI agent sessions with multiple backends (SDK, Cl
 
 ## Who You Are
 
-You build AI-powered workflows. You want programmatic control over AI conversations—single-agent or multi-agent collaboration.
+You build AI-powered workflows—from simple Q&A to complex multi-agent collaboration.
 
-**One model**: Every agent belongs to a **workflow** (namespace). Agents in the same workflow share a channel (for communication) and documents (for shared state). The default workflow is `default`.
+**Two modes, one model**:
+- **Agent Mode**: Run individual agents via CLI commands
+- **Workflow Mode**: Orchestrate multiple agents via YAML
 
-- `agent-worker new` creates an agent in the default workflow
-- `agent-worker run workflow.yaml` creates agents from YAML in a named workflow
-- Both are the same thing: agents in workflows, sharing context
-
-You're here to create agents, send messages, orchestrate workflows—all from the command line.
+Both modes share the same context system: agents communicate through **channels** (@mentions) and **documents** (shared workspace). Everything is namespaced by `workflow:tag`.
 
 ---
 
-## Quick Start
+## Quick Decision Guide
+
+| I Want To... | Use This |
+|-------------|----------|
+| Chat with an AI agent | Agent Mode (CLI) |
+| Test tools/prompts quickly | Agent Mode with `-b mock` |
+| Run multiple agents manually | Agent Mode with `-w workflow` |
+| Define structured multi-agent tasks | Workflow Mode (YAML) |
+| Automate repeatable workflows | Workflow Mode (YAML) |
+
+---
+
+## 🤖 Agent Mode
+
+**Run individual agents from the command line.**
+
+### Quick Start
 
 ```bash
 # Create an agent (auto-named: a0, a1, ...)
-agent-worker new
+agent-worker new -m anthropic/claude-sonnet-4-5
 # → a0
 
-# Create with explicit name
-agent-worker new reviewer -m anthropic/claude-sonnet-4-5
-
-# Send a message via channel (@mention to route)
+# Send a message
 agent-worker send "@a0 What is 2+2?"
 
-# Check the response
+# View conversation
 agent-worker peek
 
-# Create a second agent — shares channel with a0
+# Create a second agent (shares channel)
 agent-worker new coder
-
-# They can now communicate
-agent-worker send "@reviewer review the code, then @coder fix issues"
+agent-worker send "@a0 review the code, then @coder fix issues"
 
 # Stop agents
-agent-worker stop --all
+agent-worker stop a0 coder
 ```
 
-That's it. Agents share context automatically within a workflow.
+### Organizing Agents (workflow:tag)
+
+Group agents into **workflows** for context isolation:
+
+```bash
+# Create agents in the same workflow
+agent-worker new reviewer -w review
+agent-worker new coder -w review
+
+# Send to specific workflow
+agent-worker send "@reviewer Check this code" -w review
+
+# Multiple isolated instances (tags)
+agent-worker new reviewer -w review:pr-123
+agent-worker new reviewer -w review:pr-456
+
+# Each tag has independent context
+agent-worker send "@reviewer LGTM" -w review:pr-123
+agent-worker peek -w review:pr-123  # Only sees pr-123 messages
+```
+
+**Tag syntax**:
+- `alice` → standalone (`alice@global:main`)
+- `alice -w review` → `alice@review:main` (default tag)
+- `alice -w review:pr-123` → full specification
+
+**Context isolation**:
+```
+.workflow/
+├── global/main/        # Standalone agents (default)
+├── review/main/        # review workflow, default tag
+└── review/pr-123/      # review workflow, pr-123 tag
+```
+
+### Agent Commands
+
+```bash
+# Lifecycle
+agent-worker new [name] [options]        # Create agent
+agent-worker ls [-w workflow:tag]        # List agents
+agent-worker status <target>             # Check status
+agent-worker stop <target>               # Stop agent
+agent-worker stop -w <workflow:tag>      # Stop all in workflow
+
+# Interaction
+agent-worker send <message> [-w workflow:tag]
+agent-worker peek [-w workflow:tag] [--all] [--find <text>]
+
+# Per-agent operations
+agent-worker stats <target>              # Statistics
+agent-worker export <target>             # Export transcript
+agent-worker clear <target>              # Clear history
+
+# Scheduling (periodic wakeup)
+agent-worker schedule <target> set <interval> [--prompt "..."]
+agent-worker schedule <target> get
+agent-worker schedule <target> clear
+
+# Shared documents
+agent-worker doc read -w <workflow:tag>
+agent-worker doc write -w <workflow:tag> --content "..."
+agent-worker doc append -w <workflow:tag> --file notes.txt
+```
+
+### Backend Options
+
+```bash
+agent-worker new -m anthropic/claude-sonnet-4-5  # SDK (default)
+agent-worker new -b claude                       # Claude CLI
+agent-worker new -b cursor                       # Cursor Agent
+agent-worker new -b mock                         # Testing (no API)
+```
+
+**Note**: Tool management (add, mock, import) only works with SDK backend.
+
+### Examples
+
+**Quick testing without API keys:**
+```bash
+agent-worker new -b mock
+agent-worker send "@a0 Hello"
+```
+
+**Scheduled monitoring agent:**
+```bash
+agent-worker new monitor -w ci:staging --wakeup 30s --prompt "Check CI status"
+```
+
+**Multi-agent code review (manual):**
+```bash
+agent-worker new reviewer -w review:pr-123
+agent-worker new coder -w review:pr-123
+agent-worker send "@reviewer Review recent changes" -w review:pr-123
+# Reviewer responds, mentions @coder
+agent-worker peek -w review:pr-123
+```
+
+---
+
+## 📋 Workflow Mode
+
+**Define multi-agent collaboration via YAML.**
+
+### Quick Start
+
+```yaml
+# review.yaml
+agents:
+  reviewer:
+    backend: claude
+    system_prompt: You are a code reviewer. Provide constructive feedback.
+
+  coder:
+    backend: cursor
+    model: sonnet-4.5
+    system_prompt: You implement code changes based on feedback.
+
+kickoff: |
+  @reviewer Review the recent changes and provide feedback.
+  @coder Implement the suggested improvements.
+```
+
+```bash
+# Run once and exit
+agent-worker run review.yaml
+
+# Keep agents alive
+agent-worker start review.yaml
+
+# With specific tag
+agent-worker run review.yaml -w review:pr-123
+```
+
+### Workflow Structure
+
+```yaml
+# Full workflow file structure
+name: code-review  # Optional (defaults to filename)
+
+# Agent definitions
+agents:
+  alice:
+    backend: sdk | claude | cursor | codex | mock
+    model: anthropic/claude-sonnet-4-5  # Required for SDK backend
+    system_prompt: |
+      You are Alice, a senior code reviewer.
+    # OR
+    system_prompt_file: ./prompts/alice.txt
+
+    tools: [bash, read, write]  # CLI backend tool names
+    max_tokens: 8000
+    max_steps: 20
+
+  bob:
+    backend: claude
+    system_prompt: You are Bob, a helpful coder.
+
+# Context configuration (shared channel + documents)
+context:
+  provider: file
+  config:
+    # Ephemeral (default) - cleared on shutdown
+    dir: ./.workflow/${{ workflow.name }}/${{ workflow.tag }}/
+
+    # OR persistent - survives shutdown
+    bind: ./data/${{ workflow.tag }}/
+
+# Setup commands (run before kickoff)
+setup:
+  - shell: git log --oneline -10
+    as: recent_commits  # Store output in variable
+
+  - shell: git diff main...HEAD
+    as: changes
+
+# Kickoff message (starts the workflow)
+kickoff: |
+  @alice Review these changes:
+
+  Recent commits:
+  ${{ recent_commits }}
+
+  Diff:
+  ${{ changes }}
+
+  @bob Stand by for implementation.
+```
+
+### Variable Interpolation
+
+Use `${{ variable }}` syntax in kickoff and setup:
+
+```yaml
+setup:
+  - shell: echo "pr-${{ env.PR_NUMBER }}"
+    as: branch_name
+
+kickoff: |
+  Workflow: ${{ workflow.name }}
+  Tag: ${{ workflow.tag }}
+  Branch: ${{ branch_name }}
+```
+
+**Available variables**:
+- `${{ workflow.name }}` - Workflow name
+- `${{ workflow.tag }}` - Instance tag
+- `${{ env.VAR }}` - Environment variable
+- `${{ task_output }}` - Setup task output (via `as:`)
+
+### Coordination Patterns
+
+**Sequential handoff:**
+```yaml
+kickoff: |
+  @alice Start the task.
+```
+Alice finishes and mentions: "@bob your turn"
+
+**Parallel execution:**
+```yaml
+kickoff: |
+  @alice @bob @charlie All review this code.
+```
+
+**Document-based collaboration:**
+```yaml
+agents:
+  researcher:
+    system_prompt: Research and write findings to the shared document.
+
+  summarizer:
+    system_prompt: Read the document and create a concise summary.
+
+context:
+  provider: file
+  config:
+    bind: ./results/  # Persistent across runs
+```
+
+### Workflow Examples
+
+**PR Review Workflow:**
+```yaml
+# review.yaml
+agents:
+  reviewer:
+    backend: claude
+    system_prompt: |
+      Review code for:
+      - Bugs and logic errors
+      - Code style and readability
+      - Performance issues
+
+setup:
+  - shell: gh pr diff ${{ env.PR_NUMBER }}
+    as: diff
+
+kickoff: |
+  @reviewer Review this PR:
+
+  ${{ diff }}
+
+  Provide clear, actionable feedback.
+```
+
+```bash
+PR_NUMBER=123 agent-worker run review.yaml -w review:pr-123
+```
+
+**Research & Summarize:**
+```yaml
+# research.yaml
+agents:
+  researcher:
+    backend: sdk
+    model: anthropic/claude-sonnet-4-5
+    system_prompt: |
+      Research topics thoroughly.
+      Write detailed findings to the shared document.
+
+  summarizer:
+    backend: sdk
+    model: anthropic/claude-haiku-4-5
+    system_prompt: |
+      Read the document and create:
+      - Executive summary (3-5 bullet points)
+      - Key findings
+      - Recommendations
+
+context:
+  provider: file
+  config:
+    bind: ./research-output/
+
+kickoff: |
+  @researcher Research "${{ env.TOPIC }}" and document findings.
+  @summarizer Wait for research to complete, then create summary.
+```
+
+```bash
+TOPIC="AI agent frameworks" agent-worker run research.yaml
+```
+
+**Test Generation:**
+```yaml
+# test-gen.yaml
+agents:
+  analyzer:
+    model: anthropic/claude-sonnet-4-5
+    system_prompt: Analyze code and identify test cases.
+
+  generator:
+    model: anthropic/claude-sonnet-4-5
+    system_prompt: Generate test code based on identified cases.
+
+setup:
+  - shell: cat src/main.ts
+    as: code
+
+kickoff: |
+  @analyzer Analyze this code and identify test cases:
+  ${{ code }}
+
+  @generator Generate comprehensive tests based on the analysis.
+```
+
+**Consensus Decision:**
+```yaml
+# consensus.yaml
+agents:
+  alice:
+    system_prompt: You are a cautious reviewer.
+
+  bob:
+    system_prompt: You are an optimistic reviewer.
+
+  charlie:
+    system_prompt: You balance caution and optimism.
+
+setup:
+  - shell: git diff
+    as: changes
+
+kickoff: |
+  @alice @bob @charlie Review these changes:
+  ${{ changes }}
+
+  Each provide your assessment. Use proposal tools to vote on merging.
+```
 
 ---
 
 ## Core Concepts
 
-### Workflow = Namespace
+### Channels (Communication)
 
-Every agent belongs to a workflow. Agents in the same workflow share:
-- **Channel**: Communication via @mentions
-- **Documents**: Shared workspace
-
-```bash
-# Default workflow
-agent-worker new reviewer              # → reviewer (in default workflow)
-agent-worker new coder                  # → coder (in default workflow, shares channel)
-
-# Named workflow
-agent-worker new reviewer -w pr-123
-agent-worker new coder -w pr-123
-
-# List agents (grouped by workflow)
-agent-worker ls
-agent-worker ls -w pr-123
-```
-
-### @Mention Routing
-
-All communication goes through the channel. Use `@agent` to route messages:
-
-```bash
-agent-worker send "@reviewer please review this code"
-agent-worker send "@reviewer @coder collaborate on this"
-agent-worker send "status update for everyone"           # broadcast (no @mention)
-```
-
----
-
-## Choosing a Backend
-
-| Backend | Best For | Model Selection |
-|---------|----------|-----------------|
-| `sdk` (default) | Full control, tool injection, mocking | `-m provider/model` |
-| `claude` | Use existing Claude CLI installation | CLI's own model |
-| `codex` | OpenAI Codex workflows | CLI's own model |
-| `cursor` | Cursor Agent integration | CLI's own model |
-
-```bash
-# Check what's available
-agent-worker backends
-
-# SDK backend with specific model
-agent-worker new -m openai/gpt-5.2
-
-# CLI backends
-agent-worker new -b claude
-agent-worker new -b codex
-agent-worker new -b cursor
-```
-
-**Important Notes**:
-- Tool management (add, mock, import) only works with SDK backend
-- Claude CLI backend may not work properly within Claude Code environment (use SDK backend)
-
----
-
-## Agent Management
-
-### Creating Agents
-
-```bash
-# Auto-name (a0, a1, ..., z9)
-agent-worker new
-
-# Named
-agent-worker new reviewer
-
-# With custom system prompt
-agent-worker new reviewer -s "You are a code reviewer."
-
-# From file
-agent-worker new reviewer -f ./prompts/reviewer.txt
-
-# In named workflow
-agent-worker new reviewer -w pr-123
-
-# Custom idle timeout (ms, 0 = no timeout)
-agent-worker new --idle-timeout 3600000
-
-# With scheduled wakeup
-agent-worker new --wakeup 5m
-agent-worker new --wakeup "0 */2 * * *"
-```
-
-### Lifecycle
-
-```bash
-# List all agents
-agent-worker ls
-
-# Check status
-agent-worker status reviewer
-
-# Set default agent (for stats/export/clear)
-agent-worker use reviewer
-
-# Stop
-agent-worker stop reviewer
-agent-worker stop -w pr-123
-agent-worker stop --all
-```
-
----
-
-## Messaging
-
-### Send (Channel-based)
+All agents in a workflow share a channel. Messages route via `@mentions`:
 
 ```bash
 # Route to specific agent
-agent-worker send "@reviewer check this code"
+agent-worker send "@alice analyze this"
 
 # Route to multiple agents
-agent-worker send "@reviewer @coder collaborate on this fix"
+agent-worker send "@alice @bob collaborate on this"
 
 # Broadcast (no @mention)
-agent-worker send "status update"
-
-# Target different workflow
-agent-worker send -w pr-123 "@reviewer check this"
+agent-worker send "Status update"
 ```
 
-### Peek (Read Channel)
+**Available tools** (in agent's system prompt):
+- `channel_send` - Send message to channel
+- `channel_read` - Read recent messages
+- `inbox_read` - Read own @mentions
+
+### Documents (Shared State)
+
+Agents can read/write to a shared document:
 
 ```bash
-# Last 10 messages (default)
-agent-worker peek
-
-# Last 5
-agent-worker peek -n 5
-
-# All messages
-agent-worker peek --all
-
-# Search
-agent-worker peek --find "error"
-
-# Different workflow
-agent-worker peek -w pr-123
+# Manual document management
+agent-worker doc read -w review:pr-123
+agent-worker doc write -w review:pr-123 --content "Analysis complete"
+agent-worker doc append -w review:pr-123 --file results.txt
 ```
 
-### Agent-level Operations
+**Available tools** (in agent's system prompt):
+- `document_read` - Read current document
+- `document_write` - Overwrite document
+- `document_append` - Append to document
+
+### Proposals & Voting
+
+For collaborative decisions:
+
+**Available tools**:
+- `proposal_create` - Create proposal (election, decision, approval)
+- `vote` - Cast vote on proposal
+- `proposal_status` - Check results
+
+**Resolution types**:
+- `plurality` - Most votes wins
+- `majority` - >50% required
+- `unanimous` - All votes must agree
+
+Example usage in agent's tool calls:
+```json
+{
+  "name": "proposal_create",
+  "arguments": {
+    "title": "Merge PR #123",
+    "type": "approval",
+    "resolution": "majority"
+  }
+}
+```
+
+---
+
+## Scheduling (Periodic Wakeup)
+
+Agents can wake up periodically when idle:
+
+| Mode | Format | Behavior |
+|------|--------|----------|
+| **Interval** | `60000`, `30s`, `5m`, `2h` | Fires after idle. Resets on activity. |
+| **Cron** | `0 */2 * * *` | Fixed schedule. NOT reset by activity. |
 
 ```bash
-# Token/message statistics
-agent-worker stats reviewer
+# At creation
+agent-worker new --wakeup 5m
+agent-worker new --wakeup "0 */2 * * *" --wakeup-prompt "Check for updates"
 
-# Export full transcript
-agent-worker export reviewer > transcript.json
-
-# Clear agent conversation history
-agent-worker clear reviewer
+# Runtime management
+agent-worker schedule <target> set 5m
+agent-worker schedule <target> set "0 */2 * * *" -p "Health check"
+agent-worker schedule <target> get
+agent-worker schedule <target> clear
 ```
 
 ---
@@ -228,7 +512,7 @@ agent-worker tool add delete_file \
   --needs-approval
 ```
 
-### Importing Tools from File
+### Importing Tools
 
 ```typescript
 // my-tools.ts
@@ -254,24 +538,22 @@ export default [
 agent-worker tool import ./my-tools.ts
 ```
 
-### Mocking Tools
+### Mocking Tools (Testing)
 
 ```bash
 agent-worker tool mock get_weather '{"temp": 72, "condition": "sunny"}'
 agent-worker tool list
 ```
 
----
-
-## Approval Workflow
+### Approval Workflow
 
 For tools marked `needsApproval`:
 
 ```bash
 agent-worker send "@a0 Delete /tmp/test.txt"
 agent-worker pending
-agent-worker approve <approval-id>
-agent-worker deny <approval-id> -r "Path not allowed"
+agent-worker approve <id>
+agent-worker deny <id> -r "Path not allowed"
 ```
 
 ---
@@ -282,10 +564,10 @@ SDK backend supports multiple formats:
 
 ```bash
 # Gateway format (recommended)
-agent-worker new -m openai/gpt-5.2
+agent-worker new -m openai/gpt-4.5
 agent-worker new -m anthropic/claude-sonnet-4-5
 
-# Provider-only (uses provider's frontier model)
+# Provider-only (uses frontier model)
 agent-worker new -m openai
 agent-worker new -m anthropic
 
@@ -300,88 +582,9 @@ agent-worker providers
 
 ---
 
-## Scheduled Wakeup
+## Programmatic Usage (SDK)
 
-| Mode | Format | Behavior |
-|------|--------|----------|
-| **Interval** | `60000`, `30s`, `5m`, `2h` | Fires after idle. Resets on activity. |
-| **Cron** | `0 */2 * * *` | Fixed schedule. NOT reset by activity. |
-
-```bash
-# At creation
-agent-worker new --wakeup 5m
-agent-worker new --wakeup "0 */2 * * *" --wakeup-prompt "Check for new tasks"
-
-# Runtime management
-agent-worker schedule set 5m
-agent-worker schedule set "0 */2 * * *" -p "Run health check"
-agent-worker schedule get
-agent-worker schedule clear
-```
-
----
-
-## Multi-Agent Workflows (YAML)
-
-For complex tasks requiring multiple specialized agents:
-
-```yaml
-# review.yaml
-agents:
-  reviewer:
-    model: anthropic/claude-sonnet-4-5
-    system_prompt: You review code for quality.
-  coder:
-    model: anthropic/claude-sonnet-4-5
-    system_prompt: You fix issues found by reviewers.
-
-setup:
-  - shell: gh pr diff
-    as: diff
-
-kickoff: |
-  ${{ diff }}
-  @reviewer please review. When issues found, @coder to fix.
-```
-
-```bash
-# Run workflow (exits when complete)
-agent-worker run review.yaml
-
-# Or keep running
-agent-worker start review.yaml
-
-# Named workflow
-agent-worker run review.yaml -w pr-123
-```
-
-### Shared Context
-
-Agents collaborate through two spaces:
-
-| Space | Purpose | Tools |
-|-------|---------|-------|
-| **Channel** | Communication (@mentions) | `channel_send`, `channel_read`, `inbox_read` |
-| **Document** | Shared workspace | `document_read`, `document_write`, `document_append` |
-
-### Proposal & Voting
-
-For collaborative decisions:
-
-```bash
-# In agent's tool calls:
-proposal_create  # Create election/decision/approval
-vote             # Cast vote on proposal
-proposal_status  # Check results
-```
-
-Resolution types: `plurality`, `majority`, `unanimous`. Quorum defaults to all agents.
-
-See [reference/workflow.md](reference/workflow.md) for full configuration.
-
----
-
-## Programmatic Usage
+For TypeScript/JavaScript integration:
 
 ```typescript
 import { AgentSession } from 'agent-worker'
@@ -392,16 +595,35 @@ const session = new AgentSession({
   tools: [/* your tools */]
 })
 
+// Send message
 const response = await session.send('Hello')
 console.log(response.content)
 console.log(response.toolCalls)
 console.log(response.usage)
 
+// Stream response
 for await (const chunk of session.sendStream('Tell me a story')) {
   process.stdout.write(chunk)
 }
 
+// State management
 const state = session.getState()
+// Later: restore from state
+```
+
+### With Skills
+
+```typescript
+import { AgentSession, SkillsProvider, createSkillsTool } from 'agent-worker'
+
+const skillsProvider = new SkillsProvider()
+await skillsProvider.scanDirectory('.agents/skills')
+
+const session = new AgentSession({
+  model: 'anthropic/claude-sonnet-4-5',
+  system: 'You are a helpful assistant.',
+  tools: [createSkillsTool(skillsProvider)]
+})
 ```
 
 ---
@@ -412,66 +634,100 @@ const state = session.getState()
 |-------|----------|
 | "No active agent" | Run `agent-worker new` first |
 | "Agent not found" | Check `agent-worker ls` |
-| "Tool management not supported" | Use SDK backend (`-b sdk` or omit `-b`) |
-| "Provider not loaded" | Check API key with `agent-worker providers` |
-| Agent not responding | Check if process alive: `agent-worker status` |
-| No response in peek | Agent may still be processing. Wait and `peek` again. |
+| "Tool management not supported" | Use SDK backend (default) |
+| "Provider not loaded" | Check API key: `agent-worker providers` |
+| Agent not responding | Check status: `agent-worker status <target>` |
+| No response in peek | Agent still processing. Wait and retry. |
+| Workflow file errors | Validate YAML syntax |
 
 ---
 
 ## Command Reference
 
 ```
-agent-worker new [name]      Create agent (auto-names if omitted: a0, a1, ...)
-  -w, --workflow <name>      Workflow namespace
-agent-worker ls              List all agents (grouped by workflow)
-  -w, --workflow <name>      Filter by workflow
-agent-worker status [target] Check agent status
-agent-worker use <target>    Set default agent
-agent-worker stop [target]   Stop agent(s)
-  --all                      Stop all agents
-  -w, --workflow <name>      Stop all in workflow
+# Agent Management
+agent-worker new [name]              Create agent (auto-names if omitted)
+  -m, --model <model>                Model (SDK backend)
+  -b, --backend <type>               Backend: sdk, claude, cursor, codex, mock
+  -s, --system <prompt>              System prompt
+  -f, --system-file <path>           System prompt from file
+  -w, --workflow <workflow:tag>      Workflow namespace and tag
+  --wakeup <interval|cron>           Periodic wakeup schedule
+  --wakeup-prompt <text>             Prompt for wakeup
+  --idle-timeout <ms>                Idle timeout (0 = no timeout)
 
-agent-worker send <message>  Send to channel (@mention to route)
-  -w, --workflow <name>      Target workflow
-agent-worker peek            View channel (default: last 10)
-  -w, --workflow <name>      Target workflow
-  --all                      Show all messages
-  -n, --last <count>         Show last N messages
-  --find <text>              Search messages
-agent-worker stats [target]  Show agent statistics
-agent-worker export [target] Export transcript
-agent-worker clear [target]  Clear agent history
+agent-worker ls                      List all agents
+  -w, --workflow <workflow:tag>      Filter by workflow:tag
 
-agent-worker tool add        Add tool (SDK only)
-agent-worker tool import     Import from file
-agent-worker tool mock       Set mock response
-agent-worker tool list       List tools
+agent-worker status <target>         Check agent status
+agent-worker stop <target>           Stop agent
+  --all                              Stop all agents
+  -w, --workflow <workflow:tag>      Stop all in workflow
 
-agent-worker pending         List pending approvals
-agent-worker approve         Approve tool call
-agent-worker deny            Deny tool call
+# Communication
+agent-worker send <message>          Send to channel
+  -w, --workflow <workflow:tag>      Target workflow:tag
 
-agent-worker schedule set    Set wakeup schedule
-agent-worker schedule get    View current schedule
-agent-worker schedule clear  Remove wakeup schedule
+agent-worker peek                    View channel messages
+  -w, --workflow <workflow:tag>      Target workflow:tag
+  --all                              Show all messages
+  -n, --last <count>                 Show last N messages
+  --find <text>                      Search messages
 
-agent-worker run <file>      Run YAML workflow (exit on complete)
-  -w, --workflow <name>      Workflow name
-agent-worker start <file>    Start YAML workflow (keep running)
-  -w, --workflow <name>      Workflow name
+# Per-agent Operations
+agent-worker stats <target>          Show statistics
+agent-worker export <target>         Export transcript
+agent-worker clear <target>          Clear history
 
-agent-worker providers       Check SDK providers
-agent-worker backends        Check available backends
+# Scheduling
+agent-worker schedule <target> set <interval> [options]
+agent-worker schedule <target> get
+agent-worker schedule <target> clear
+
+# Documents
+agent-worker doc read -w <workflow:tag>
+agent-worker doc write -w <workflow:tag> --content <text>
+agent-worker doc append -w <workflow:tag> --file <path>
+
+# Tools (SDK Backend Only)
+agent-worker tool add <name>         Add tool
+agent-worker tool import <file>      Import tools from file
+agent-worker tool mock <name> <json> Mock tool response
+agent-worker tool list               List tools
+
+# Approvals
+agent-worker pending                 List pending approvals
+agent-worker approve <id>            Approve tool call
+agent-worker deny <id> -r <reason>   Deny tool call
+
+# Workflows (YAML)
+agent-worker run <file>              Run workflow (exit on complete)
+  -w, --workflow <workflow:tag>      Workflow instance
+  --json                             JSON output
+  --debug                            Show debug logs
+  --feedback                         Enable feedback tool
+
+agent-worker start <file>            Start workflow (keep running)
+  -w, --workflow <workflow:tag>      Workflow instance
+  --background                       Run in background
+
+# Utilities
+agent-worker providers               Check SDK providers
+agent-worker backends                Check available backends
 ```
 
 ---
 
 ## Remember
 
-agent-worker is about **programmatic control** over AI conversations.
+**Two modes, same model**:
+- **Agent Mode**: Manual CLI control, perfect for exploration
+- **Workflow Mode**: Declarative YAML, perfect for automation
 
-- **Workflow (`-w`)**: Namespace for agents sharing context
-- **Channel**: @mention-based communication
-- **Backends**: SDK, Claude, Codex, Cursor
-- **YAML or manual**: Same model — agents in workflows, sharing context
+Both use:
+- **workflow:tag** for namespacing and isolation
+- **Channels** for @mention-based communication
+- **Documents** for shared state
+- **Proposals** for collaborative decisions
+
+Choose the mode that fits your task. Mix and match as needed.
