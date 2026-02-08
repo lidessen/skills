@@ -86,11 +86,7 @@ export function formatChannelEntry(entry: Message, agentNames: string[]): string
  */
 function formatAgentEntry(entry: Message, time: string, agentNames: string[]): string {
   const color = getAgentColor(entry.from, agentNames);
-  const maxLen = 500;
-  let message = entry.content;
-  if (message.length > maxLen) {
-    message = message.slice(0, maxLen) + "...";
-  }
+  const message = entry.content;
 
   if (!isTTY) {
     // Non-TTY: simple format for machine parsing
