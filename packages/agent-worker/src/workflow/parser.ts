@@ -39,7 +39,6 @@ export async function parseWorkflowFile(
   const absolutePath = resolve(filePath);
   const workflow = options?.workflow ?? options?.instance ?? "global";
   const tag = options?.tag ?? "main";
-  const instance = options?.instance ?? workflow; // Backward compat
 
   if (!existsSync(absolutePath)) {
     throw new Error(`Workflow file not found: ${absolutePath}`);

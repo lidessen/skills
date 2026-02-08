@@ -1,6 +1,6 @@
 import type { Command } from "commander";
 import { spawn } from "node:child_process";
-import { DEFAULT_WORKFLOW, DEFAULT_TAG } from "../target.ts";
+import { DEFAULT_TAG } from "../target.ts";
 
 export function registerWorkflowCommands(program: Command) {
   // Run workflow
@@ -11,17 +11,19 @@ export function registerWorkflowCommands(program: Command) {
     .option("-d, --debug", "Show debug details (internal logs, MCP traces, idle checks)")
     .option("--feedback", "Enable feedback tool (agents can report tool/workflow observations)")
     .option("--json", "Output results as JSON")
-    .addHelpText('after', `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ agent-worker run review.yaml                        # Run review:main
   $ agent-worker run review.yaml --tag pr-123           # Run review:pr-123
   $ agent-worker run review.yaml --json | jq .document  # Machine-readable output
 
 Note: Workflow name is inferred from YAML 'name' field or filename
-    `)
+    `,
+    )
     .action(async (file, options) => {
-      const { parseWorkflowFile, runWorkflowWithControllers } =
-        await import("@/workflow/index.ts");
+      const { parseWorkflowFile, runWorkflowWithControllers } = await import("@/workflow/index.ts");
 
       const tag = options.tag || DEFAULT_TAG;
 
@@ -32,7 +34,6 @@ Note: Workflow name is inferred from YAML 'name' field or filename
       const workflowName = parsedWorkflow.name;
 
       try {
-
         // In JSON mode, route logs to stderr to keep stdout clean
         const log = options.json ? console.error : console.log;
 
@@ -95,17 +96,19 @@ Note: Workflow name is inferred from YAML 'name' field or filename
     .option("-d, --debug", "Show debug details (internal logs, MCP traces, idle checks)")
     .option("--feedback", "Enable feedback tool (agents can report tool/workflow observations)")
     .option("--background", "Run in background (daemonize)")
-    .addHelpText('after', `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ agent-worker start review.yaml                    # Foreground (Ctrl+C to stop)
   $ agent-worker start review.yaml --background       # Background daemon
   $ agent-worker start review.yaml --tag pr-123       # Start review:pr-123
 
 Note: Workflow name is inferred from YAML 'name' field or filename
-    `)
+    `,
+    )
     .action(async (file, options) => {
-      const { parseWorkflowFile, runWorkflowWithControllers } =
-        await import("@/workflow/index.ts");
+      const { parseWorkflowFile, runWorkflowWithControllers } = await import("@/workflow/index.ts");
 
       const tag = options.tag || DEFAULT_TAG;
 
@@ -161,7 +164,6 @@ Note: Workflow name is inferred from YAML 'name' field or filename
       process.on("SIGTERM", cleanup);
 
       try {
-
         const result = await runWorkflowWithControllers({
           workflow: parsedWorkflow,
           workflowName,

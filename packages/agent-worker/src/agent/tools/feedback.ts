@@ -69,9 +69,7 @@ The purpose is to improve the workflow for future runs. Don't force feedback; on
 
 // ── Factory ────────────────────────────────────────────────────────
 
-export function createFeedbackTool(
-  options: FeedbackToolOptions = {},
-): FeedbackToolResult {
+export function createFeedbackTool(options: FeedbackToolOptions = {}): FeedbackToolResult {
   const { onFeedback, maxEntries = 50 } = options;
   const entries: FeedbackEntry[] = [];
 

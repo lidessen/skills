@@ -77,7 +77,6 @@ export class MemoryContextProvider extends ContextProviderImpl {
     }
     return map;
   }
-
 }
 
 /**

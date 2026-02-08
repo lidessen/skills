@@ -234,7 +234,11 @@ export async function handleRequest(
       case "schedule_set": {
         const payload = req.payload as { wakeup?: string | number; prompt?: string };
         if (!payload?.wakeup && payload?.wakeup !== 0) {
-          return { success: false, error: "Invalid schedule: provide wakeup (number ms, duration string, or cron expression)" };
+          return {
+            success: false,
+            error:
+              "Invalid schedule: provide wakeup (number ms, duration string, or cron expression)",
+          };
         }
         const schedule: ScheduleConfig = {
           wakeup: payload.wakeup,

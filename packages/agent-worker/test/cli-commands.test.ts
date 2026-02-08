@@ -137,21 +137,21 @@ import { buildAgentId, parseAgentId } from '../src/cli/instance.ts'
 
 describe('CLI Command Logic', () => {
   describe('agent ID handling', () => {
-    test('builds agent IDs with instance', () => {
+    test('builds agent IDs with instance (includes tag)', () => {
       const agentId = buildAgentId('reviewer', 'pr-123')
-      expect(agentId).toBe('reviewer@pr-123')
+      expect(agentId).toBe('reviewer@pr-123:main') // Now includes :main tag
 
       const parsed = parseAgentId(agentId)
       expect(parsed.agent).toBe('reviewer')
-      expect(parsed.instance).toBe('pr-123')
+      expect(parsed.instance).toBe('pr-123') // Extracts workflow part only
     })
 
     test('default instance is used when not specified', () => {
       const id = buildAgentId('worker', undefined)
-      expect(id).toBe('worker@default')
+      expect(id).toBe('worker@global:main') // Now uses global:main
 
       const parsed = parseAgentId(id)
-      expect(parsed.instance).toBe('default')
+      expect(parsed.instance).toBe('global') // Extracts workflow part only
     })
   })
 
@@ -248,12 +248,12 @@ describe('CLI Command Logic', () => {
 
 describe('Agent Instance Lifecycle', () => {
   test('buildAgentId handles workflow instance naming', () => {
-    // Simulating workflow run --instance pr-123
+    // Simulating workflow run --tag pr-123
     const reviewerId = buildAgentId('reviewer', 'pr-123')
     const coderId = buildAgentId('coder', 'pr-123')
 
-    expect(reviewerId).toBe('reviewer@pr-123')
-    expect(coderId).toBe('coder@pr-123')
+    expect(reviewerId).toBe('reviewer@pr-123:main') // Includes tag
+    expect(coderId).toBe('coder@pr-123:main') // Includes tag
 
     // All agents in same workflow instance share the instance suffix
     const parsed1 = parseAgentId(reviewerId)
@@ -263,9 +263,9 @@ describe('Agent Instance Lifecycle', () => {
 
   test('default instance is used when not specified', () => {
     const id = buildAgentId('worker', undefined)
-    expect(id).toBe('worker@default')
+    expect(id).toBe('worker@global:main') // Now uses global:main
 
     const parsed = parseAgentId(id)
-    expect(parsed.instance).toBe('default')
+    expect(parsed.instance).toBe('global') // Extracts workflow part
   })
 })

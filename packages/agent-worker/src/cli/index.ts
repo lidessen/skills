@@ -26,7 +26,7 @@ registerAgentCommands(program);
 registerSendCommands(program);
 registerMockCommands(program);
 registerFeedbackCommand(program);
-registerToolCommands(program);  // TODO: Remove deprecated commands
+registerToolCommands(program); // TODO: Remove deprecated commands
 registerWorkflowCommands(program);
 registerApprovalCommands(program);
 registerInfoCommands(program);

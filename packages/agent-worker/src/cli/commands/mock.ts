@@ -8,11 +8,14 @@ export function registerMockCommands(program: Command) {
     .command("tool <name> <response>")
     .description("Set mock response for a tool")
     .option("--to <target>", "Target agent")
-    .addHelpText('after', `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ agent-worker mock tool get_weather '{"temp": 72, "condition": "sunny"}'
   $ agent-worker mock tool read_file '{"content": "Hello World"}' --to alice
-    `)
+    `,
+    )
     .action(async (name, response, options) => {
       const target = options.to;
 

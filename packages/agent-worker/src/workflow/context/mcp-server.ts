@@ -147,7 +147,8 @@ export function createContextMCPServer(options: ContextMCPServerOptions) {
           content: [
             {
               type: "text" as const,
-              text: `Message too long (${message.length} chars, max ${CHANNEL_MSG_LIMIT}). ` +
+              text:
+                `Message too long (${message.length} chars, max ${CHANNEL_MSG_LIMIT}). ` +
                 `Use resource_create to store the full content, then send a short message referencing the resource ID.`,
             },
           ],

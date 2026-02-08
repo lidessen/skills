@@ -139,7 +139,7 @@ export async function runSdkAgent(
     const prompt = buildAgentPrompt(ctx);
     log(`Prompt (${prompt.length} chars) → sdk with ${Object.keys(tools).length} tools`);
 
-    let stepNum = 0;
+    let _stepNum = 0;
     const result = await generateText({
       model,
       tools,
@@ -148,7 +148,7 @@ export async function runSdkAgent(
       maxOutputTokens: ctx.agent.max_tokens ?? 8192,
       stopWhen: stepCountIs(ctx.agent.max_steps ?? 30),
       onStepFinish: (step) => {
-        stepNum++;
+        _stepNum++;
         if (step.toolCalls?.length) {
           for (const tc of step.toolCalls) {
             log(`CALL ${formatToolCall(tc)}`);

@@ -8,14 +8,17 @@ export function registerFeedbackCommand(program: Command) {
     .command("feedback [target]")
     .description("View agent feedback and observations")
     .option("--json", "Output as JSON")
-    .addHelpText('after', `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ agent-worker feedback                # View default agent feedback
   $ agent-worker feedback alice          # View alice's feedback
   $ agent-worker feedback --json         # JSON output
 
 Note: Requires agent to be created with --feedback flag
-    `)
+    `,
+    )
     .action(async (target, options) => {
       if (!isSessionActive(target)) {
         console.error(target ? `Agent not found: ${target}` : "No active agent");
