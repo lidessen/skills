@@ -208,6 +208,9 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
     isPersistent = created.persistent;
     const mode = isPersistent ? "persistent (bind)" : "ephemeral";
     logger.debug(`Context directory: ${contextDir} [${mode}]`);
+
+    // Mark run epoch so inbox ignores messages from previous runs
+    await contextProvider.markRunStart();
   }
 
   // Project directory is where the workflow was invoked from
@@ -481,6 +484,9 @@ export async function runWorkflowWithControllers(
 
     // Capture current channel position so watcher skips entries from previous runs
     const { cursor: channelStart } = await contextProvider.tailChannel(0);
+
+    // Mark run epoch: inbox will ignore messages before this point
+    await contextProvider.markRunStart();
 
     // 2. Create channel logger — all output goes to channel
     const logger = createChannelLogger({ provider: contextProvider, from: "workflow" });
