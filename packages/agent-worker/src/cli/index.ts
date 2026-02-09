@@ -4,6 +4,21 @@
 // These are noise for end users — the SDK works correctly in compatibility mode
 (globalThis as Record<string, unknown>).AI_SDK_LOG_WARNINGS = false;
 
+// Filter noisy stderr output from child processes
+// Captures common harmless errors that clutter the output
+const originalStderrWrite = process.stderr.write.bind(process.stderr);
+process.stderr.write = function(chunk: string | Uint8Array, ...args: unknown[]): boolean {
+  const message = typeof chunk === "string" ? chunk : chunk.toString();
+
+  // Filter out known harmless error messages
+  if (message.includes("accepts at most")) return true; // Commander.js errors from git/gh subcommands
+  if (message.includes("fatal: bad revision")) return true; // Git errors for non-existent revisions
+  if (message.match(/^warning:/i)) return true; // Generic warnings
+
+  // Pass through everything else
+  return originalStderrWrite(message, ...args) as boolean;
+} as typeof process.stderr.write;
+
 import { Command } from "commander";
 import { registerAgentCommands } from "./commands/agent.ts";
 import { registerSendCommands } from "./commands/send.ts";
