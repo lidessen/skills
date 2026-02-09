@@ -12,7 +12,6 @@ import {
   extractMentions,
   generateResourceId,
   createResourceRef,
-  MESSAGE_LENGTH_THRESHOLD,
   shouldUseResource,
 } from "./types.ts";
 import type { StorageBackend } from "./storage.ts";

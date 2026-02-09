@@ -83,21 +83,6 @@ export async function execWithIdleTimeout(options: IdleTimeoutOptions): Promise<
   // Start initial timer
   resetTimer();
 
-  // Abort function to kill the subprocess
-  const abort = () => {
-    if (!isAborted) {
-      isAborted = true;
-      clearTimeout(timer);
-      subprocess.kill("SIGTERM");
-      // Fallback: force kill after 1 second
-      setTimeout(() => {
-        if (!subprocess.killed) {
-          subprocess.kill("SIGKILL");
-        }
-      }, 1000);
-    }
-  };
-
   try {
     await subprocess;
     clearTimeout(timer);
