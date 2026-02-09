@@ -40,14 +40,15 @@ function truncate(s: string, max: number): string {
   return flat.length > max ? flat.slice(0, max) + "…" : flat;
 }
 
-/** Format a tool call for concise single-line debug output (unified format for all tools) */
+/** Format a tool call for concise single-line debug output (function call syntax) */
 function formatToolCall(tc: { toolName: string } & Record<string, unknown>): string {
   const input = (tc.input ?? tc.args ?? {}) as Record<string, unknown>;
   const pairs = Object.entries(input).map(([k, v]) => {
     const s = typeof v === "string" ? v : JSON.stringify(v);
     return `${k}=${truncate(s, 60)}`;
   });
-  return pairs.length ? `${tc.toolName} ${pairs.join(" ")}` : tc.toolName;
+  // Use function call syntax: bash(command="ls") instead of bash command="ls"
+  return `${tc.toolName}(${pairs.join(", ")})`;
 }
 
 // ==================== MCP Tool Bridge ====================
