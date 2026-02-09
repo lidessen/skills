@@ -47,8 +47,8 @@ Note: Workflow name is inferred from YAML 'name' field or filename
         // Stop all controllers (which will abort backends)
         if (controllers) {
           const { shutdownControllers } = await import("@/workflow/index.ts");
-          const logger = { debug: () => {}, info: () => {}, error: () => {} };
-          await shutdownControllers(controllers, logger);
+          const { createSilentLogger } = await import("@/workflow/logger.ts");
+          await shutdownControllers(controllers, createSilentLogger());
         }
 
         // Shutdown runtime resources

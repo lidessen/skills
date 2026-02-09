@@ -416,7 +416,8 @@ describe('MemoryContextProvider', () => {
 
       // Extract and verify resource was created as markdown
       const resourceMatch = refMessage!.content.match(/resource:(res_[a-z0-9]+)/)
-      const resourceId = resourceMatch![1]
+      expect(resourceMatch).toBeDefined()
+      const resourceId = resourceMatch![1]!
       const retrieved = await provider.readResource(resourceId)
       expect(retrieved).toBe(markdownContent)
     })
@@ -738,17 +739,11 @@ describe('FileContextProvider', () => {
       expect(msg.content).toBe(shortContent)
       expect(msg.from).toBe('agent1')
 
-      // Should not create any resource files
-      const resourcesDir = join(testDir, 'resources')
-      if (existsSync(resourcesDir)) {
-        const files = await provider.getStorage().list('resources/')
-        // Should have no resource files (or only debug log resources from other tests)
-        const thisMessageResources = files.filter(f => {
-          const content = provider.getStorage().read(f)
-          return content && typeof content === 'string' && content.includes(shortContent)
-        })
-        expect(thisMessageResources.length).toBe(0)
-      }
+      // Verify no resource was created (message sent directly)
+      const entries = await provider.readChannel()
+      expect(entries).toHaveLength(1)
+      expect(entries[0]!.content).toBe(shortContent)
+      expect(entries[0]!.content).not.toContain('resource:')
     })
 
     test('converts long message to resource file', async () => {
@@ -803,7 +798,8 @@ describe('FileContextProvider', () => {
       expect(refMessage).toBeDefined()
 
       const resourceMatch = refMessage!.content.match(/resource:(res_[a-z0-9]+)/)
-      const resourceId = resourceMatch![1]
+      expect(resourceMatch).toBeDefined()
+      const resourceId = resourceMatch![1]!
       const retrieved = await newProvider.readResource(resourceId)
       expect(retrieved).toBe(longContent)
     })
