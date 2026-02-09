@@ -106,18 +106,18 @@ jobs:
           PR_NUMBER="${{ steps.pr.outputs.pr_number }}"
           REPO="${{ github.repository }}"
 
-          # Find existing review comment
-          COMMENT_ID=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
-            --jq '.[] | select(.body | startswith("<!-- agent-review -->")) | .id' 2>/dev/null | head -1 || true)
+          # Find existing review comment (completed review, not a placeholder)
+          OLD_COMMENT_ID=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
+            --jq '.[] | select(.body | startswith("<!-- agent-review -->")) | .id' 2>/dev/null | tail -1 || true)
 
-          if [ -n "$COMMENT_ID" ]; then
-            # Update existing comment with "reviewing" status
-            gh api "repos/$REPO/issues/comments/$COMMENT_ID" \
-              -X PATCH -f body='<!-- agent-review -->
-          > ⏳ **Re-reviewing** (new changes detected)...'
+          if [ -n "$OLD_COMMENT_ID" ]; then
+            # Previous review exists — create a new comment instead of replacing
+            COMMENT_ID=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
+              -f body='<!-- agent-review -->
+          > ⏳ **Re-reviewing** (new changes detected)...' --jq '.id')
             echo "comment_id=$COMMENT_ID" >> "$GITHUB_OUTPUT"
           else
-            # Create new placeholder
+            # First review — create new placeholder
             COMMENT_ID=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
               -f body='<!-- agent-review -->
           > ⏳ **Reviewing...**' --jq '.id')
