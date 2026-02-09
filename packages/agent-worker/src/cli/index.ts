@@ -18,8 +18,11 @@ process.stderr.write = function(chunk: string | Uint8Array, ...args: unknown[]):
 
   // Filter out known harmless error messages in normal mode
   if (message.includes("accepts at most")) return true; // Commander.js errors from git/gh subcommands
-  if (message.includes("fatal: bad revision")) return true; // Git errors for non-existent revisions
+  if (message.includes("unknown revision")) return true; // Git errors for non-existent revisions (HEAD~1, etc.)
+  if (message.includes("bad revision")) return true; // Git errors for invalid refs
   if (message.match(/^warning:/i)) return true; // Generic warnings
+  if (message.match(/^hint:/i)) return true; // Git hints
+  if (message.match(/Use '--' to separate/)) return true; // Git usage hints
 
   // Pass through everything else
   return originalStderrWrite(message, ...args) as boolean;
