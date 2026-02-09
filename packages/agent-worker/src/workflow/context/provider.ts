@@ -220,7 +220,7 @@ export class ContextProviderImpl implements ContextProvider {
     // Log full content in debug channel (visible in logs but not to agents)
     await this.appendChannel(
       "system",
-      `Created resource ${resource.id} (${content.length} chars) for @${from}:\n${content.slice(0, 500)}${content.length > 500 ? "..." : ""}`,
+      `Created resource ${resource.id} (${content.length} chars) for @${from}:\n${content}`,
       { kind: "debug" }
     );
 
