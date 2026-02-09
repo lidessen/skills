@@ -26,3 +26,7 @@ export type { ServerState, Request, Response } from "./handler.ts";
 
 // Re-export cron utilities
 export { parseCron, nextCronTime, msUntilNextCron } from "./cron.ts";
+
+// Re-export error classification and health tracking
+export { classifyError, withRetry, type ErrorClass, type ClassifiedError } from "./errors.ts";
+export { HealthTracker, type HealthStatus, type HealthState } from "./health.ts";

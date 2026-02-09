@@ -6,6 +6,7 @@ import type { FeedbackEntry } from "../agent/tools/feedback.ts";
 import type { ContextProvider } from "../workflow/context/provider.ts";
 import { resolveSchedule, type SessionInfo, type ScheduleConfig } from "./registry.ts";
 import { parseCron } from "./cron.ts";
+import type { HealthTracker } from "./health.ts";
 
 export interface ServerState {
   session: AgentSession; // Always non-null: unified session for all backends
@@ -13,6 +14,7 @@ export interface ServerState {
   info: SessionInfo;
   lastActivity: number;
   pendingRequests: number;
+  health: HealthTracker; // Tracks agent availability
   idleTimer?: ReturnType<typeof setTimeout>;
   scheduleTimer?: ReturnType<typeof setTimeout>; // Interval-based wakeup timer
   cronTimer?: ReturnType<typeof setTimeout>; // Cron-based wakeup timer
@@ -62,8 +64,12 @@ export async function handleRequest(
             model: info.model,
             backend: info.backend,
             name: info.name,
+            health: state.health.getState(),
           },
         };
+
+      case "health":
+        return { success: true, data: state.health.getState() };
 
       case "send": {
         const {
@@ -77,9 +83,13 @@ export async function handleRequest(
         };
 
         if (isAsync) {
-          session.send(message, options).catch((error) => {
-            console.error("Background send error:", error);
-          });
+          session
+            .send(message, options)
+            .then(() => state.health.recordSuccess())
+            .catch((error) => {
+              state.health.recordFailure(error);
+              console.error("Background send error:", error);
+            });
 
           return {
             success: true,
@@ -90,8 +100,18 @@ export async function handleRequest(
           };
         }
 
-        const response = await session.send(message, options);
-        return { success: true, data: response };
+        try {
+          const response = await session.send(message, options);
+          state.health.recordSuccess();
+          return { success: true, data: response };
+        } catch (sendError) {
+          const classified = state.health.recordFailure(sendError);
+          return {
+            success: false,
+            error: sendError instanceof Error ? sendError.message : String(sendError),
+            data: { errorClass: classified.class, retryable: classified.retryable },
+          };
+        }
       }
 
       case "tool_add": {

@@ -13,6 +13,7 @@ import { handleRequest, type ServerState } from '../../src/daemon/handler.ts'
 import { AgentSession } from '../../src/agent/session.ts'
 import type { Backend } from '../../src/backends/types.ts'
 import type { SessionInfo } from '../../src/daemon/registry.ts'
+import { HealthTracker } from '../../src/daemon/health.ts'
 import type { Server } from 'node:net'
 
 // ==================== Test Setup ====================
@@ -53,6 +54,7 @@ function createTestState(overrides?: Partial<ServerState>): ServerState {
     info,
     lastActivity: Date.now(),
     pendingRequests: 0,
+    health: new HealthTracker(),
     ...overrides,
   }
 }
@@ -85,7 +87,7 @@ describe('handleRequest', () => {
   })
 
   describe('ping', () => {
-    test('returns session info', async () => {
+    test('returns session info with health', async () => {
       const result = await handleRequest(
         getState(state),
         { action: 'ping' },
@@ -98,6 +100,9 @@ describe('handleRequest', () => {
       expect(data.model).toBe('test/model')
       expect(data.backend).toBe('claude')
       expect(data.name).toBe('test-agent')
+      // Health is now included in ping response
+      const health = data.health as { status: string }
+      expect(health.status).toBe('healthy')
     })
   })
 
@@ -152,7 +157,7 @@ describe('handleRequest', () => {
       expect(result.success).toBe(true)
     })
 
-    test('send error propagated', async () => {
+    test('send error propagated with classification', async () => {
       const failingBackend: Backend = {
         type: 'claude' as const,
         async send() {
@@ -180,6 +185,42 @@ describe('handleRequest', () => {
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('Model error')
+      // Error classification is included in data
+      const data = result.data as { errorClass: string; retryable: boolean }
+      expect(data.errorClass).toBe('unknown')
+      expect(data.retryable).toBe(false)
+    })
+
+    test('send error with rate limit is classified as transient', async () => {
+      const rateLimitBackend: Backend = {
+        type: 'claude' as const,
+        async send() {
+          throw new Error('Rate limit exceeded, please retry')
+        },
+      }
+
+      const failState = createTestState({
+        session: new AgentSession({
+          model: 'test/model',
+          system: 'Test',
+          backend: rateLimitBackend,
+        }),
+      })
+
+      const result = await handleRequest(
+        getState(failState),
+        {
+          action: 'send',
+          payload: { message: 'Hello' },
+        },
+        noopResetTimer,
+        noopShutdown,
+      )
+
+      expect(result.success).toBe(false)
+      const data = result.data as { errorClass: string; retryable: boolean }
+      expect(data.errorClass).toBe('transient')
+      expect(data.retryable).toBe(true)
     })
   })
 

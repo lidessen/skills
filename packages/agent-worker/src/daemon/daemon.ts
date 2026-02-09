@@ -21,6 +21,8 @@ import type { SessionInfo, ScheduleConfig } from "./registry.ts";
 import { handleRequest } from "./handler.ts";
 import type { ServerState, Request } from "./handler.ts";
 import { msUntilNextCron } from "./cron.ts";
+import { HealthTracker } from "./health.ts";
+import { withRetry } from "./errors.ts";
 import {
   createFileContextProvider,
   getDefaultContextDir,
@@ -174,14 +176,26 @@ function resetIntervalSchedule(): void {
       return;
     }
 
+    // Skip wakeup if agent is unavailable — wait for recovery via user interaction
+    if (state.health.status === "unavailable") {
+      console.log("[wakeup:interval] Skipping — agent unavailable");
+      resetIntervalSchedule();
+      return;
+    }
+
     console.log(`\n[wakeup:interval] Waking agent after ${ms / 1000}s idle`);
 
     try {
       state.pendingRequests++;
       resetIdleTimer();
-      await state.session.send(prompt);
+      await withRetry(() => state!.session.send(prompt), {
+        maxRetries: 2,
+        label: "wakeup:interval",
+      });
+      state.health.recordSuccess();
     } catch (error) {
-      console.error("[wakeup:interval] Send error:", error);
+      state.health.recordFailure(error);
+      console.error("[wakeup:interval] Send failed:", error instanceof Error ? error.message : error);
     } finally {
       if (state) {
         state.pendingRequests--;
@@ -234,14 +248,26 @@ function startCronSchedule(): void {
   state.cronTimer = setTimeout(async () => {
     if (!state) return;
 
+    // Cron fires at fixed times but skips if agent is unavailable
+    if (state.health.status === "unavailable") {
+      console.log(`[wakeup:cron] Skipping — agent unavailable`);
+      startCronSchedule(); // Still schedule the next occurrence
+      return;
+    }
+
     console.log(`\n[wakeup:cron] Waking agent (${expr})`);
 
     try {
       state.pendingRequests++;
       resetIdleTimer();
-      await state.session.send(prompt);
+      await withRetry(() => state!.session.send(prompt), {
+        maxRetries: 2,
+        label: "wakeup:cron",
+      });
+      state.health.recordSuccess();
     } catch (error) {
-      console.error("[wakeup:cron] Send error:", error);
+      state.health.recordFailure(error);
+      console.error("[wakeup:cron] Send failed:", error instanceof Error ? error.message : error);
     } finally {
       if (state) {
         state.pendingRequests--;
@@ -278,6 +304,9 @@ function startInboxPolling(): void {
   state.inboxPollTimer = setInterval(async () => {
     if (!state || state.pendingRequests > 0) return;
 
+    // Reduce polling when unavailable — messages accumulate but we don't spam errors
+    if (state.health.status === "unavailable") return;
+
     try {
       const inbox = await provider.getInbox(agentName);
       if (inbox.length === 0) return;
@@ -300,11 +329,18 @@ function startInboxPolling(): void {
       );
 
       try {
-        const response = await state.session.send(prompt);
+        const response = await withRetry(() => state!.session.send(prompt), {
+          maxRetries: 2,
+          label: "inbox",
+        });
+        state.health.recordSuccess();
         // Post response back to channel
         await provider.appendChannel(agentName, response.content);
         // Ack inbox
         await provider.ackInbox(agentName, latestId);
+      } catch (sendError) {
+        state.health.recordFailure(sendError);
+        console.error("[inbox] Send failed:", sendError instanceof Error ? sendError.message : sendError);
       } finally {
         if (state) {
           state.pendingRequests--;
@@ -553,6 +589,7 @@ export async function startDaemon(config: {
       info,
       lastActivity: Date.now(),
       pendingRequests: 0,
+      health: new HealthTracker(),
       importer,
       getFeedback,
       contextProvider,
