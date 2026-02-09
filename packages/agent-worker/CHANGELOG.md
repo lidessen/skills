@@ -1,5 +1,11 @@
 # agent-worker
 
+## 0.6.0
+
+### Minor Changes
+
+- [`3f6e3a6`](https://github.com/lidessen/moniro/commit/3f6e3a65d95f176637fd9c2bfe88765d201ae2a5) - Fix CLI version display, add signal handling, implement smart message handling with auto-resource conversion, and optimize agent prompts
+
 ## 0.5.0
 
 ### Minor Changes
