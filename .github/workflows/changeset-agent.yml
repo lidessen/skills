@@ -3,8 +3,9 @@ name: Changeset Agent
 # Flow:
 # 1. Agent analyzes merged PR → /tmp/changeset-result.json
 # 2. If needed: create .changeset/auto-pr-{N}.md, commit to main
-# 3. Create release/next from main, run `bun run version`
-# 4. Force push release/next, create/update release PR
+# 3. Always: check for ANY pending changesets (auto or manual)
+# 4. If pending: create release/next from main, run `bun run version`
+# 5. Force push release/next, create/update release PR
 #
 # Changeset files on main are the single source of truth.
 # `changeset version` on the release branch consumes them;
@@ -98,13 +99,12 @@ jobs:
           git push origin main
 
       - name: Version and create release PR
-        if: steps.result.outputs.needed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Collect pending changeset info before version consumes them
-          PENDING=$(ls .changeset/auto-pr-*.md 2>/dev/null || true)
+          # Collect ALL pending changeset files (exclude README.md)
+          PENDING=$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' -print 2>/dev/null || true)
           if [ -z "$PENDING" ]; then
             echo "No pending changesets"
             exit 0
@@ -112,9 +112,16 @@ jobs:
 
           PR_BODY="## Pending Changes"
           for f in $PENDING; do
-            PR_NUM=$(basename "$f" .md | sed 's/auto-pr-//')
-            DESC=$(tail -1 "$f")
-            PR_BODY="${PR_BODY}"$'\n'"- #${PR_NUM}: ${DESC}"
+            BASENAME=$(basename "$f" .md)
+            # For auto-generated changesets, link to the PR
+            if [[ "$BASENAME" == auto-pr-* ]]; then
+              PR_NUM="${BASENAME#auto-pr-}"
+              DESC=$(tail -1 "$f")
+              PR_BODY="${PR_BODY}"$'\n'"- #${PR_NUM}: ${DESC}"
+            else
+              DESC=$(tail -1 "$f")
+              PR_BODY="${PR_BODY}"$'\n'"- ${BASENAME}: ${DESC}"
+            fi
           done
           PR_BODY="${PR_BODY}"$'\n\n---\nMerge to publish packages to npm.'
 
