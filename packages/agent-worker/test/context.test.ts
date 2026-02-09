@@ -429,6 +429,41 @@ describe('MemoryContextProvider', () => {
       expect(msg.content).toContain('[Long content stored as resource]')
     })
 
+    test('preserves @mentions in short message', async () => {
+      const longContent = '@agent2 @agent3 ' + 'X'.repeat(1500)
+      const msg = await provider.smartSend('agent1', longContent)
+
+      // Short message should contain the @mentions
+      expect(msg.content).toContain('@agent2')
+      expect(msg.content).toContain('@agent3')
+      expect(msg.content).toContain('[Long content stored as resource]')
+
+      // Mentions array should be populated
+      expect(msg.mentions).toContain('agent2')
+      expect(msg.mentions).toContain('agent3')
+    })
+
+    test('filters invalid @mentions', async () => {
+      const longContent = '@agent2 @invalid_agent @unknown ' + 'Y'.repeat(1500)
+      const msg = await provider.smartSend('agent1', longContent)
+
+      // Only valid agent mention should be preserved
+      expect(msg.content).toContain('@agent2')
+      expect(msg.content).not.toContain('@invalid_agent')
+      expect(msg.content).not.toContain('@unknown')
+      expect(msg.mentions).toEqual(['agent2'])
+    })
+
+    test('handles no @mentions gracefully', async () => {
+      const longContent = 'Z'.repeat(1500)
+      const msg = await provider.smartSend('agent1', longContent)
+
+      // Should work fine without mentions
+      expect(msg.content).toContain('[Long content stored as resource]')
+      expect(msg.content).not.toMatch(/@\w+/)
+      expect(msg.mentions).toEqual([])
+    })
+
     test('threshold boundary: 1200 chars sends directly', async () => {
       const content = 'D'.repeat(1200)
       const msg = await provider.smartSend('agent1', content)
@@ -771,6 +806,24 @@ describe('FileContextProvider', () => {
       const resourceId = resourceMatch![1]
       const retrieved = await newProvider.readResource(resourceId)
       expect(retrieved).toBe(longContent)
+    })
+
+    test('preserves @mentions in short message', async () => {
+      const longContent = '@agent2 ' + 'K'.repeat(1500)
+      const msg = await provider.smartSend('agent1', longContent)
+
+      expect(msg.content).toContain('@agent2')
+      expect(msg.content).toContain('[Long content stored as resource]')
+      expect(msg.mentions).toContain('agent2')
+    })
+
+    test('filters invalid @mentions', async () => {
+      const longContent = '@agent2 @nonexistent ' + 'L'.repeat(1500)
+      const msg = await provider.smartSend('agent1', longContent)
+
+      expect(msg.content).toContain('@agent2')
+      expect(msg.content).not.toContain('@nonexistent')
+      expect(msg.mentions).toEqual(['agent2'])
     })
 
     test('threshold boundary behavior', async () => {
