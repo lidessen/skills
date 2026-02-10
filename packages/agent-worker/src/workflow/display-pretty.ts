@@ -182,8 +182,8 @@ function processEntry(entry: Message, state: PrettyDisplayState, agentNames: str
     state.hasShownAgentsStarted = true;
   }
 
-  // Show message in a note box
-  p.note(content, color(from));
+  // Show message in a note box (trim to remove extra whitespace)
+  p.note(content.trim(), color(from));
 }
 
 // ==================== Pretty Display Watcher ====================
