@@ -40,8 +40,6 @@ interface PrettyDisplayState {
   phase: "init" | "running" | "complete" | "error";
   /** Has shown agents started */
   hasShownAgentsStarted: boolean;
-  /** Workflow info buffer */
-  workflowInfo: { name?: string; agents?: string };
 }
 
 // ==================== ASCII Banner ====================
@@ -82,13 +80,16 @@ function processEntry(entry: Message, state: PrettyDisplayState, agentNames: str
 
   // Log entries (operational messages)
   if (kind === "log") {
-    // Extract phase from log content
     if (content.includes("Running workflow:")) {
       state.phase = "running";
-      // Skip - workflow name already shown in intro
-    } else if (content.includes("Agents:") && content.includes(",")) {
-      // Skip - agents already shown in Initialized step
-    } else if (content.includes("Starting agents")) {
+      return; // Skip - workflow name already shown in intro
+    }
+
+    if (content.includes("Agents:")) {
+      return; // Skip - agents already shown in Initialized step
+    }
+
+    if (content.includes("Starting agents")) {
       if (state.spinner) {
         // Show agent names when stopping init spinner
         const agentList = agentNames.join(", ");
@@ -157,7 +158,6 @@ export function startPrettyDisplay(config: PrettyDisplayConfig): PrettyDisplayWa
     spinner: null,
     phase: "init",
     hasShownAgentsStarted: false,
-    workflowInfo: {},
   };
 
   // Show ASCII banner
