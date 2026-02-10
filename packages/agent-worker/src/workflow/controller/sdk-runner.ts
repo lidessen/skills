@@ -147,7 +147,8 @@ export async function runSdkAgent(
       system: ctx.agent.resolvedSystemPrompt,
       prompt,
       maxOutputTokens: ctx.agent.max_tokens ?? 8192,
-      ...(ctx.agent.max_steps ? { stopWhen: stepCountIs(ctx.agent.max_steps) } : {}),
+      // Use user's max_steps if set, otherwise allow up to 200 steps (effectively no limit for most tasks)
+      stopWhen: stepCountIs(ctx.agent.max_steps ?? 200),
       onStepFinish: (step) => {
         _stepNum++;
         if (step.toolCalls?.length) {
