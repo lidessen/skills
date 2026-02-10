@@ -59,7 +59,7 @@ export interface AgentDefinition {
   /** Maximum tokens for response */
   max_tokens?: number;
 
-  /** Maximum tool call steps per turn (default: no limit) */
+  /** Maximum tool call steps per turn (default: 200) */
   max_steps?: number;
 
   /** Backend timeout in milliseconds (overrides backend default) */
