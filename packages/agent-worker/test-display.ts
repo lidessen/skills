@@ -38,6 +38,7 @@ async function main() {
 
   const banner = BANNER_LINES.map((line, i) => `${CYAN_GRADIENT[i]}${line}${RESET}`).join("\n");
   console.log("\n" + banner);
+  console.log("");
 
   // Intro
   p.intro(pc.bgCyan(pc.black(" test-workflow:main ")));
