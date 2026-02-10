@@ -24,7 +24,7 @@ import type {
 import { interpolate, createContext, type VariableContext } from "./interpolate.ts";
 import { createFileContextProvider, FileContextProvider } from "./context/file-provider.ts";
 import { createMemoryContextProvider } from "./context/memory-provider.ts";
-import { createContextMCPServer } from "./context/mcp-server.ts";
+import { createContextMCPServer } from "./context/mcp/server.ts";
 import { runWithHttp, type HttpMCPServer } from "./context/http-transport.ts";
 import type { ContextProvider } from "./context/provider.ts";
 import {

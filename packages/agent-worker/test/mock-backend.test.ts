@@ -10,7 +10,7 @@
 import { describe, test, expect } from 'bun:test'
 import { validateWorkflow } from '../src/workflow/parser.ts'
 import { createMemoryContextProvider } from '../src/workflow/context/memory-provider.ts'
-import { createContextMCPServer } from '../src/workflow/context/mcp-server.ts'
+import { createContextMCPServer } from '../src/workflow/context/mcp/server.ts'
 import { runWithHttp } from '../src/workflow/context/http-transport.ts'
 import { runMockAgent } from '../src/workflow/controller/mock-runner.ts'
 import type { AgentRunContext } from '../src/workflow/controller/types.ts'

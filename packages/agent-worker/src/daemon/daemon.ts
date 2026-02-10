@@ -28,7 +28,7 @@ import type { StateStore } from "../agent/store.ts";
 import { MemoryStateStore } from "../agent/store.ts";
 import type { BackendType } from "../backends/types.ts";
 import { DEFAULT_PORT, writeDaemonInfo, removeDaemonInfo, isDaemonRunning } from "./registry.ts";
-import { createContextMCPServer } from "../workflow/context/mcp-server.ts";
+import { createContextMCPServer } from "../workflow/context/mcp/server.ts";
 import {
   createFileContextProvider,
   getDefaultContextDir,

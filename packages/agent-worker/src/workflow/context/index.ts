@@ -8,5 +8,5 @@ export * from "./storage.ts";
 export * from "./provider.ts";
 export * from "./memory-provider.ts";
 export * from "./file-provider.ts";
-export * from "./mcp-server.ts";
+export * from "./mcp/index.ts";
 export * from "./proposals.ts";
