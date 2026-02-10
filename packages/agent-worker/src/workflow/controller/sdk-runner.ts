@@ -180,9 +180,7 @@ export async function runSdkAgent(
       const warning = `⚠️  Agent reached max_steps limit (${ctx.agent.max_steps}) but wanted to continue. Consider increasing max_steps or removing the limit.`;
       log(warning);
       // Also write to channel so user can see it
-      await ctx.provider
-        .appendChannel(ctx.name, warning, { kind: "log" })
-        .catch(() => {});
+      await ctx.provider.appendChannel(ctx.name, warning, { kind: "log" }).catch(() => {});
     }
 
     await mcp.close();
