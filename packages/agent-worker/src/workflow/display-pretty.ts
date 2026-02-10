@@ -55,11 +55,23 @@ const BANNER_LINES = [
 
 /**
  * Apply gradient colors to banner lines
- * Creates a smooth cyan → blue → magenta gradient effect
+ * Creates a smooth cyan gradient effect (bright → dark) using ANSI 256 colors
+ * Inspired by vercel-labs/skills gradient approach
  */
 function applyBannerGradient(lines: string[]): string {
-  const colors = [pc.cyan, pc.cyan, pc.blue, pc.blue, pc.magenta, pc.magenta];
-  return lines.map((line, i) => colors[i]!(line)).join("\n");
+  // Cyan color family gradient: bright cyan → dark cyan/blue
+  // Using ANSI 256-color codes for precise control
+  const CYAN_GRADIENT = [
+    "\x1b[38;5;51m", // brightest cyan
+    "\x1b[38;5;45m", // bright cyan
+    "\x1b[38;5;39m", // cyan
+    "\x1b[38;5;33m", // medium cyan
+    "\x1b[38;5;27m", // darker cyan
+    "\x1b[38;5;21m", // darkest cyan/blue
+  ];
+  const RESET = "\x1b[0m";
+
+  return lines.map((line, i) => `${CYAN_GRADIENT[i]}${line}${RESET}`).join("\n");
 }
 
 // ==================== Agent Colors ====================
