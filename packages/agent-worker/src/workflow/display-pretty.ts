@@ -38,6 +38,17 @@ interface PrettyDisplayState {
   workflowInfo: { name?: string; agents?: string };
 }
 
+// ==================== ASCII Banner ====================
+
+const BANNER = `
+ █████╗  ██████╗ ███████╗███╗   ██╗████████╗    ██╗    ██╗ ██████╗ ██████╗ ██╗  ██╗███████╗██████╗
+██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝    ██║    ██║██╔═══██╗██╔══██╗██║ ██╔╝██╔════╝██╔══██╗
+███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║       ██║ █╗ ██║██║   ██║██████╔╝█████╔╝ █████╗  ██████╔╝
+██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║       ██║███╗██║██║   ██║██╔══██╗██╔═██╗ ██╔══╝  ██╔══██╗
+██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║       ╚███╔███╔╝╚██████╔╝██║  ██║██║  ██╗███████╗██║  ██║
+╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝        ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
+`;
+
 // ==================== Agent Colors ====================
 
 const AGENT_COLORS = [pc.cyan, pc.yellow, pc.magenta, pc.green, pc.blue];
@@ -137,8 +148,14 @@ export function startPrettyDisplay(config: PrettyDisplayConfig): PrettyDisplayWa
     workflowInfo: {},
   };
 
+  // Show ASCII banner
+  console.log(pc.cyan(BANNER));
+
   // Show intro
   p.intro(pc.bgCyan(pc.black(" agent-worker ")));
+
+  // Add blank line after intro
+  console.log("");
 
   // Start initial spinner
   state.spinner = p.spinner();
