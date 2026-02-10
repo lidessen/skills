@@ -34,7 +34,6 @@ Note: Workflow name is inferred from YAML 'name' field or filename
       const workflowName = parsedWorkflow.name;
 
       let controllers: Map<string, any> | undefined;
-      let runtime: { shutdown: () => Promise<void> } | undefined;
       let isCleaningUp = false;
 
       // Setup graceful shutdown for run mode
@@ -49,11 +48,6 @@ Note: Workflow name is inferred from YAML 'name' field or filename
           const { shutdownControllers } = await import("@/workflow/index.ts");
           const { createSilentLogger } = await import("@/workflow/logger.ts");
           await shutdownControllers(controllers, createSilentLogger());
-        }
-
-        // Shutdown runtime resources
-        if (runtime) {
-          await runtime.shutdown();
         }
 
         process.exit(130); // 130 = 128 + SIGINT(2)
