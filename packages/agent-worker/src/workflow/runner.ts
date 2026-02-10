@@ -582,13 +582,16 @@ export async function runWorkflowWithControllers(
         model: agentDef.model,
       });
 
+      // Create agent-specific logger for backend debug messages
+      const agentLogger = logger.child(agentName);
+
       // Get backend for this agent
       // Tool calls are shown in normal mode, other debug info only in debug mode
       const backendDebugLog = (msg: string) => {
         if (msg.startsWith("CALL ")) {
-          logger.info(msg); // Tool calls → always visible
+          agentLogger.info(msg); // Tool calls → always visible with agent name
         } else {
-          logger.debug(msg); // Other debug info → debug only
+          agentLogger.debug(msg); // Other debug info → debug only
         }
       };
       let backend: Backend;
