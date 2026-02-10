@@ -24,9 +24,19 @@ async function main() {
     "╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝        ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝",
   ];
 
-  // Apply gradient: cyan → blue → magenta
-  const colors = [pc.cyan, pc.cyan, pc.blue, pc.blue, pc.magenta, pc.magenta];
-  const banner = BANNER_LINES.map((line, i) => colors[i]!(line)).join("\n");
+  // Apply cyan gradient (bright → dark) using ANSI 256 colors
+  // Inspired by vercel-labs/skills approach
+  const CYAN_GRADIENT = [
+    "\x1b[38;5;51m", // brightest cyan
+    "\x1b[38;5;45m", // bright cyan
+    "\x1b[38;5;39m", // cyan
+    "\x1b[38;5;33m", // medium cyan
+    "\x1b[38;5;27m", // darker cyan
+    "\x1b[38;5;21m", // darkest cyan/blue
+  ];
+  const RESET = "\x1b[0m";
+
+  const banner = BANNER_LINES.map((line, i) => `${CYAN_GRADIENT[i]}${line}${RESET}`).join("\n");
   console.log("\n" + banner);
 
   // Intro
