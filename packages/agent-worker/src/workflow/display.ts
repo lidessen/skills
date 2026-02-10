@@ -18,56 +18,17 @@
  * - Background-agnostic color scheme
  */
 
-import chalk from "chalk";
-import wrapAnsi from "wrap-ansi";
 import type { ContextProvider } from "./context/provider.ts";
 import type { Message } from "./context/types.ts";
 import {
   calculateLayout,
-  formatTime,
   resetTimeTracking,
   shouldGroup,
   createGroupingState,
-  getIndent,
-  padToWidth,
   type LayoutConfig,
   type GroupingState,
 } from "./layout.ts";
 import { formatStandardLog, formatTimelineLog } from "./layout-log.ts";
-
-// ==================== Color System ====================
-
-/** Whether to use rich terminal formatting */
-const isTTY = !!process.stdout.isTTY && !process.env.NO_COLOR;
-
-/**
- * Background-agnostic color scheme
- * Uses only bold and standard colors that work on any theme
- */
-const C = {
-  // Text styling
-  dim: isTTY ? chalk.dim : (s: string) => s,
-  bold: isTTY ? chalk.bold : (s: string) => s,
-
-  // Status colors (background-agnostic)
-  yellow: isTTY ? chalk.yellow : (s: string) => s,
-  red: isTTY ? chalk.red : (s: string) => s,
-
-  // Agent colors — cycle through distinct hues
-  agents: isTTY
-    ? [chalk.cyan, chalk.yellow, chalk.magenta, chalk.green, chalk.blue, chalk.redBright]
-    : Array(6).fill((s: string) => s),
-
-  // System messages
-  system: isTTY ? chalk.gray : (s: string) => s,
-};
-
-/** Separators — box-drawing for TTY, plain for pipe */
-const SEP = {
-  agent: isTTY ? "│" : "|", // agent messages
-  log: isTTY ? "┊" : ":", // log/debug messages
-  grouped: isTTY ? "│" : "|", // grouped continuation
-};
 
 // ==================== Display Context ====================
 
@@ -100,17 +61,6 @@ export function createDisplayContext(
 
 // ==================== Internal Helpers ====================
 
-function getAgentColor(name: string, agentNames: string[]): (s: string) => string {
-  if (name === "system" || name === "user") return C.system;
-  const idx = agentNames.indexOf(name);
-  if (idx < 0) {
-    // Hash agent name to consistent color for unknown agents
-    const hash = name.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    return C.agents[hash % C.agents.length]!;
-  }
-  return C.agents[idx % C.agents.length]!;
-}
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -136,34 +86,6 @@ export function formatChannelEntry(entry: Message, context: DisplayContext): str
   const isFirstMessage = !shouldGroup(entry.from, entry.timestamp, context.grouping, false);
 
   return formatTimelineLog(entry, context.layout, isFirstMessage);
-}
-
-
-/**
- * Wrap message content to fit within layout constraints
- * Preserves ANSI color codes
- */
-function wrapMessage(content: string, layout: LayoutConfig): string[] {
-  // Split pre-existing newlines first
-  const paragraphs = content.split("\n");
-
-  const wrapped: string[] = [];
-  for (const para of paragraphs) {
-    if (para.length === 0) {
-      wrapped.push("");
-      continue;
-    }
-
-    // Wrap each paragraph to max width
-    const wrappedPara = wrapAnsi(para, layout.maxContentWidth, {
-      hard: true, // Break long words if necessary
-      trim: false, // Preserve intentional whitespace
-    });
-
-    wrapped.push(...wrappedPara.split("\n"));
-  }
-
-  return wrapped;
 }
 
 // ==================== Channel Watcher ====================
