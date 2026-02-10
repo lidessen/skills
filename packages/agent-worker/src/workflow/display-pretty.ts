@@ -214,6 +214,7 @@ export function startPrettyDisplay(config: PrettyDisplayConfig): PrettyDisplayWa
 
   // Show ASCII banner with gradient
   console.log("\n" + applyBannerGradient(BANNER_LINES));
+  console.log("");
 
   // Build intro text with workflow, tag, and path
   const tagText = tag === "main" ? "" : `:${tag}`;
