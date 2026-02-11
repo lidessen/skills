@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Local Claude Code standalone binary (configure via env vars)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BINARY="$SCRIPT_DIR/claude-bin"
+
+# Auto-download binary if missing
+if [ ! -x "$BINARY" ]; then
+  echo "Claude Code binary not found. Downloading..."
+  GCS_BUCKET="https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases"
+  VERSION=$(curl -fsSL "$GCS_BUCKET/latest")
+  curl -fsSL "$GCS_BUCKET/$VERSION/linux-x64/claude" -o "$BINARY" && chmod +x "$BINARY"
+  echo "Downloaded Claude Code v$VERSION"
+fi
+
+exec "$BINARY" "$@"

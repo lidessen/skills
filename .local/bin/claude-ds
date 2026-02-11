@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Claude Code with DeepSeek backend
+# Uses DeepSeek's Anthropic-compatible API endpoint
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BINARY="$SCRIPT_DIR/claude-bin"
+
+# Auto-download binary if missing
+if [ ! -x "$BINARY" ]; then
+  echo "Claude Code binary not found. Downloading..."
+  GCS_BUCKET="https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases"
+  VERSION=$(curl -fsSL "$GCS_BUCKET/latest")
+  curl -fsSL "$GCS_BUCKET/$VERSION/linux-x64/claude" -o "$BINARY" && chmod +x "$BINARY"
+  echo "Downloaded Claude Code v$VERSION"
+fi
+
+export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
+export ANTHROPIC_AUTH_TOKEN="${DEEPSEEK_API_KEY}"
+export ANTHROPIC_API_KEY=""
+export ANTHROPIC_MODEL="deepseek-chat"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-chat"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-chat"
+export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-chat"
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+export API_TIMEOUT_MS=600000
+
+exec "$BINARY" "$@"

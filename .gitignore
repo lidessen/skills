@@ -24,6 +24,9 @@ npm-debug.log*
 .memory/sessions/
 .memory/context.md
 
+# Local CLI binaries (large, downloadable)
+.local/bin/claude-bin
+
 # Test files and directories
 test-skills.ts
 test-skills-cli.ts
