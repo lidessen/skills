@@ -6,6 +6,7 @@
  * - kind=undefined (agent messages): always shown, colored
  * - kind="log" (operational logs): always shown, dimmed
  * - kind="debug" (debug details): only shown with --debug flag
+ * - kind="stream" (streaming output): always shown, not delivered to agent inboxes
  *
  * Two display modes:
  * - TTY (human): colored, aligned columns, smart wrapping
