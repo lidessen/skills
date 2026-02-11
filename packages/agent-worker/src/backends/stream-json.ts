@@ -495,10 +495,10 @@ export function extractCodexResult(stdout: string): BackendResponse {
  * Accumulates stdout chunks, parses each line through the given adapter,
  * and emits formatted progress messages via appropriate callback.
  *
- * @param debugLog - Callback for debug/tool messages (kind="debug")
+ * @param debugLog - Callback for debug messages (kind="debug", only in --debug mode)
  * @param backendName - Display name (e.g., "Cursor", "Claude", "Codex")
  * @param adapter - Format-specific adapter to convert raw JSON → StreamEvent
- * @param messageLog - Optional callback for agent messages (kind=undefined). If not provided, uses debugLog.
+ * @param messageLog - Optional callback for agent output messages (tool calls, assistant messages) (kind="stream", visible in normal mode). If not provided, uses debugLog.
  */
 export function createStreamParser(
   debugLog: (message: string) => void,
@@ -532,9 +532,12 @@ export function createStreamParser(
         if (event) {
           const progress = formatEvent(event, backendName);
           if (progress) {
-            // Use messageLog for agent messages (user/assistant), debugLog for everything else
-            const isAgentMessage = event.kind === "user_message" || event.kind === "assistant_message";
-            const logFn = isAgentMessage && messageLog ? messageLog : debugLog;
+            // Use messageLog for tool calls and assistant messages (visible in normal mode)
+            const shouldUseMessageLog =
+              event.kind === "tool_call" ||
+              event.kind === "tool_call_started" ||
+              event.kind === "assistant_message";
+            const logFn = shouldUseMessageLog && messageLog ? messageLog : debugLog;
             logFn(progress);
           }
         }
