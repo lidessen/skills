@@ -355,7 +355,11 @@ export function isSessionRunning(idOrName?: string): boolean {
     // Process doesn't exist, clean up
     for (const path of [info.socketPath, info.pidFile, info.readyFile]) {
       if (path && existsSync(path)) {
-        try { unlinkSync(path); } catch { /* best-effort */ }
+        try {
+          unlinkSync(path);
+        } catch {
+          /* best-effort */
+        }
       }
     }
     unregisterSession(info.id);

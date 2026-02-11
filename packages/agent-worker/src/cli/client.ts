@@ -50,11 +50,7 @@ function requireDaemon(): string {
 
 // ── Low-level HTTP ─────────────────────────────────────────────────
 
-async function request(
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<ApiResponse> {
+async function request(method: string, path: string, body?: unknown): Promise<ApiResponse> {
   const baseUrl = requireDaemon();
   let lastError: unknown;
 
@@ -124,10 +120,7 @@ export function deleteAgent(name: string): Promise<ApiResponse> {
 }
 
 /** POST /serve (sync JSON response) */
-export function serve(body: {
-  agent: string;
-  message: string;
-}): Promise<ApiResponse> {
+export function serve(body: { agent: string; message: string }): Promise<ApiResponse> {
   return request("POST", "/serve", body);
 }
 
@@ -158,42 +151,42 @@ export async function run(
       return (await res.json()) as ApiResponse;
     }
 
-  // Parse SSE stream
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let finalResponse: ApiResponse = { success: true };
+    // Parse SSE stream
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let finalResponse: ApiResponse = { success: true };
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
 
-    // Process complete SSE events
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
+      // Process complete SSE events
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
 
-    let currentEvent = "";
-    for (const line of lines) {
-      if (line.startsWith("event: ")) {
-        currentEvent = line.slice(7);
-      } else if (line.startsWith("data: ")) {
-        const data = line.slice(6);
-        try {
-          const parsed = JSON.parse(data);
-          if (currentEvent === "chunk" && onChunk) {
-            onChunk(parsed);
-          } else if (currentEvent === "done") {
-            finalResponse = parsed;
-          } else if (currentEvent === "error") {
-            return { success: false, error: parsed.error };
+      let currentEvent = "";
+      for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          currentEvent = line.slice(7);
+        } else if (line.startsWith("data: ")) {
+          const data = line.slice(6);
+          try {
+            const parsed = JSON.parse(data);
+            if (currentEvent === "chunk" && onChunk) {
+              onChunk(parsed);
+            } else if (currentEvent === "done") {
+              finalResponse = parsed;
+            } else if (currentEvent === "error") {
+              return { success: false, error: parsed.error };
+            }
+          } catch {
+            // Ignore malformed SSE data
           }
-        } catch {
-          // Ignore malformed SSE data
         }
       }
     }
-  }
 
     return finalResponse;
   } catch (error) {

@@ -1,10 +1,5 @@
 // Daemon discovery
-export {
-  DEFAULT_PORT,
-  readDaemonInfo,
-  isDaemonRunning,
-  type DaemonInfo,
-} from "./registry.ts";
+export { DEFAULT_PORT, readDaemonInfo, isDaemonRunning, type DaemonInfo } from "./registry.ts";
 
 // Daemon entry point and types
 export { startDaemon } from "./daemon.ts";

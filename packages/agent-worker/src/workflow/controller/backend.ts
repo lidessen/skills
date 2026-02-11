@@ -54,10 +54,7 @@ export function getBackendByType(
  * Infers backend type from model name and delegates to getBackendByType.
  * Prefer using getBackendByType with explicit backend field in workflow configs.
  */
-export function getBackendForModel(
-  model: string,
-  options?: WorkflowBackendOptions,
-): Backend {
+export function getBackendForModel(model: string, options?: WorkflowBackendOptions): Backend {
   const { provider } = parseModel(model);
 
   switch (provider) {

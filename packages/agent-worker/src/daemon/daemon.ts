@@ -73,13 +73,19 @@ async function gracefulShutdown(): Promise<void> {
     for (const [name, handle] of state.workers) {
       try {
         await state.store.save(name, handle.getState());
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
     }
     await state.server.close();
   }
 
   for (const [, session] of mcpSessions) {
-    try { await session.transport.close(); } catch { /* best-effort */ }
+    try {
+      await session.transport.close();
+    } catch {
+      /* best-effort */
+    }
   }
   mcpSessions.clear();
 
@@ -98,11 +104,13 @@ function getWorkflowAgentNames(workflow: string, tag: string): string[] {
 
 // ── Daemon Entry Point ─────────────────────────────────────────────
 
-export async function startDaemon(config: {
-  port?: number;
-  host?: string;
-  store?: StateStore;
-} = {}): Promise<void> {
+export async function startDaemon(
+  config: {
+    port?: number;
+    host?: string;
+    store?: StateStore;
+  } = {},
+): Promise<void> {
   const existing = isDaemonRunning();
   if (existing) {
     console.error(`Daemon already running: pid=${existing.pid} port=${existing.port}`);
@@ -229,7 +237,11 @@ export async function startDaemon(config: {
     // Persist final state before removing worker
     const handle = state.workers.get(name);
     if (handle) {
-      try { await state.store.save(name, handle.getState()); } catch { /* best-effort */ }
+      try {
+        await state.store.save(name, handle.getState());
+      } catch {
+        /* best-effort */
+      }
     }
     state.workers.delete(name);
 

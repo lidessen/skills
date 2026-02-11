@@ -286,7 +286,12 @@ export class ContextProviderImpl implements ContextProvider {
     // Excludes: system, debug, output, tool_call, messages from self
     return entries
       .filter((e) => {
-        if (e.kind === "system" || e.kind === "debug" || e.kind === "output" || e.kind === "tool_call")
+        if (
+          e.kind === "system" ||
+          e.kind === "debug" ||
+          e.kind === "output" ||
+          e.kind === "tool_call"
+        )
           return false;
         if (e.from === agent) return false;
         return e.mentions.includes(agent) || e.to === agent;

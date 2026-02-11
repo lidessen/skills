@@ -43,7 +43,9 @@ export type BackendOptions =
  * - "sonnet" → cursor: "sonnet-4.5", claude: "sonnet", default: "claude-sonnet-4-5-20250514"
  * - "anthropic/claude-sonnet-4-5" → cursor: "sonnet-4.5", claude: "sonnet"
  */
-export function createBackend(config: BackendOptions | { type: "sdk"; model?: string; maxTokens?: number }): Backend {
+export function createBackend(
+  config: BackendOptions | { type: "sdk"; model?: string; maxTokens?: number },
+): Backend {
   // Normalize "sdk" → "default" for backward compatibility
   const normalized = { ...config, type: normalizeBackendType(config.type) } as BackendOptions;
   // Translate model to backend-specific format
@@ -53,11 +55,20 @@ export function createBackend(config: BackendOptions | { type: "sdk"; model?: st
     case "default":
       return new SdkBackend({ model, maxTokens: (normalized as { maxTokens?: number }).maxTokens });
     case "claude":
-      return new ClaudeCodeBackend({ ...(normalized as { options?: Record<string, unknown> }).options, model });
+      return new ClaudeCodeBackend({
+        ...(normalized as { options?: Record<string, unknown> }).options,
+        model,
+      });
     case "codex":
-      return new CodexBackend({ ...(normalized as { options?: Record<string, unknown> }).options, model });
+      return new CodexBackend({
+        ...(normalized as { options?: Record<string, unknown> }).options,
+        model,
+      });
     case "cursor":
-      return new CursorBackend({ ...(normalized as { options?: Record<string, unknown> }).options, model });
+      return new CursorBackend({
+        ...(normalized as { options?: Record<string, unknown> }).options,
+        model,
+      });
     default:
       throw new Error(`Unknown backend type: ${(normalized as { type: string }).type}`);
   }

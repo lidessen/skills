@@ -22,9 +22,7 @@ export function registerProposalTools(
     "team_proposal_create",
     "Create a new proposal for team voting. Use for decisions, elections, approvals, or assignments.",
     {
-      type: z
-        .enum(["election", "decision", "approval", "assignment"])
-        .describe("Type of proposal"),
+      type: z.enum(["election", "decision", "approval", "assignment"]).describe("Type of proposal"),
       title: z.string().describe("Brief title for the proposal"),
       description: z.string().optional().describe("Detailed description"),
       options: z
