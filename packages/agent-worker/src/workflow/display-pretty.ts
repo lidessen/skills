@@ -120,6 +120,22 @@ function processEntry(entry: Message, state: PrettyDisplayState, agentNames: str
     return;
   }
 
+  // Stream entries (backend streaming output: tool calls, assistant/user messages)
+  if (kind === "stream") {
+    const color = getAgentColor(from, agentNames);
+    const agent = from.includes(":") ? from.split(":").pop()! : from;
+
+    if (content.startsWith("STARTING ") || content.startsWith("CALL ")) {
+      p.log.message(`${color(agent)} ${content}`, { symbol: pc.cyan("▶") });
+    } else if (content.startsWith("Assistant: ")) {
+      const text = content.slice("Assistant: ".length);
+      p.log.message(`${color(agent)} ${text}`, { symbol: pc.cyan("◆") });
+    } else {
+      p.log.message(`${color(agent)} ${pc.dim(content)}`, { symbol: pc.dim("│") });
+    }
+    return;
+  }
+
   // Log entries (operational messages)
   if (kind === "log") {
     if (content.includes("Running workflow:")) {
