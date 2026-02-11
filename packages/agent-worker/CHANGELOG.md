@@ -1,10 +1,16 @@
 # agent-worker
 
+## 0.9.0
+
+### Minor Changes
+
+- [`6a73bcc`](https://github.com/lidessen/moniro/commit/6a73bcc94efcf88be92c0e89bf27630104137f8f) - Fix cursor adapter event handling and display agent messages in workflow output
+
 ## 0.8.0
 
 ### Minor Changes
 
-- [`944236b`](https://github.com/lidessen/moniro/commit/944236b4a70b8912d489ea048a32514e79cd0fe7) - BREAKING: Rename MCP tools (inbox*\* → my_inbox*_, document\__ → team*doc*\*, etc.), add agent status management, increase idle timeout to 10min, improve event handling with typed adapters
+- [`944236b`](https://github.com/lidessen/moniro/commit/944236b4a70b8912d489ea048a32514e79cd0fe7) - BREAKING: Rename MCP tools (inbox*\* → my_inbox*\_, document\_\_ → team*doc*\*, etc.), add agent status management, increase idle timeout to 10min, improve event handling with typed adapters
 
 ## 0.7.0
 
