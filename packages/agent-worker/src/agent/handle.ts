@@ -39,7 +39,9 @@ export class LocalWorker implements WorkerHandle {
   constructor(config: AgentConfig, restore?: SessionState) {
     const backend =
       config.backend !== "default"
-        ? createBackend({ type: config.backend, model: config.model } as Parameters<typeof createBackend>[0])
+        ? createBackend({ type: config.backend, model: config.model } as Parameters<
+            typeof createBackend
+          >[0])
         : undefined;
 
     this.engine = new AgentWorker(

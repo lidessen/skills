@@ -17,9 +17,7 @@ async function getWorkflowAgentNames(workflow: string, tag: string): Promise<str
   try {
     const res = await listAgents();
     const agents = (res.agents ?? []) as Array<{ name: string; workflow: string; tag: string }>;
-    const names = agents
-      .filter((a) => a.workflow === workflow && a.tag === tag)
-      .map((a) => a.name);
+    const names = agents.filter((a) => a.workflow === workflow && a.tag === tag).map((a) => a.name);
     return [...new Set([...names, "user"])];
   } catch {
     return ["user"];

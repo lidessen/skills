@@ -11,6 +11,10 @@
  *   Same data layer, different transport.
  */
 
-export { createContextMCPServer, type ContextMCPServerOptions, type ContextMCPServer } from "./server.ts";
+export {
+  createContextMCPServer,
+  type ContextMCPServerOptions,
+  type ContextMCPServer,
+} from "./server.ts";
 export type { MCPToolContext, ChannelToolOptions } from "./types.ts";
 export { getAgentId, formatInbox, formatToolParams, createLogTool } from "./helpers.ts";

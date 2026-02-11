@@ -102,10 +102,7 @@ Examples:
       const model = options.model || getDefaultModel();
 
       // Ensure daemon is running
-      await ensureDaemon(
-        options.port ? parseInt(options.port, 10) : undefined,
-        options.host,
-      );
+      await ensureDaemon(options.port ? parseInt(options.port, 10) : undefined, options.host);
 
       // Create agent via daemon API
       const res = await createAgent({

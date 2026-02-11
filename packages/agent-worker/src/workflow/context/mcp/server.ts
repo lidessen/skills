@@ -80,13 +80,22 @@ export function createContextMCPServer(options: ContextMCPServerOptions) {
   // Collect all registered MCP tool names (for backend stream parser dedup)
   const mcpToolNames = new Set<string>([
     // channel
-    "channel_send", "channel_read",
+    "channel_send",
+    "channel_read",
     // resource
-    "resource_create", "resource_read",
+    "resource_create",
+    "resource_read",
     // inbox
-    "my_inbox", "my_inbox_ack", "my_status_set",
+    "my_inbox",
+    "my_inbox_ack",
+    "my_status_set",
     // team
-    "team_members", "team_doc_read", "team_doc_write", "team_doc_append", "team_doc_list", "team_doc_create",
+    "team_members",
+    "team_doc_read",
+    "team_doc_write",
+    "team_doc_append",
+    "team_doc_list",
+    "team_doc_create",
   ]);
 
   // Register tool categories
