@@ -501,23 +501,37 @@ export function extractCodexResult(stdout: string): BackendResponse {
 
 // ==================== Stream Line Parser ====================
 
+/** Structured callbacks for stream parser output */
+export interface StreamParserCallbacks {
+  /** Debug-level messages (kind="debug") */
+  debugLog: (message: string) => void;
+  /** Text output from backend (kind="output") — assistant/user messages */
+  outputLog?: (message: string) => void;
+  /** Backend native tool call (kind="tool_call", source="backend") */
+  toolCallLog?: (name: string, args: string) => void;
+  /** MCP tool names to skip (already logged by MCP server) */
+  mcpToolNames?: Set<string>;
+}
+
 /**
  * Create a line-buffered stream parser.
  *
  * Accumulates stdout chunks, parses each line through the given adapter,
- * and emits formatted progress messages via appropriate callback.
+ * and emits structured events via callbacks.
  *
- * @param debugLog - Callback for debug messages (kind="debug", only in --debug mode)
+ * Tool call dedup: if a tool_call event's name is in mcpToolNames,
+ * it's skipped (MCP server already logged it with source="mcp").
+ *
+ * @param callbacks - Structured output callbacks
  * @param backendName - Display name (e.g., "Cursor", "Claude", "Codex")
  * @param adapter - Format-specific adapter to convert raw JSON → StreamEvent
- * @param messageLog - Optional callback for agent output messages (tool calls, assistant messages) (kind="stream", visible in normal mode). If not provided, uses debugLog.
  */
 export function createStreamParser(
-  debugLog: (message: string) => void,
+  callbacks: StreamParserCallbacks,
   backendName: string,
   adapter: EventAdapter,
-  messageLog?: (message: string) => void,
 ): (chunk: string) => void {
+  const { debugLog, outputLog, toolCallLog, mcpToolNames } = callbacks;
   let lineBuf = "";
 
   return (chunk: string) => {
@@ -541,18 +555,31 @@ export function createStreamParser(
           };
         }
 
-        if (event) {
-          const progress = formatEvent(event, backendName);
-          if (progress) {
-            // Use messageLog for tool calls, user messages, and assistant messages (visible in normal mode)
-            const shouldUseMessageLog =
-              event.kind === "tool_call" ||
-              event.kind === "tool_call_started" ||
-              event.kind === "user_message" ||
-              event.kind === "assistant_message";
-            const logFn = shouldUseMessageLog && messageLog ? messageLog : debugLog;
-            logFn(progress);
+        if (!event) continue;
+
+        // Tool call events — dedup MCP tools, emit structured backend tool calls
+        if (event.kind === "tool_call" || event.kind === "tool_call_started") {
+          // Skip if this is an MCP tool (already logged by MCP server)
+          if (mcpToolNames?.has(event.name)) continue;
+
+          // Emit structured tool call for backend native tools
+          if (toolCallLog && event.kind === "tool_call") {
+            toolCallLog(event.name, event.args);
+            continue;
           }
+          // tool_call_started without toolCallLog — fall through to formatted output
+        }
+
+        const progress = formatEvent(event, backendName);
+        if (progress) {
+          // Route: text output → outputLog, everything else → debugLog
+          const isOutput =
+            event.kind === "tool_call" ||
+            event.kind === "tool_call_started" ||
+            event.kind === "user_message" ||
+            event.kind === "assistant_message";
+          const logFn = isOutput && outputLog ? outputLog : debugLog;
+          logFn(progress);
         }
       } catch {
         // Not JSON — ignore

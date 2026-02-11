@@ -9,6 +9,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ContextProvider } from "../provider.ts";
+import { EventLog } from "../event-log.ts";
 import type { Message } from "../types.ts";
 import type { ProposalManager } from "../proposals.ts";
 import type { FeedbackEntry } from "../../../agent/tools/feedback.ts";
@@ -62,17 +63,31 @@ export function createContextMCPServer(options: ContextMCPServerOptions) {
   } = options;
 
   const server = new McpServer({ name, version });
+  const eventLog = new EventLog(provider);
 
   // Build shared context for all tool categories
   const ctx: MCPToolContext = {
     provider,
+    eventLog,
     validAgents,
     getAgentId,
-    logTool: createLogTool(provider),
+    logTool: createLogTool(eventLog),
   };
 
   // Track connected agents (placeholder for future MCP notification support)
   const agentConnections = new Map<string, unknown>();
+
+  // Collect all registered MCP tool names (for backend stream parser dedup)
+  const mcpToolNames = new Set<string>([
+    // channel
+    "channel_send", "channel_read",
+    // resource
+    "resource_create", "resource_read",
+    // inbox
+    "my_inbox", "my_inbox_ack", "my_status_set",
+    // team
+    "team_members", "team_doc_read", "team_doc_write", "team_doc_append", "team_doc_list", "team_doc_create",
+  ]);
 
   // Register tool categories
   registerChannelTools(server, ctx, { onMention });
@@ -82,16 +97,24 @@ export function createContextMCPServer(options: ContextMCPServerOptions) {
 
   if (proposalManager) {
     registerProposalTools(server, ctx, proposalManager);
+    mcpToolNames.add("team_proposal_create");
+    mcpToolNames.add("team_vote");
+    mcpToolNames.add("team_proposal_status");
+    mcpToolNames.add("team_proposal_cancel");
   }
 
   let getFeedback: () => FeedbackEntry[] = () => [];
   if (feedbackEnabled) {
     const fb = registerFeedbackTool(server, ctx);
     getFeedback = fb.getFeedback;
+    mcpToolNames.add("feedback_submit");
   }
 
   if (skills) {
     registerSkillsTools(server, skills);
+    mcpToolNames.add("skills_list");
+    mcpToolNames.add("skills_view");
+    mcpToolNames.add("skills_read");
   }
 
   return {
@@ -100,6 +123,10 @@ export function createContextMCPServer(options: ContextMCPServerOptions) {
     validAgents,
     proposalManager,
     getFeedback,
+    /** MCP tool names — pass to stream parser for dedup */
+    mcpToolNames,
+    /** EventLog instance — for SDK runner and other event sources */
+    eventLog,
   };
 }
 

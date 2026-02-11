@@ -15,7 +15,12 @@ import { join } from "node:path";
 import type { Backend, BackendResponse } from "./types.ts";
 import { DEFAULT_IDLE_TIMEOUT } from "./types.ts";
 import { execWithIdleTimeoutAbortable, IdleTimeoutError } from "./idle-timeout.ts";
-import { createStreamParser, claudeAdapter, extractClaudeResult } from "./stream-json.ts";
+import {
+  createStreamParser,
+  claudeAdapter,
+  extractClaudeResult,
+  type StreamParserCallbacks,
+} from "./stream-json.ts";
 
 export interface ClaudeCodeOptions {
   /** Model to use (e.g., 'opus', 'sonnet') */
@@ -38,10 +43,8 @@ export interface ClaudeCodeOptions {
   timeout?: number;
   /** MCP config file path (for workflow context) */
   mcpConfigPath?: string;
-  /** Debug log function (for tool calls and debug info) */
-  debugLog?: (message: string) => void;
-  /** Message log function (for agent messages - user/assistant) */
-  messageLog?: (message: string) => void;
+  /** Stream parser callbacks (structured event output) */
+  streamCallbacks?: StreamParserCallbacks;
 }
 
 export class ClaudeCodeBackend implements Backend {
@@ -78,7 +81,6 @@ export class ClaudeCodeBackend implements Backend {
     const args = this.buildArgs(message, options);
     // Use workspace as cwd if set
     const cwd = this.options.workspace || this.options.cwd;
-    const debugLog = this.options.debugLog;
     const outputFormat = this.options.outputFormat ?? "stream-json";
     const timeout = this.options.timeout ?? DEFAULT_IDLE_TIMEOUT;
 
@@ -89,8 +91,8 @@ export class ClaudeCodeBackend implements Backend {
         cwd,
         timeout,
         onStdout:
-          outputFormat === "stream-json" && debugLog
-            ? createStreamParser(debugLog, "Claude", claudeAdapter, this.options.messageLog)
+          outputFormat === "stream-json" && this.options.streamCallbacks
+            ? createStreamParser(this.options.streamCallbacks, "Claude", claudeAdapter)
             : undefined,
       });
 

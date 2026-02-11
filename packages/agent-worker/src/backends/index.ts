@@ -11,6 +11,7 @@ export { MockAIBackend, createMockBackend } from "./mock.ts";
 export { execWithIdleTimeout, IdleTimeoutError } from "./idle-timeout.ts";
 export {
   type StreamEvent,
+  type StreamParserCallbacks,
   type EventAdapter,
   formatEvent,
   claudeAdapter,

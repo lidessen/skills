@@ -3,10 +3,11 @@
  *
  * All output flows through the channel. This module formats and filters
  * channel entries for terminal display:
- * - kind=undefined (agent messages): always shown, colored
- * - kind="log" (operational logs): always shown, dimmed
+ * - kind="message" or undefined (agent messages): always shown, colored
+ * - kind="system" (operational logs): always shown, dimmed
  * - kind="debug" (debug details): only shown with --debug flag
- * - kind="stream" (streaming output): always shown, not delivered to agent inboxes
+ * - kind="output" (backend streaming text): always shown, not delivered to agent inboxes
+ * - kind="tool_call" (tool invocations): always shown with structured metadata
  *
  * Two display modes:
  * - TTY (human): colored, aligned columns, smart wrapping

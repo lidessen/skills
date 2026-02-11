@@ -111,7 +111,7 @@ Examples:
       }
 
       for (const msg of messages) {
-        if (msg.kind === "log" || msg.kind === "debug") {
+        if (msg.kind === "system" || msg.kind === "debug") {
           console.log(`  ~ ${msg.from}: ${msg.content}`);
         } else {
           const mentions = msg.mentions.length > 0 ? ` → @${msg.mentions.join(" @")}` : "";

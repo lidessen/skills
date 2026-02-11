@@ -41,6 +41,7 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
     name,
     agent,
     contextProvider,
+    eventLog,
     mcpUrl,
     workspaceDir,
     projectDir,
@@ -143,6 +144,7 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
           projectDir,
           retryAttempt: attempt,
           provider: contextProvider,
+          eventLog,
           feedback,
         };
 

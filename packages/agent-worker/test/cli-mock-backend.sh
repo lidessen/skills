@@ -127,7 +127,7 @@ echo "────────────────────────�
 # Reuse test2 output (same default mode)
 OUTPUT="$OUTPUT_DIR/test2.txt"
 
-# Should show workflow name via operational logs (kind="log")
+# Should show workflow name via operational logs (kind="system")
 if grep -q "mock-test\|Running workflow" "$OUTPUT" 2>/dev/null; then
   pass "Workflow info displayed via channel logs"
 else

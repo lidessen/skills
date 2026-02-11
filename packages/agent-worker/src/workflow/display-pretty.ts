@@ -134,12 +134,12 @@ function processEntry(entry: Message, state: PrettyDisplayState, agentNames: str
     return;
   }
 
-  // Stream entries (backend streaming output: tool calls, assistant/user messages)
-  if (kind === "stream") {
+  // Output entries (backend streaming text — assistant/user messages, no tool calls)
+  if (kind === "output") {
     const color = getAgentColor(from, agentNames);
     const agent = from.includes(":") ? from.split(":").pop()! : from;
 
-    if (content.startsWith("STARTING ") || content.startsWith("CALL ")) {
+    if (content.startsWith("STARTING ")) {
       p.log.message(`${time} ${color(agent)} ${content}`, { symbol: pc.cyan("▶") });
     } else if (content.startsWith("Assistant: ")) {
       const text = content.slice("Assistant: ".length);
@@ -150,8 +150,8 @@ function processEntry(entry: Message, state: PrettyDisplayState, agentNames: str
     return;
   }
 
-  // Log entries (operational messages)
-  if (kind === "log") {
+  // System entries (operational messages)
+  if (kind === "system") {
     if (content.includes("Running workflow:")) {
       state.phase = "running";
       return; // Skip - workflow name already shown in intro

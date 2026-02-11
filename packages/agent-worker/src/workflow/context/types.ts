@@ -3,6 +3,30 @@
  * Shared context for agent collaboration via channel + document
  */
 
+/**
+ * Channel event kinds.
+ *
+ * - "message"    — agent-to-agent communication (public or DM)
+ * - "tool_call"  — tool invocation (MCP, SDK, or backend native)
+ * - "system"     — operational log (workflow lifecycle, warnings, errors)
+ * - "output"     — backend streaming text (assistant/user messages, not tool calls)
+ * - "debug"      — debug-level detail (only shown with --debug)
+ */
+export type EventKind = "message" | "tool_call" | "system" | "output" | "debug";
+
+/** Tool call source — which subsystem recorded the invocation */
+export type ToolCallSource = "mcp" | "sdk" | "backend";
+
+/** Tool call metadata (only present when kind='tool_call') */
+export interface ToolCallData {
+  /** Tool name (e.g., 'channel_send', 'bash', 'Read') */
+  name: string;
+  /** Tool arguments as formatted string for display */
+  args: string;
+  /** Which subsystem recorded this call */
+  source: ToolCallSource;
+}
+
 /** A single message in the channel (public, DM, or log) */
 export interface Message {
   /** Unique message ID (nanoid) */
@@ -17,15 +41,10 @@ export interface Message {
   mentions: string[];
   /** DM recipient — if set, only visible to sender and recipient */
   to?: string;
-  /** Entry kind — undefined = normal message, 'log' = operational log, 'debug' = debug detail, 'tool_call' = tool invocation, 'stream' = streaming output (not in inbox) */
-  kind?: "log" | "debug" | "tool_call" | "stream";
+  /** Event kind (default: "message") */
+  kind?: EventKind;
   /** Tool call metadata (only present when kind='tool_call') */
-  toolCall?: {
-    /** Tool name (e.g., 'channel_send', 'my_inbox') */
-    name: string;
-    /** Tool arguments as formatted string for display */
-    args: string;
-  };
+  toolCall?: ToolCallData;
 }
 
 // ==================== Resource System ====================

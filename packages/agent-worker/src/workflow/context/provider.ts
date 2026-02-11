@@ -5,7 +5,15 @@
  */
 
 import { nanoid } from "nanoid";
-import type { Message, InboxMessage, InboxState, ResourceResult, ResourceType } from "./types.ts";
+import type {
+  Message,
+  InboxMessage,
+  InboxState,
+  ResourceResult,
+  ResourceType,
+  EventKind,
+  ToolCallData,
+} from "./types.ts";
 import {
   CONTEXT_DEFAULTS,
   calculatePriority,
@@ -22,13 +30,10 @@ import type { StorageBackend } from "./storage.ts";
 export interface SendOptions {
   /** DM recipient (private to sender + recipient) */
   to?: string;
-  /** Entry kind ('log' = operational log, 'debug' = debug detail, 'tool_call' = tool invocation, 'stream' = streaming output) */
-  kind?: "log" | "debug" | "tool_call" | "stream";
+  /** Event kind */
+  kind?: EventKind;
   /** Tool call metadata (only for kind='tool_call') */
-  toolCall?: {
-    name: string;
-    args: string;
-  };
+  toolCall?: ToolCallData;
 }
 
 /** Options for reading channel messages */
@@ -182,15 +187,15 @@ export class ContextProviderImpl implements ContextProvider {
   async readChannel(options?: ReadOptions): Promise<Message[]> {
     let entries = await this.syncChannel();
 
-    // Visibility filtering: agent sees public msgs + DMs to/from them, no logs/debug/stream
+    // Visibility filtering: agent sees public msgs + DMs to/from them
+    // Hidden from agents: system, debug, output (operational noise)
     if (options?.agent) {
       const agent = options.agent;
       entries = entries.filter((e) => {
-        // Logs, debug, and stream entries are hidden from agents
-        if (e.kind === "log" || e.kind === "debug" || e.kind === "stream") return false;
+        if (e.kind === "system" || e.kind === "debug" || e.kind === "output") return false;
         // DMs: only visible to sender and recipient
         if (e.to) return e.to === agent || e.from === agent;
-        // Public messages: visible to all
+        // Public messages + tool_call: visible to all
         return true;
       });
     }
@@ -278,10 +283,11 @@ export class ContextProviderImpl implements ContextProvider {
     }
 
     // Inbox includes: @mentions to this agent OR DMs to this agent
-    // Excludes: logs, debug entries, stream output, messages from self
+    // Excludes: system, debug, output, tool_call, messages from self
     return entries
       .filter((e) => {
-        if (e.kind === "log" || e.kind === "debug" || e.kind === "stream") return false;
+        if (e.kind === "system" || e.kind === "debug" || e.kind === "output" || e.kind === "tool_call")
+          return false;
         if (e.from === agent) return false;
         return e.mentions.includes(agent) || e.to === agent;
       })

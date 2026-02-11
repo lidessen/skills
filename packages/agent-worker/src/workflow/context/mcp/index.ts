@@ -13,4 +13,4 @@
 
 export { createContextMCPServer, type ContextMCPServerOptions, type ContextMCPServer } from "./server.ts";
 export type { MCPToolContext, ChannelToolOptions } from "./types.ts";
-export { getAgentId, formatInbox, createLogTool } from "./helpers.ts";
+export { getAgentId, formatInbox, formatToolParams, createLogTool } from "./helpers.ts";

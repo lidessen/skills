@@ -2,9 +2,11 @@
  * Workflow Runner
  *
  * All output flows through the channel:
- * - Operational events (init, setup, connect) → kind="log" (always visible)
+ * - Operational events (init, setup, connect) → kind="system" (always visible)
  * - Debug details (MCP traces, idle checks) → kind="debug" (visible with --debug)
- * - Agent messages → kind=undefined (always visible)
+ * - Agent messages → kind="message" or undefined (always visible)
+ * - Tool calls → kind="tool_call" with structured metadata
+ * - Backend text output → kind="output" (always visible)
  *
  * The display layer (display.ts) handles filtering and formatting.
  */
@@ -35,6 +37,8 @@ import {
   type AgentController,
 } from "./controller/index.ts";
 import type { Backend } from "../backends/types.ts";
+import type { StreamParserCallbacks } from "../backends/stream-json.ts";
+import { EventLog } from "./context/event-log.ts";
 import { startChannelWatcher } from "./display.ts";
 import { createChannelLogger, createSilentLogger, type Logger } from "./logger.ts";
 
@@ -106,12 +110,16 @@ export interface WorkflowRuntime {
   projectDir: string;
   /** Context provider */
   contextProvider: ContextProvider;
+  /** Unified event log */
+  eventLog: EventLog;
   /** HTTP MCP server */
   httpMcpServer: HttpMCPServer;
   /** MCP HTTP URL (http://127.0.0.1:<port>/mcp) */
   mcpUrl: string;
   /** Agent names */
   agentNames: string[];
+  /** MCP tool names (for backend stream parser dedup) */
+  mcpToolNames: Set<string>;
   /** Setup results */
   setupResults: Record<string, string>;
   /** Send kickoff message */
@@ -229,6 +237,8 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
 
   // Create MCP server (HTTP)
   let mcpGetFeedback: (() => import("../agent/tools/feedback.ts").FeedbackEntry[]) | undefined;
+  let mcpToolNames = new Set<string>();
+  const eventLog = new EventLog(contextProvider);
   const createMCPServerInstance = () => {
     const mcp = createContextMCPServer({
       provider: contextProvider,
@@ -240,6 +250,7 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
       debugLog,
     });
     mcpGetFeedback = mcp.getFeedback;
+    mcpToolNames = mcp.mcpToolNames;
     return mcp.server;
   };
 
@@ -292,9 +303,11 @@ export async function initWorkflow(config: RunConfig): Promise<WorkflowRuntime> 
     contextDir,
     projectDir,
     contextProvider,
+    eventLog,
     httpMcpServer,
     mcpUrl: httpMcpServer.url,
     agentNames,
+    mcpToolNames,
     setupResults,
 
     async sendKickoff() {
@@ -582,28 +595,29 @@ export async function runWorkflowWithControllers(
       // Create agent-specific logger for backend debug messages
       const agentLogger = logger.child(agentName);
 
+      // Build structured stream callbacks for this agent
+      const streamCallbacks: StreamParserCallbacks = {
+        debugLog: (msg) => agentLogger.debug(msg),
+        outputLog: (msg) => runtime.eventLog.output(agentName, msg),
+        toolCallLog: (name, args) => runtime.eventLog.toolCall(agentName, name, args, "backend"),
+        mcpToolNames: runtime.mcpToolNames,
+      };
+
       // Get backend for this agent
-      const backendDebugLog = (msg: string) => {
-        agentLogger.debug(msg);
-      };
-      // Message log writes to channel as stream output (kind="stream", not in inbox)
-      const backendMessageLog = (msg: string) => {
-        runtime.contextProvider.appendChannel(agentName, msg, { kind: "stream" }).catch(() => {});
-      };
       let backend: Backend;
       if (createBackend) {
         backend = createBackend(agentName, agentDef);
       } else if (agentDef.backend) {
         backend = getBackendByType(agentDef.backend, {
           model: agentDef.model,
-          debugLog: backendDebugLog,
-          messageLog: backendMessageLog,
+          debugLog: (msg) => agentLogger.debug(msg),
+          streamCallbacks,
           timeout: agentDef.timeout,
         });
       } else if (agentDef.model) {
         backend = getBackendForModel(agentDef.model, {
-          debugLog: backendDebugLog,
-          messageLog: backendMessageLog,
+          debugLog: (msg) => agentLogger.debug(msg),
+          streamCallbacks,
         });
       } else {
         throw new Error(`Agent "${agentName}" requires either a backend or model field`);
@@ -622,6 +636,7 @@ export async function runWorkflowWithControllers(
         name: agentName,
         agent: agentDef,
         contextProvider: runtime.contextProvider,
+        eventLog: runtime.eventLog,
         mcpUrl: runtime.mcpUrl,
         workspaceDir,
         projectDir: runtime.projectDir,
