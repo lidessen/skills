@@ -49,6 +49,8 @@ export interface AgentControllerConfig {
   agent: ResolvedAgent;
   /** Context provider for channel/document access */
   contextProvider: ContextProvider;
+  /** Unified event log */
+  eventLog?: import("../context/event-log.ts").EventLog;
   /** MCP HTTP URL for tool access */
   mcpUrl: string;
   /** Workspace directory for this agent (isolated from project) */
@@ -95,8 +97,10 @@ export interface AgentRunContext {
   projectDir: string;
   /** Retry attempt number (1 = first try, 2+ = retry) */
   retryAttempt: number;
-  /** Context provider (for logging tool calls directly to channel) */
+  /** Context provider (for channel access) */
   provider: import("../context/provider.ts").ContextProvider;
+  /** Unified event log (for recording tool calls, etc.) */
+  eventLog?: import("../context/event-log.ts").EventLog;
   /** Whether feedback tool is enabled */
   feedback?: boolean;
 }

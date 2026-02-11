@@ -16,7 +16,12 @@ import { stringify as yamlStringify } from "yaml";
 import type { Backend, BackendResponse } from "./types.ts";
 import { DEFAULT_IDLE_TIMEOUT } from "./types.ts";
 import { execWithIdleTimeout, IdleTimeoutError } from "./idle-timeout.ts";
-import { createStreamParser, codexAdapter, extractCodexResult } from "./stream-json.ts";
+import {
+  createStreamParser,
+  codexAdapter,
+  extractCodexResult,
+  type StreamParserCallbacks,
+} from "./stream-json.ts";
 
 export interface CodexOptions {
   /** Model to use (e.g., 'gpt-5.2-codex') */
@@ -29,10 +34,8 @@ export interface CodexOptions {
   resume?: string;
   /** Idle timeout in milliseconds — kills process if no output for this duration */
   timeout?: number;
-  /** Debug log function (for tool calls and debug info) */
-  debugLog?: (message: string) => void;
-  /** Message log function (for agent messages - user/assistant) */
-  messageLog?: (message: string) => void;
+  /** Stream parser callbacks (structured event output) */
+  streamCallbacks?: StreamParserCallbacks;
 }
 
 export class CodexBackend implements Backend {
@@ -72,7 +75,6 @@ export class CodexBackend implements Backend {
     const args = this.buildArgs(message);
     // Use workspace as cwd if set
     const cwd = this.options.workspace || this.options.cwd;
-    const debugLog = this.options.debugLog;
     const timeout = this.options.timeout ?? DEFAULT_IDLE_TIMEOUT;
 
     try {
@@ -81,8 +83,8 @@ export class CodexBackend implements Backend {
         args,
         cwd,
         timeout,
-        onStdout: debugLog
-          ? createStreamParser(debugLog, "Codex", codexAdapter, this.options.messageLog)
+        onStdout: this.options.streamCallbacks
+          ? createStreamParser(this.options.streamCallbacks, "Codex", codexAdapter)
           : undefined,
       });
 

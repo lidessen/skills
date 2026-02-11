@@ -3,10 +3,10 @@
  *
  * - getAgentId: extracts caller identity from MCP session
  * - formatInbox: formats inbox messages for display
- * - createLogTool: creates a logTool function bound to a provider
+ * - createLogTool: creates a logTool function bound to an EventLog
  */
 
-import type { ContextProvider } from "../provider.ts";
+import type { EventLog } from "../event-log.ts";
 import type { InboxMessage } from "../types.ts";
 
 /**
@@ -55,27 +55,27 @@ export function formatInbox(messages: InboxMessage[]): string {
 }
 
 /**
- * Create a logTool function that writes tool calls to the channel.
+ * Format tool call parameters as a concise string.
+ */
+export function formatToolParams(params: Record<string, unknown>): string {
+  return Object.entries(params)
+    .filter(([_, v]) => v !== undefined)
+    .map(([k, v]) => {
+      const val = typeof v === "string" && v.length > 50 ? v.slice(0, 50) + "..." : v;
+      return `${k}=${JSON.stringify(val)}`;
+    })
+    .join(", ");
+}
+
+/**
+ * Create a logTool function that records tool calls via EventLog.
  */
 export function createLogTool(
-  provider: ContextProvider,
+  eventLog: EventLog,
 ): (tool: string, agent: string | undefined, params: Record<string, unknown>) => void {
   return (tool, agent, params) => {
     if (!agent) return;
-
-    const paramsStr = Object.entries(params)
-      .filter(([_, v]) => v !== undefined)
-      .map(([k, v]) => {
-        const val = typeof v === "string" && v.length > 50 ? v.slice(0, 50) + "..." : v;
-        return `${k}=${JSON.stringify(val)}`;
-      })
-      .join(", ");
-
-    provider
-      .appendChannel(agent, `${tool}(${paramsStr})`, {
-        kind: "tool_call",
-        toolCall: { name: tool, args: paramsStr },
-      })
-      .catch(() => {});
+    const args = formatToolParams(params);
+    eventLog.toolCall(agent, tool, args, "mcp");
   };
 }

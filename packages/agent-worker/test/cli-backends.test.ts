@@ -114,11 +114,13 @@ describe('CursorBackend with Mock', () => {
     expect(response.content).toContain('Hello')
   })
 
-  test('reports progress via debugLog', async () => {
+  test('reports progress via streamCallbacks', async () => {
     const progress: string[] = []
     const backend = new MockCursorBackend({
       timeout: 5000,
-      debugLog: (msg) => progress.push(msg),
+      streamCallbacks: {
+        debugLog: (msg) => progress.push(msg),
+      },
     })
     await backend.send('2+2=?')
     // Should have parsed stream-json events and reported progress

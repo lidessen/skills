@@ -636,10 +636,10 @@ describe("DM Visibility Isolation", () => {
     expect(charlieInbox).toHaveLength(0);
   });
 
-  test("log entries are hidden from all agents", async () => {
+  test("system entries are hidden from all agents", async () => {
     const provider = new MemoryContextProvider(["alice", "bob"]);
 
-    await provider.appendChannel("system", "Internal log entry", { kind: "log" });
+    await provider.appendChannel("system", "Internal log entry", { kind: "system" });
     await provider.appendChannel("alice", "Public message");
 
     // Both agents should only see the public message

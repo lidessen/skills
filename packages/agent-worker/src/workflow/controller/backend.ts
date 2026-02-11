@@ -4,9 +4,20 @@
  */
 
 import type { Backend } from "@/backends/types.ts";
+import type { StreamParserCallbacks } from "@/backends/stream-json.ts";
 import { parseModel } from "@/backends/model-maps.ts";
 import { createBackend } from "@/backends/index.ts";
 import { createMockBackend } from "@/backends/mock.ts";
+
+/** Options for creating a workflow backend */
+export interface WorkflowBackendOptions {
+  model?: string;
+  timeout?: number;
+  /** Stream parser callbacks for structured event logging */
+  streamCallbacks?: StreamParserCallbacks;
+  /** Debug log for mock backend */
+  debugLog?: (msg: string) => void;
+}
 
 /**
  * Get backend by explicit backend type
@@ -16,12 +27,7 @@ import { createMockBackend } from "@/backends/mock.ts";
  */
 export function getBackendByType(
   backendType: "default" | "claude" | "cursor" | "codex" | "mock",
-  options?: {
-    model?: string;
-    debugLog?: (msg: string) => void;
-    messageLog?: (msg: string) => void;
-    timeout?: number;
-  },
+  options?: WorkflowBackendOptions,
 ): Backend {
   if (backendType === "mock") {
     return createMockBackend(options?.debugLog);
@@ -31,11 +37,8 @@ export function getBackendByType(
   if (options?.timeout) {
     backendOptions.timeout = options.timeout;
   }
-  if (options?.debugLog) {
-    backendOptions.debugLog = options.debugLog;
-  }
-  if (options?.messageLog) {
-    backendOptions.messageLog = options.messageLog;
+  if (options?.streamCallbacks) {
+    backendOptions.streamCallbacks = options.streamCallbacks;
   }
 
   return createBackend({
@@ -53,7 +56,7 @@ export function getBackendByType(
  */
 export function getBackendForModel(
   model: string,
-  options?: { debugLog?: (msg: string) => void; messageLog?: (msg: string) => void },
+  options?: WorkflowBackendOptions,
 ): Backend {
   const { provider } = parseModel(model);
 

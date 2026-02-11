@@ -6,6 +6,7 @@
  */
 
 import type { ContextProvider } from "../provider.ts";
+import type { EventLog } from "../event-log.ts";
 import type { Message } from "../types.ts";
 
 /**
@@ -14,6 +15,8 @@ import type { Message } from "../types.ts";
 export interface MCPToolContext {
   /** Context provider for storage operations */
   provider: ContextProvider;
+  /** Event log for unified event recording */
+  eventLog: EventLog;
   /** Valid agent names for @mention validation */
   validAgents: string[];
   /** Extract agent ID from MCP extra context */

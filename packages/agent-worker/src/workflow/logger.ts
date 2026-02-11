@@ -2,7 +2,7 @@
  * Workflow Logger
  *
  * Channel logger writes to the ContextProvider channel.
- * All logs become channel entries with kind="log" or kind="debug",
+ * All logs become channel entries with kind="system" or kind="debug",
  * and the display layer filters what to show based on --debug flag.
  *
  * Silent logger produces no output (used when no provider is available).
@@ -57,7 +57,7 @@ export interface ChannelLoggerConfig {
 /**
  * Create a logger that writes to the channel.
  *
- * - info/warn/error → channel entry with kind="log" (always shown to user)
+ * - info/warn/error → channel entry with kind="system" (always shown to user)
  * - debug → channel entry with kind="debug" (only shown with --debug)
  *
  * The display layer handles formatting and filtering.
@@ -74,7 +74,7 @@ export function createChannelLogger(config: ChannelLoggerConfig): Logger {
 
   const write = (level: LogLevel, message: string, args: unknown[]) => {
     const content = formatContent(level, message, args);
-    const kind = level === "debug" ? "debug" : "log";
+    const kind = level === "debug" ? "debug" : "system";
     // Fire and forget — logging should never block the workflow
     provider.appendChannel(from, content, { kind }).catch(() => {});
   };

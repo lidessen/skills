@@ -151,18 +151,11 @@ export async function runSdkAgent(
       stopWhen: stepCountIs(ctx.agent.max_steps ?? 200),
       onStepFinish: (step) => {
         _stepNum++;
-        if (step.toolCalls?.length) {
+        if (step.toolCalls?.length && ctx.eventLog) {
           for (const tc of step.toolCalls) {
-            // Only log non-MCP tools (like bash) - MCP tools are logged by MCP server
+            // Only log non-MCP tools (like bash) — MCP tools are logged by MCP server
             if (tc.toolName === "bash") {
-              const args = formatToolCall(tc);
-              // Write bash tool call directly to channel with tool_call type (fire-and-forget)
-              ctx.provider
-                .appendChannel(ctx.name, args, {
-                  kind: "tool_call",
-                  toolCall: { name: tc.toolName, args },
-                })
-                .catch(() => {});
+              ctx.eventLog.toolCall(ctx.name, tc.toolName, formatToolCall(tc), "sdk");
             }
           }
         }
@@ -181,7 +174,7 @@ export async function runSdkAgent(
       const warning = `⚠️  Agent reached max_steps limit (${ctx.agent.max_steps}) but wanted to continue. Consider increasing max_steps or removing the limit.`;
       log(warning);
       // Also write to channel so user can see it
-      await ctx.provider.appendChannel(ctx.name, warning, { kind: "log" }).catch(() => {});
+      await ctx.provider.appendChannel(ctx.name, warning, { kind: "system" }).catch(() => {});
     }
 
     await mcp.close();

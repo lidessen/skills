@@ -16,7 +16,12 @@ import { join } from "node:path";
 import type { Backend, BackendResponse } from "./types.ts";
 import { DEFAULT_IDLE_TIMEOUT } from "./types.ts";
 import { execWithIdleTimeout, IdleTimeoutError } from "./idle-timeout.ts";
-import { createStreamParser, cursorAdapter, extractClaudeResult } from "./stream-json.ts";
+import {
+  createStreamParser,
+  cursorAdapter,
+  extractClaudeResult,
+  type StreamParserCallbacks,
+} from "./stream-json.ts";
 
 export interface CursorOptions {
   /** Model to use */
@@ -27,10 +32,8 @@ export interface CursorOptions {
   workspace?: string;
   /** Idle timeout in milliseconds — kills process if no output for this duration */
   timeout?: number;
-  /** Debug log function (for tool calls and debug info) */
-  debugLog?: (message: string) => void;
-  /** Message log function (for agent messages - user/assistant) */
-  messageLog?: (message: string) => void;
+  /** Stream parser callbacks (structured event output) */
+  streamCallbacks?: StreamParserCallbacks;
 }
 
 export class CursorBackend implements Backend {
@@ -68,8 +71,6 @@ export class CursorBackend implements Backend {
     const { command, args } = await this.buildCommand(message);
     // Use workspace as cwd if set, otherwise fall back to cwd option
     const cwd = this.options.workspace || this.options.cwd;
-    const debugLog = this.options.debugLog;
-    const messageLog = this.options.messageLog;
     const timeout = this.options.timeout ?? DEFAULT_IDLE_TIMEOUT;
 
     try {
@@ -78,8 +79,8 @@ export class CursorBackend implements Backend {
         args,
         cwd,
         timeout,
-        onStdout: debugLog
-          ? createStreamParser(debugLog, "Cursor", cursorAdapter, messageLog)
+        onStdout: this.options.streamCallbacks
+          ? createStreamParser(this.options.streamCallbacks, "Cursor", cursorAdapter)
           : undefined,
       });
 
