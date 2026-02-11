@@ -17,8 +17,8 @@ export interface Message {
   mentions: string[];
   /** DM recipient — if set, only visible to sender and recipient */
   to?: string;
-  /** Entry kind — undefined = normal message, 'log' = operational log, 'debug' = debug detail, 'tool_call' = tool invocation */
-  kind?: "log" | "debug" | "tool_call";
+  /** Entry kind — undefined = normal message, 'log' = operational log, 'debug' = debug detail, 'tool_call' = tool invocation, 'stream' = streaming output (not in inbox) */
+  kind?: "log" | "debug" | "tool_call" | "stream";
   /** Tool call metadata (only present when kind='tool_call') */
   toolCall?: {
     /** Tool name (e.g., 'channel_send', 'my_inbox') */

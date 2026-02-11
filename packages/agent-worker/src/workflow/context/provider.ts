@@ -22,8 +22,8 @@ import type { StorageBackend } from "./storage.ts";
 export interface SendOptions {
   /** DM recipient (private to sender + recipient) */
   to?: string;
-  /** Entry kind ('log' = operational log, 'debug' = debug detail, 'tool_call' = tool invocation) */
-  kind?: "log" | "debug" | "tool_call";
+  /** Entry kind ('log' = operational log, 'debug' = debug detail, 'tool_call' = tool invocation, 'stream' = streaming output) */
+  kind?: "log" | "debug" | "tool_call" | "stream";
   /** Tool call metadata (only for kind='tool_call') */
   toolCall?: {
     name: string;
@@ -278,10 +278,10 @@ export class ContextProviderImpl implements ContextProvider {
     }
 
     // Inbox includes: @mentions to this agent OR DMs to this agent
-    // Excludes: logs, debug entries, messages from self
+    // Excludes: logs, debug entries, stream output, messages from self
     return entries
       .filter((e) => {
-        if (e.kind === "log" || e.kind === "debug") return false;
+        if (e.kind === "log" || e.kind === "debug" || e.kind === "stream") return false;
         if (e.from === agent) return false;
         return e.mentions.includes(agent) || e.to === agent;
       })

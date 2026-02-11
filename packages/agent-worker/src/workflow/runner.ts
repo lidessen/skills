@@ -586,9 +586,9 @@ export async function runWorkflowWithControllers(
       const backendDebugLog = (msg: string) => {
         agentLogger.debug(msg);
       };
-      // Message log writes directly to channel as agent messages (kind=undefined)
+      // Message log writes to channel as stream output (kind="stream", not in inbox)
       const backendMessageLog = (msg: string) => {
-        runtime.contextProvider.appendChannel(agentName, msg).catch(() => {});
+        runtime.contextProvider.appendChannel(agentName, msg, { kind: "stream" }).catch(() => {});
       };
       let backend: Backend;
       if (createBackend) {
