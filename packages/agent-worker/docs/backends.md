@@ -182,40 +182,55 @@ Each backend needs specific installation and configuration before E2E tests can 
 
 ### Claude Code
 ```bash
-# Install (standalone binary)
+# Install (recommended — auto-updates)
 curl -fsSL https://claude.ai/install.sh | bash
-# Or download directly
-GCS_BUCKET="https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases"
-VERSION=$(curl -fsSL "$GCS_BUCKET/latest")
-curl -fsSL "$GCS_BUCKET/$VERSION/linux-x64/claude" -o ~/.local/bin/claude && chmod +x ~/.local/bin/claude
+# Or: brew install --cask claude-code
 
-# Required env
+# Required env (native Anthropic)
 export ANTHROPIC_API_KEY="sk-ant-..."
+
+# Alternative: use DeepSeek via Anthropic-compatible endpoint
+export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
+export ANTHROPIC_AUTH_TOKEN="$DEEPSEEK_API_KEY"
+export ANTHROPIC_API_KEY=""
+export ANTHROPIC_MODEL="deepseek-chat"
 ```
 
 ### Codex CLI
 ```bash
+# Install
 npm i -g @openai/codex
-# Required env
+# Or: brew install --cask codex
+
+# Required env — Codex requires Responses API (wire_api="responses")
+# Option 1: OpenAI directly
 export OPENAI_API_KEY="sk-..."
+# Option 2: ZenMux proxy (supports Responses API, bridges to other providers)
+export ZENMUX_API_KEY="..."
+# Note: DeepSeek not directly compatible (no Responses API support)
 ```
 
 ### Cursor Agent
 ```bash
-curl -fsSL https://cursor.com/install | bash
-# Required env
-export CURSOR_API_KEY="..."  # or run: cursor-agent login
+# Install (command installs as `agent`, also available as `cursor-agent`)
+curl -fsS https://cursor.com/install | bash
+
+# Required env — get key from https://cursor.com/dashboard?tab=background-agents
+export CURSOR_API_KEY="sk_..."
+# Or authenticate interactively: agent login
+# Note: Requires paid Cursor subscription (Pro $20/month minimum)
+# Note: Cursor is locked to its own infrastructure, no third-party model support
 ```
 
 ### OpenCode
 ```bash
-npm i -g opencode-ai@latest
-# Or: curl -fsSL https://opencode.ai/install | bash
+# Install (recommended — auto-updates)
+curl -fsSL https://opencode.ai/install | bash
+# Or: npm i -g opencode-ai@latest
+# Or: brew install anomalyco/tap/opencode
 
 # Required env (for DeepSeek provider)
 export DEEPSEEK_API_KEY="sk-..."
-# Or for Anthropic provider
-export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
 ### Quick availability check

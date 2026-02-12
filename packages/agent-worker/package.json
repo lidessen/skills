@@ -21,7 +21,9 @@
   "scripts": {
     "dev": "tsdown --watch",
     "build": "tsdown",
-    "test": "bun test",
+    "test": "bun test test/*.test.ts test/unit/",
+    "test:e2e": "bun test test/e2e/",
+    "e2e:setup": "bash scripts/e2e-setup.sh",
     "lint": "oxlint src",
     "lint:fix": "oxlint src --fix",
     "format": "oxfmt src",
