@@ -243,6 +243,6 @@ export const FRONTIER_MODELS = {
   groq: ["meta-llama/llama-4-scout-17b-16e-instruct", "deepseek-r1-distill-llama-70b"],
   mistral: ["mistral-large-latest", "pixtral-large-latest", "magistral-medium-2506"],
   xai: ["grok-4", "grok-4-fast-reasoning"],
-  minimax: ["MiniMax-M2"],
+  minimax: ["MiniMax-M2.5", "MiniMax-M2"],
   glm: ["glm-5", "glm-4.7"],
 } as const;
