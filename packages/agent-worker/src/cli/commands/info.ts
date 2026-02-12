@@ -12,6 +12,7 @@ const PROVIDER_API_KEYS: Record<string, { envVar: string; description: string }>
   mistral: { envVar: "MISTRAL_API_KEY", description: "Mistral" },
   xai: { envVar: "XAI_API_KEY", description: "xAI Grok" },
   minimax: { envVar: "MINIMAX_API_KEY", description: "MiniMax" },
+  glm: { envVar: "GLM_API_KEY", description: "Zhipu GLM" },
 };
 
 export function registerInfoCommands(program: Command) {

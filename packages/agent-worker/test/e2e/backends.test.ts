@@ -7,6 +7,8 @@
  *     DEEPSEEK_API_KEY     — for Claude Code (via DeepSeek) and OpenCode
  *     AI_GATEWAY_API_KEY   — for Codex CLI via Vercel AI Gateway (Gemini 2.0 Flash)
  *     CURSOR_API_KEY       — for Cursor Agent (requires paid subscription)
+ *     MINIMAX_API_KEY      — for MiniMax (SDK, Claude-compatible API)
+ *     GLM_API_KEY          — for GLM/Zhipu (SDK, Claude-compatible API)
  *
  * Usage:
  *   # Run all E2E tests
@@ -31,6 +33,7 @@ import { ClaudeCodeBackend } from "../../src/backends/claude-code.ts";
 import { CodexBackend } from "../../src/backends/codex.ts";
 import { CursorBackend } from "../../src/backends/cursor.ts";
 import { OpenCodeBackend } from "../../src/backends/opencode.ts";
+import { SdkBackend } from "../../src/backends/sdk.ts";
 
 // Generous timeout for real API calls (2 minutes)
 const E2E_TIMEOUT = 120_000;
@@ -282,6 +285,54 @@ describe.skipIf(!hasCursor || !hasCursorKey)(
   },
 );
 
+// ─── MiniMax (SDK, Claude-compatible API) ────────────────────
+
+const hasMiniMaxKey = !!process.env.MINIMAX_API_KEY;
+
+describe.skipIf(!hasMiniMaxKey)(
+  "E2E: MiniMax (SDK)",
+  () => {
+    test(
+      "sends prompt and receives response (MiniMax-M2.5)",
+      async () => {
+        const backend = new SdkBackend({
+          model: "minimax:MiniMax-M2.5",
+        });
+
+        const result = await backend.send(PROMPT);
+        expect(result.content).toBeDefined();
+        expect(result.content.length).toBeGreaterThan(0);
+        expect(result.content).toContain("4");
+      },
+      E2E_TIMEOUT,
+    );
+  },
+);
+
+// ─── GLM / Zhipu (SDK, Claude-compatible API) ───────────────
+
+const hasGlmKey = !!process.env.GLM_API_KEY;
+
+describe.skipIf(!hasGlmKey)(
+  "E2E: GLM (SDK)",
+  () => {
+    test(
+      "sends prompt and receives response (glm-4.7)",
+      async () => {
+        const backend = new SdkBackend({
+          model: "glm:glm-4.7",
+        });
+
+        const result = await backend.send(PROMPT);
+        expect(result.content).toBeDefined();
+        expect(result.content.length).toBeGreaterThan(0);
+        expect(result.content).toContain("4");
+      },
+      E2E_TIMEOUT,
+    );
+  },
+);
+
 // ─── Availability Summary ────────────────────────────────────
 
 describe("E2E: Backend Availability", () => {
@@ -295,9 +346,13 @@ describe("E2E: Backend Availability", () => {
       AI_GATEWAY_API_KEY: hasGatewayKey ? "set" : "not set",
       OPENAI_API_KEY: hasOpenAIKey ? "set" : "not set",
       CURSOR_API_KEY: hasCursorKey ? "set" : "not set",
+      MINIMAX_API_KEY: hasMiniMaxKey ? "set" : "not set",
+      GLM_API_KEY: hasGlmKey ? "set" : "not set",
       SKIP_CLAUDE_E2E: skipClaudeE2E ? "yes (skipped)" : "no",
       "Codex model": CODEX_MODEL ?? "(OpenAI default)",
       "Cursor model": "composer-1",
+      "MiniMax model": "MiniMax-M2.5",
+      "GLM model": "glm-4.7",
     };
 
     console.log("\n=== E2E Backend Availability ===");
