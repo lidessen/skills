@@ -28,6 +28,20 @@ and scales from a single assistant to a team of agents coordinating via @mention
 - **Instance isolation** — Run the same workflow for different PRs/tasks with `--tag`, fully isolated
 - **SDK included** — Use programmatically from TypeScript when the CLI isn't enough
 
+## Design Philosophy
+
+The central question we're exploring: **how do you make a system of short-lived agents accumulate progress over time?**
+
+One approach is to give each agent a persistent memory — recall past conversations, learn preferences, build a model of the world. But for engineering work, the value of making an agent more "human-like" is limited. An agent that remembers everything it did last week doesn't necessarily write better code today.
+
+So we start from a different assumption: **an agent's lifetime is one tool loop.** It starts, it works, it's gone. No memory, no continuity, no identity.
+
+The question then becomes: if each agent is ephemeral, where does the continuity live? Our answer is **collective memory** — not stored in any individual agent, but in the shared artifacts they produce. Channels capture the conversation. Documents hold the evolving workspace. Event logs record what happened. The next agent reads these artifacts, picks up where the last one left off, and pushes forward.
+
+This has a property we find compelling: **it scales with the context window.** As models can process more context, agents naturally absorb more of the shared history and make better decisions — without changing a line of code. Contrast this with approaches that program around individual agent limitations (elaborate prompts, rule systems, retrieval hacks). Those techniques solve today's constraints but become dead weight as models improve.
+
+We're not building smarter agents. We're building a better environment for agents to work in.
+
 ## Quick Start
 
 ### Single Agent
