@@ -39,11 +39,6 @@ jobs:
       - name: Build packages
         run: bun run build
 
-      - name: Configure npm authentication
-        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Configure git
         run: |
           git config user.name "github-actions[bot]"
@@ -58,7 +53,6 @@ jobs:
           NEW_TAGS=$(comm -13 <(echo "$TAGS_BEFORE" | sort) <(echo "$TAGS_AFTER" | sort) | tr '\n' ' ')
           echo "new_tags=$NEW_TAGS" >> "$GITHUB_OUTPUT"
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push tags
