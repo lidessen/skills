@@ -93,15 +93,25 @@ agents:
       Create document "market-data" and write the full JSON output.
 
       STEP 2 — Financial Data (fundamentals + valuation):
-      Use bash to run:
+      Yahoo Finance v10 requires cookie+crumb auth. Use bash to run:
       ```
       python3 -c "
-      import urllib.request, json, sys
+      import urllib.request, json, sys, http.cookiejar
       ticker = sys.argv[1]
+      cj = http.cookiejar.CookieJar()
+      opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+      # Get auth cookies
+      try:
+          opener.open(urllib.request.Request('https://fc.yahoo.com', headers={'User-Agent':'Mozilla/5.0'}))
+      except: pass
+      crumb = opener.open(urllib.request.Request(
+          'https://query2.finance.yahoo.com/v1/test/getcrumb',
+          headers={'User-Agent':'Mozilla/5.0'})).read().decode()
+      # Fetch financial data with crumb
       modules = 'financialData,defaultKeyStatistics'
-      url = f'https://query2.finance.yahoo.com/v10/finance/quoteSummary/{ticker}?modules={modules}'
-      req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-      data = json.loads(urllib.request.urlopen(req).read())
+      url = f'https://query2.finance.yahoo.com/v10/finance/quoteSummary/{ticker}?modules={modules}&crumb={crumb}'
+      data = json.loads(opener.open(urllib.request.Request(url,
+          headers={'User-Agent':'Mozilla/5.0'})).read())
       result = data['quoteSummary']['result'][0]
       fd = result.get('financialData', {})
       ks = result.get('defaultKeyStatistics', {})
