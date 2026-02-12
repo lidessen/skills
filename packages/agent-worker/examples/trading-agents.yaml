@@ -4,11 +4,12 @@
 # A multi-agent trading firm simulation where specialized analysts, adversarial
 # researchers, a trader, and a risk manager collaborate to make trade decisions.
 #
-# Architecture (4 phases):
-#   Phase 1: Parallel Analysis   - 3 analysts gather market intelligence
-#   Phase 2: Adversarial Debate  - bull vs bear researchers argue the evidence
-#   Phase 3: Trade Synthesis     - trader proposes BUY / SELL / HOLD
-#   Phase 4: Risk Assessment     - risk manager evaluates and makes final call
+# Architecture (5 phases):
+#   Phase 0: Data Collection   - data agent fetches real market data via APIs
+#   Phase 1: Parallel Analysis - 3 analysts interpret the data independently
+#   Phase 2: Adversarial Debate - bull vs bear researchers argue the evidence
+#   Phase 3: Trade Synthesis   - trader proposes BUY / SELL / HOLD
+#   Phase 4: Risk Assessment   - risk manager evaluates and makes final call
 #
 # Run:
 #   agent-worker run examples/trading-agents.yaml
@@ -22,11 +23,163 @@
 name: trading-agents
 
 agents:
+  # ── Phase 0: Data Collection ────────────────────────────────────────
+  #
+  # A dedicated data agent uses bash + curl + python3 to fetch real-time
+  # market data from Yahoo Finance. Writes structured data to 3 documents
+  # that analysts consume.
+
+  data:
+    model: deepseek/deepseek-chat
+    system_prompt: |
+      You are the Data Engineer at a quantitative trading firm.
+      Your job is to fetch real market data and prepare it for the analyst team.
+
+      TASK:
+      Fetch data for the ticker provided in the kickoff message using the bash
+      tool. Write the results to 3 separate documents for the analysts.
+
+      STEP 1 — Market Data (price history + technical indicators):
+      Use bash to run:
+      ```
+      python3 -c "
+      import urllib.request, json, sys
+      ticker = sys.argv[1]
+      url = f'https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=3mo&includePrePost=false'
+      req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+      data = json.loads(urllib.request.urlopen(req).read())
+      r = data['chart']['result'][0]
+      meta = r['meta']
+      ts = r.get('timestamp', [])
+      q = r['indicators']['quote'][0]
+      closes = [c for c in (q.get('close') or []) if c is not None]
+      volumes = [v for v in (q.get('volume') or []) if v is not None]
+      sma = lambda arr, n: sum(arr[-n:])/n if len(arr)>=n else None
+      # RSI calculation
+      def rsi(arr, n=14):
+          if len(arr) < n+1: return None
+          changes = [arr[i]-arr[i-1] for i in range(len(arr)-n, len(arr))]
+          gains = [c for c in changes if c > 0]
+          losses = [-c for c in changes if c < 0]
+          ag = sum(gains)/n if gains else 0
+          al = sum(losses)/n if losses else 0
+          if al == 0: return 100
+          return round(100 - 100/(1 + ag/al), 1)
+      print(json.dumps({
+          'ticker': meta.get('symbol'),
+          'price': meta.get('regularMarketPrice'),
+          'prevClose': meta.get('previousClose'),
+          'high52w': meta.get('fiftyTwoWeekHigh'),
+          'low52w': meta.get('fiftyTwoWeekLow'),
+          'sma20': round(sma(closes,20),2) if sma(closes,20) else None,
+          'sma50': round(sma(closes,50),2) if sma(closes,50) else None,
+          'rsi14': rsi(closes),
+          'avgVol10d': int(sma(volumes,10)) if sma(volumes,10) else None,
+          'recentPrices': [
+              {'date': __import__('datetime').datetime.fromtimestamp(ts[i]).strftime('%Y-%m-%d'),
+               'open': round(q['open'][i],2) if q['open'][i] else None,
+               'high': round(q['high'][i],2) if q['high'][i] else None,
+               'low': round(q['low'][i],2) if q['low'][i] else None,
+               'close': round(q['close'][i],2) if q['close'][i] else None,
+               'volume': q['volume'][i]}
+              for i in range(max(0,len(ts)-20), len(ts))
+              if q['close'][i] is not None
+          ]
+      }, indent=2))
+      " TICKER
+      ```
+      (Replace TICKER with the actual ticker symbol from the kickoff message.)
+
+      Create document "market-data" and write the full JSON output.
+
+      STEP 2 — Financial Data (fundamentals + valuation):
+      Use bash to run:
+      ```
+      python3 -c "
+      import urllib.request, json, sys
+      ticker = sys.argv[1]
+      modules = 'financialData,defaultKeyStatistics'
+      url = f'https://query2.finance.yahoo.com/v10/finance/quoteSummary/{ticker}?modules={modules}'
+      req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+      data = json.loads(urllib.request.urlopen(req).read())
+      result = data['quoteSummary']['result'][0]
+      fd = result.get('financialData', {})
+      ks = result.get('defaultKeyStatistics', {})
+      fmt = lambda d: d.get('fmt') if isinstance(d, dict) else d
+      print(json.dumps({
+          'revenue': fmt(fd.get('totalRevenue',{})),
+          'revenueGrowth': fmt(fd.get('revenueGrowth',{})),
+          'grossMargins': fmt(fd.get('grossMargins',{})),
+          'operatingMargins': fmt(fd.get('operatingMargins',{})),
+          'profitMargins': fmt(fd.get('profitMargins',{})),
+          'earningsGrowth': fmt(fd.get('earningsGrowth',{})),
+          'returnOnEquity': fmt(fd.get('returnOnEquity',{})),
+          'totalCash': fmt(fd.get('totalCash',{})),
+          'totalDebt': fmt(fd.get('totalDebt',{})),
+          'debtToEquity': fmt(fd.get('debtToEquity',{})),
+          'freeCashflow': fmt(fd.get('freeCashflow',{})),
+          'operatingCashflow': fmt(fd.get('operatingCashflow',{})),
+          'targetMeanPrice': fmt(fd.get('targetMeanPrice',{})),
+          'targetHighPrice': fmt(fd.get('targetHighPrice',{})),
+          'targetLowPrice': fmt(fd.get('targetLowPrice',{})),
+          'recommendationKey': fd.get('recommendationKey'),
+          'numberOfAnalystOpinions': fmt(fd.get('numberOfAnalystOpinions',{})),
+          'trailingPE': fmt(ks.get('trailingPE',{})),
+          'forwardPE': fmt(ks.get('forwardPE',{})),
+          'pegRatio': fmt(ks.get('pegRatio',{})),
+          'priceToBook': fmt(ks.get('priceToBook',{})),
+          'enterpriseToEbitda': fmt(ks.get('enterpriseToEbitda',{})),
+          'beta': fmt(ks.get('beta',{})),
+          'shortRatio': fmt(ks.get('shortRatio',{})),
+          'shortPercentOfFloat': fmt(ks.get('shortPercentOfFloat',{})),
+          'fiftyTwoWeekChange': fmt(ks.get('52WeekChange',{})),
+      }, indent=2))
+      " TICKER
+      ```
+
+      Create document "financial-data" and write the full JSON output.
+
+      STEP 3 — News & Sentiment:
+      Use bash to run:
+      ```
+      python3 -c "
+      import urllib.request, json, sys
+      ticker = sys.argv[1]
+      url = f'https://query1.finance.yahoo.com/v1/finance/search?q={ticker}&newsCount=10&quotesCount=0'
+      req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+      data = json.loads(urllib.request.urlopen(req).read())
+      articles = []
+      for item in data.get('news', []):
+          articles.append({
+              'title': item.get('title'),
+              'publisher': item.get('publisher'),
+              'date': __import__('datetime').datetime.fromtimestamp(
+                  item.get('providerPublishTime', 0)
+              ).strftime('%Y-%m-%d') if item.get('providerPublishTime') else None,
+              'type': item.get('type'),
+          })
+      print(json.dumps({'ticker': ticker, 'articles': articles}, indent=2))
+      " TICKER
+      ```
+
+      Create document "news-data" and write the full JSON output.
+
+      STEP 4 — Notify analysts:
+      After ALL 3 documents are written, post a summary to the channel:
+      "@market @fundamentals @sentiment Data collection complete for {TICKER}.
+      Three documents are ready: market-data, financial-data, news-data.
+      Please read your respective documents and begin analysis."
+
+      ERROR HANDLING:
+      - If any API call fails, retry once with a 2-second delay
+      - If it still fails, write a document noting the failure and proceed
+        with whatever data you could fetch
+      - Always notify analysts even if some data is partial
+
   # ── Phase 1: Parallel Analysis ──────────────────────────────────────
   #
-  # Three analysts run simultaneously, each writing their report to a
-  # named document. When done, they @mention bull and bear to trigger
-  # the debate phase.
+  # Three analysts run simultaneously, each reading real data from
+  # documents prepared by the data agent.
 
   market:
     model: anthropic/claude-sonnet-4-5
@@ -34,18 +187,19 @@ agents:
       You are the Technical Market Analyst at a quantitative trading firm.
 
       TASK:
-      1. Analyze the market data provided in the kickoff message
-      2. Evaluate price action, momentum, volume, and technical indicators
-      3. Write your report to a new document: document_create("market-report")
+      1. Wait for @data to notify you that data is ready
+      2. Read the "market-data" document using document_read
+      3. Analyze price action, momentum, volume, and technical indicators
+      4. Write your analysis to a new document: document_create("market-report")
          then document_write with your full analysis
-      4. Post a brief summary to the channel and @bull @bear to signal readiness
+      5. Post a brief summary to the channel and @bull @bear to signal readiness
 
       ANALYSIS FRAMEWORK:
-      - Trend: Direction, strength, duration (SMA/EMA crossovers)
-      - Momentum: RSI, MACD signal/histogram, rate of change
-      - Volume: Trend confirmation, divergences, unusual activity
-      - Support/Resistance: Key price levels, breakout/breakdown zones
-      - Volatility: ATR, Bollinger Band width, implied vs realized
+      - Trend: Direction, strength, duration (SMA crossovers from the data)
+      - Momentum: RSI reading, overbought/oversold levels
+      - Volume: Compare recent vs average volume, trend confirmation
+      - Support/Resistance: Key price levels from recent highs/lows
+      - Price Pattern: Recent price action trajectory
 
       FORMAT: Structured markdown. End with a summary table:
       | Indicator | Signal | Strength |
@@ -60,19 +214,20 @@ agents:
       You are the Fundamentals Analyst at a quantitative trading firm.
 
       TASK:
-      1. Analyze the financial data provided in the kickoff message
-      2. Evaluate revenue, earnings, margins, growth trajectory, and valuation
-      3. Write your report to a new document: document_create("fundamentals-report")
+      1. Wait for @data to notify you that data is ready
+      2. Read the "financial-data" document using document_read
+      3. Analyze revenue, earnings, margins, growth trajectory, and valuation
+      4. Write your analysis to a new document: document_create("fundamentals-report")
          then document_write with your full analysis
-      4. Post a brief summary to the channel and @bull @bear to signal readiness
+      5. Post a brief summary to the channel and @bull @bear to signal readiness
 
       ANALYSIS FRAMEWORK:
-      - Growth: Revenue growth rate, earnings trajectory, market expansion
-      - Profitability: Gross/operating/net margins, margin trends
-      - Balance Sheet: Debt levels, cash position, current ratio
-      - Cash Flow: Operating CF, free CF, CF conversion quality
-      - Valuation: P/E, P/S, PEG ratio vs sector peers
-      - Competitive Position: Moat, market share, competitive threats
+      - Growth: Revenue growth rate, earnings growth trajectory
+      - Profitability: Gross/operating/net margins
+      - Balance Sheet: Debt levels, cash position, debt-to-equity
+      - Cash Flow: Operating CF, free CF quality
+      - Valuation: P/E, PEG, price-to-book vs sector norms
+      - Analyst Consensus: Target prices, recommendation, opinion count
 
       FORMAT: Structured markdown. End with a summary table:
       | Metric     | Value  | Assessment |
@@ -87,18 +242,19 @@ agents:
       You are the Sentiment & News Analyst at a quantitative trading firm.
 
       TASK:
-      1. Analyze the news and sentiment data provided in the kickoff message
-      2. Assess market sentiment, institutional signals, and event catalysts
-      3. Write your report to a new document: document_create("sentiment-report")
+      1. Wait for @data to notify you that data is ready
+      2. Read the "news-data" document using document_read
+      3. Assess news sentiment, publisher credibility, and potential market impact
+      4. Write your analysis to a new document: document_create("sentiment-report")
          then document_write with your full analysis
-      4. Post a brief summary to the channel and @bull @bear to signal readiness
+      5. Post a brief summary to the channel and @bull @bear to signal readiness
 
       ANALYSIS FRAMEWORK:
-      - News Flow: Major headlines, earnings surprises, analyst upgrades/downgrades
-      - Social Sentiment: Retail investor mood, trending topics, fear/greed
-      - Institutional Activity: Fund inflows/outflows, insider transactions
-      - Event Calendar: Upcoming catalysts (earnings, product launches, regulatory)
-      - Macro Context: Fed policy, sector rotation, geopolitical risks
+      - News Flow: Classify each headline as bullish/bearish/neutral
+      - Source Quality: Weight by publisher credibility
+      - Recency: More recent news = higher weight
+      - Event Impact: Potential market-moving catalysts
+      - Sentiment Balance: Overall ratio of positive vs negative coverage
 
       FORMAT: Structured markdown. End with:
       SENTIMENT BIAS: BULLISH / BEARISH / NEUTRAL (with confidence 1-10)
@@ -240,9 +396,8 @@ context:
   provider: memory    # Use memory for clean demo; switch to file + bind for persistence
 
 # ── Setup ─────────────────────────────────────────────────────────────
-# Mock data for self-contained demo. Replace with real API calls:
-#   - shell: curl -s "https://api.example.com/quote/${TICKER}"
-#   - shell: python scripts/fetch_fundamentals.py ${TICKER}
+# Setup fetches a quick quote to validate the ticker is real.
+# The data agent handles comprehensive data collection.
 
 setup:
   - shell: echo "${TICKER:-NVDA}"
@@ -251,167 +406,34 @@ setup:
   - shell: date +%Y-%m-%d
     as: trade_date
 
+  # Quick validation: fetch current price to confirm ticker exists
   - shell: |
-      cat <<'DATA'
-      ## Market Data (Last 30 Trading Days)
-
-      Current Price: $142.50 | Previous Close: $139.80 | Change: +1.93%
-      52-Week Range: $66.25 - $153.13 | Avg Volume: 42.3M | Today Volume: 58.1M
-
-      ### Price History (Weekly Closes)
-      | Week    | Close   | Change  | Volume   |
-      |---------|---------|---------|----------|
-      | W-4     | $128.40 | -2.1%   | 38.2M    |
-      | W-3     | $131.75 | +2.6%   | 41.5M    |
-      | W-2     | $136.90 | +3.9%   | 45.8M    |
-      | W-1     | $139.80 | +2.1%   | 44.1M    |
-      | Current | $142.50 | +1.9%   | 58.1M    |
-
-      ### Technical Indicators
-      | Indicator              | Value     | Signal    |
-      |------------------------|-----------|-----------|
-      | SMA 20                 | $135.40   | Bullish   |
-      | SMA 50                 | $128.60   | Bullish   |
-      | SMA 200                | $112.30   | Bullish   |
-      | RSI (14)               | 68.5      | Near Overbought |
-      | MACD Line              | 2.84      | Bullish   |
-      | MACD Signal            | 2.12      | Bullish   |
-      | MACD Histogram         | 0.72      | Expanding |
-      | Bollinger Upper        | $148.20   | -         |
-      | Bollinger Lower        | $122.60   | -         |
-      | ATR (14)               | $4.85     | Moderate  |
-      | Volume Ratio (10d/50d) | 1.37      | Above Avg |
-
-      ### Key Levels
-      - Resistance: $148.20, $153.13 (52-week high)
-      - Support: $135.40 (SMA20), $128.60 (SMA50)
-      DATA
-    as: market_data
-
-  - shell: |
-      cat <<'DATA'
-      ## Financial Summary (TTM & Recent Quarter)
-
-      ### Income Statement
-      | Metric                | TTM        | YoY Change |
-      |-----------------------|------------|------------|
-      | Revenue               | $130.5B    | +122%      |
-      | Gross Profit          | $97.9B     | +138%      |
-      | Operating Income      | $81.4B     | +164%      |
-      | Net Income            | $72.9B     | +145%      |
-      | EPS (Diluted)         | $2.94      | +147%      |
-
-      ### Margins
-      | Metric           | Current | Prior Year |
-      |------------------|---------|------------|
-      | Gross Margin     | 75.0%   | 70.1%      |
-      | Operating Margin | 62.4%   | 54.1%      |
-      | Net Margin       | 55.8%   | 48.9%      |
-
-      ### Balance Sheet
-      | Metric            | Value     |
-      |-------------------|-----------|
-      | Cash & Equivalents| $31.4B    |
-      | Total Debt        | $11.1B    |
-      | Net Cash          | $20.3B    |
-      | Current Ratio     | 4.17      |
-      | Debt/Equity       | 0.29      |
-
-      ### Cash Flow
-      | Metric              | TTM       |
-      |----------------------|-----------|
-      | Operating Cash Flow  | $64.1B    |
-      | Capital Expenditure  | -$3.2B    |
-      | Free Cash Flow       | $60.9B    |
-      | FCF Margin           | 46.7%     |
-
-      ### Valuation
-      | Metric   | Value   | Sector Avg |
-      |----------|---------|------------|
-      | P/E      | 48.1x   | 28.5x      |
-      | Fwd P/E  | 32.4x   | 22.1x      |
-      | P/S      | 26.8x   | 5.2x       |
-      | PEG      | 0.39    | 1.42       |
-      | EV/EBITDA| 38.2x   | 18.7x      |
-
-      ### Growth Metrics
-      | Metric           | Rate    |
-      |------------------|---------|
-      | Revenue Growth   | +122%   |
-      | EPS Growth       | +147%   |
-      | FCF Growth       | +152%   |
-      | Data Center Rev  | +154%   |
-      DATA
-    as: financial_data
-
-  - shell: |
-      cat <<'DATA'
-      ## News & Sentiment Data
-
-      ### Recent Headlines
-      1. [Bullish] "NVIDIA Data Center Revenue Surges 154% as AI Demand Accelerates"
-      2. [Bullish] "Major Cloud Providers Announce Record GPU Orders for Next Quarter"
-      3. [Neutral] "NVIDIA CEO: 'We Are in the Beginning of a New Industrial Revolution'"
-      4. [Bearish] "Antitrust Regulators in EU Open Preliminary Review of GPU Market Dominance"
-      5. [Bullish] "Blackwell Architecture Chips See 'Insane' Demand According to Supply Chain"
-      6. [Bearish] "AMD MI350 Benchmarks Show Competitive Performance in Inference Workloads"
-      7. [Neutral] "AI Capex Spending Debate: Sustainable Growth or Bubble?"
-
-      ### Analyst Consensus
-      | Metric          | Value                    |
-      |-----------------|--------------------------|
-      | Rating          | Strong Buy (42 analysts) |
-      | Price Target    | $165 (median)            |
-      | PT Range        | $120 - $220              |
-      | Upgrades (30d)  | 5                        |
-      | Downgrades (30d)| 1                        |
-
-      ### Sentiment Indicators
-      | Source           | Score    | Trend     |
-      |------------------|----------|-----------|
-      | News Sentiment   | 0.72     | Positive  |
-      | Social Media     | 0.65     | Positive  |
-      | Options Flow     | Bullish  | Call heavy|
-      | Short Interest   | 1.2%     | Low       |
-      | Insider Activity | -$45M    | Net Selling (routine) |
-
-      ### Upcoming Catalysts
-      - Earnings Report: 18 days
-      - GTC Conference: 32 days
-      - Fed Rate Decision: 12 days
-      DATA
-    as: news_data
+      python3 -c "
+      import urllib.request, json, sys
+      ticker = sys.argv[1]
+      url = f'https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=1d'
+      req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+      try:
+          data = json.loads(urllib.request.urlopen(req, timeout=10).read())
+          meta = data['chart']['result'][0]['meta']
+          print(f'{meta[\"symbol\"]} @ \${meta[\"regularMarketPrice\"]:.2f}')
+      except Exception as e:
+          print(f'WARNING: Could not validate ticker {ticker}: {e}', file=sys.stderr)
+          print(f'{ticker} @ unknown')
+      " "${TICKER:-NVDA}"
+    as: quote
 
 # ── Kickoff ───────────────────────────────────────────────────────────
 
 kickoff: |
   # Trading Analysis: ${{ ticker }}
-  **Date**: ${{ trade_date }}
+  **Date**: ${{ trade_date }} | **Quote**: ${{ quote }}
 
   ---
 
-  ## Market Data
-  ${{ market_data }}
+  @data Fetch comprehensive market data for **${{ ticker }}**:
+  1. Price history + technical indicators → write to "market-data" document
+  2. Financial metrics + valuation → write to "financial-data" document
+  3. Recent news headlines → write to "news-data" document
 
-  ---
-
-  ## Financial Data
-  ${{ financial_data }}
-
-  ---
-
-  ## News & Sentiment
-  ${{ news_data }}
-
-  ---
-
-  **PHASE 1 — Analyst Reports**
-
-  @market Analyze the technical and market data above. Write your report
-  to a "market-report" document, then notify @bull and @bear.
-
-  @fundamentals Analyze the financial data above. Write your report
-  to a "fundamentals-report" document, then notify @bull and @bear.
-
-  @sentiment Analyze the news and sentiment data above. Write your report
-  to a "sentiment-report" document, then notify @bull and @bear.
+  When all data is collected, notify @market @fundamentals @sentiment to begin analysis.
