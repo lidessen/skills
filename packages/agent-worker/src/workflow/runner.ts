@@ -612,12 +612,14 @@ export async function runWorkflowWithControllers(
       } else if (agentDef.backend) {
         backend = getBackendByType(agentDef.backend, {
           model: agentDef.model,
+          provider: agentDef.provider,
           debugLog: (msg) => agentLogger.debug(msg),
           streamCallbacks,
           timeout: agentDef.timeout,
         });
       } else if (agentDef.model) {
         backend = getBackendForModel(agentDef.model, {
+          provider: agentDef.provider,
           debugLog: (msg) => agentLogger.debug(msg),
           streamCallbacks,
         });

@@ -114,6 +114,7 @@ export function createAgent(body: {
   model: string;
   system: string;
   backend?: string;
+  provider?: string | { name: string; base_url?: string; api_key?: string };
   workflow?: string;
   tag?: string;
 }): Promise<ApiResponse> {

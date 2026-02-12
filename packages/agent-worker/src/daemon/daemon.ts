@@ -277,6 +277,7 @@ export function createDaemonApp(
       model,
       system,
       backend = "default",
+      provider,
       workflow = "global",
       tag = "main",
     } = body as {
@@ -284,6 +285,7 @@ export function createDaemonApp(
       model: string;
       system: string;
       backend?: BackendType;
+      provider?: string | { name: string; base_url?: string; api_key?: string };
       workflow?: string;
       tag?: string;
     };
@@ -301,6 +303,7 @@ export function createDaemonApp(
       model,
       system,
       backend,
+      provider,
       workflow,
       tag,
       createdAt: new Date().toISOString(),
