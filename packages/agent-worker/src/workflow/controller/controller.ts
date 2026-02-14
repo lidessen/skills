@@ -20,6 +20,8 @@ import type {
 import { CONTROLLER_DEFAULTS } from "./types.ts";
 import { buildAgentPrompt } from "./prompt.ts";
 import { generateWorkflowMCPConfig } from "./mcp-config.ts";
+import { resolveSchedule, type ScheduleConfig } from "../../daemon/registry.ts";
+import { msUntilNextCron } from "../../daemon/cron.ts";
 
 /** Check if controller should continue running */
 function shouldContinue(state: AgentState): boolean {
@@ -66,6 +68,11 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
   let wakeResolver: (() => void) | null = null;
   let pollTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  // Schedule support: resolve agent's wakeup config into a typed schedule
+  const scheduleConfig: ScheduleConfig | undefined = agent.schedule;
+  const resolvedSchedule = scheduleConfig ? resolveSchedule(scheduleConfig) : undefined;
+  let lastActivityTime = Date.now();
+
   /**
    * Wait for either poll interval or wake() call
    */
@@ -93,6 +100,36 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
       // Check inbox
       const inbox = await contextProvider.getInbox(name);
       if (inbox.length === 0) {
+        // No messages — check if schedule-based wakeup is due
+        if (resolvedSchedule) {
+          const now = Date.now();
+          let wakeupDue = false;
+
+          if (resolvedSchedule.type === "interval") {
+            // Interval: wake when idle longer than the configured duration
+            const elapsed = now - lastActivityTime;
+            if (elapsed >= resolvedSchedule.ms!) {
+              wakeupDue = true;
+            }
+          } else if (resolvedSchedule.type === "cron") {
+            // Cron: wake if next cron time has passed since last activity
+            const msTillNext = msUntilNextCron(resolvedSchedule.expr!, new Date(lastActivityTime));
+            if (now - lastActivityTime >= msTillNext) {
+              wakeupDue = true;
+            }
+          }
+
+          if (wakeupDue) {
+            const wakeupPrompt =
+              resolvedSchedule.prompt ?? "Scheduled wakeup. Check for any pending work or updates.";
+            log(`Schedule wakeup triggered for ${name}`);
+            await contextProvider.appendChannel("system", `@${name} ${wakeupPrompt}`);
+            lastActivityTime = now;
+            // Re-check inbox — the wakeup message should now be there
+            continue;
+          }
+        }
+
         state = "idle";
         // Update status to idle
         await contextProvider.setAgentStatus(name, { state: "idle" });
@@ -165,6 +202,9 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
           // Acknowledge inbox on success
           await contextProvider.ackInbox(name, latestId);
 
+          // Reset schedule timer on activity
+          lastActivityTime = Date.now();
+
           // Update status to idle after successful completion
           await contextProvider.setAgentStatus(name, { state: "idle" });
 
@@ -214,9 +254,18 @@ export function createAgentController(config: AgentControllerConfig): AgentContr
       }
 
       state = "idle";
+      lastActivityTime = Date.now();
       // Update status when starting
       await contextProvider.setAgentStatus(name, { state: "idle" });
-      infoLog(`Starting`);
+      if (resolvedSchedule) {
+        const desc =
+          resolvedSchedule.type === "interval"
+            ? `${resolvedSchedule.ms}ms interval`
+            : `cron "${resolvedSchedule.expr}"`;
+        infoLog(`Starting (schedule: ${desc})`);
+      } else {
+        infoLog(`Starting`);
+      }
 
       // Start loop (don't await - runs in background)
       runLoop().catch((error) => {

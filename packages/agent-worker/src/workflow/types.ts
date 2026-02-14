@@ -3,6 +3,7 @@
  */
 
 import type { ContextConfig } from "./context/types.ts";
+import type { ScheduleConfig } from "../daemon/registry.ts";
 
 // Re-export context types for convenience
 export type { ContextConfig, FileContextConfig, MemoryContextConfig } from "./context/types.ts";
@@ -131,6 +132,9 @@ export interface ParsedWorkflow {
 export interface ResolvedAgent extends AgentDefinition {
   /** Resolved system prompt content */
   resolvedSystemPrompt?: string;
+
+  /** Schedule config derived from wakeup/wakeup_prompt fields */
+  schedule?: ScheduleConfig;
 }
 
 /** Resolved context configuration */

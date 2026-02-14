@@ -14,6 +14,7 @@ import type {
   ValidationError,
   AgentDefinition,
 } from "./types.ts";
+import type { ScheduleConfig } from "../daemon/registry.ts";
 import { CONTEXT_DEFAULTS } from "./context/types.ts";
 import { resolveContextDir } from "./context/file-provider.ts";
 
@@ -151,6 +152,10 @@ function resolveContext(
 
 /**
  * Resolve agent definition (load system prompt from file if needed)
+ *
+ * Also transforms `wakeup` and `wakeup_prompt` fields into a `ScheduleConfig`
+ * object, which is the format expected by the daemon and controller layers
+ * for setting up periodic wakeup timers.
  */
 async function resolveAgent(agent: AgentDefinition, workflowDir: string): Promise<ResolvedAgent> {
   let resolvedSystemPrompt = agent.system_prompt;
@@ -167,9 +172,19 @@ async function resolveAgent(agent: AgentDefinition, workflowDir: string): Promis
     // If file doesn't exist, use as-is (might be intentional literal)
   }
 
+  // Transform wakeup/wakeup_prompt into ScheduleConfig
+  let schedule: ScheduleConfig | undefined;
+  if (agent.wakeup !== undefined) {
+    schedule = { wakeup: agent.wakeup };
+    if (agent.wakeup_prompt) {
+      schedule.prompt = agent.wakeup_prompt;
+    }
+  }
+
   return {
     ...agent,
     resolvedSystemPrompt,
+    schedule,
   };
 }
 
