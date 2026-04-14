@@ -23,11 +23,14 @@ MIT licensed, maintained by Lidessen.
 ```
 skills/
   <skill-name>/
-    SKILL.md        ← Skill definition (frontmatter + main prompt)
-    *.md            ← Supporting files loaded by SKILL.md on demand
+    SKILL.md           ← Skill definition (frontmatter + main prompt)
+    commands/           ← Subcommand instructions dispatched by SKILL.md
+    references/         ← Reference material loaded on demand
+    scripts/            ← Executable code (if needed)
+    assets/             ← Templates, images, data files (if needed)
 ```
 
-Each skill is a self-contained directory under `skills/`. The `SKILL.md` file is the entry point — its YAML frontmatter defines the skill's name, description, and argument hints, while the markdown body is the prompt that Claude Code executes when the skill is invoked. Supporting `.md` files handle subcommands or extended instructions.
+Each skill is a self-contained directory under `skills/`. The `SKILL.md` file is the entry point — its YAML frontmatter defines the skill's name, description, and argument hints, while the markdown body is the prompt that Claude Code executes when the skill is invoked. Subdirectories follow the [Agent Skills Specification](https://agentskills.io/specification) conventions; only create the ones the skill actually needs.
 
 ## Skill Format Specification
 
@@ -44,5 +47,5 @@ The `description` field is critical — it determines when Claude Code auto-trig
 
 - Keep skill prompts methodology-focused, not implementation-focused. Skills teach Claude *how to think about a task*, not specific code to write.
 - The body of SKILL.md is a prompt, not documentation. Write it as instructions Claude will follow, not as a reference humans will read.
-- Supporting files (like `init.md`, `setup.md`) should be self-contained instructions for a specific subcommand — SKILL.md dispatches to them, they don't reference each other.
+- Subcommand files in `commands/` should be self-contained instructions — SKILL.md dispatches to them, they don't reference each other. Reference material goes in `references/`.
 - Frontmatter `description` is multi-line and acts as the trigger classifier. Include both the methodology description and concrete trigger phrases/argument hints.

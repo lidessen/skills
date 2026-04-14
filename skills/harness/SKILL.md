@@ -29,9 +29,9 @@ decisions without drowning in details it doesn't yet need.
 
 When invoked with an argument, dispatch to the corresponding file:
 
-- `/harness audit` → Read and follow `audit.md` in this skill directory.
+- `/harness audit` → Read and follow `commands/audit.md` in this skill directory.
   Evaluate an existing project's context architecture and suggest improvements.
-- `/harness init` → Read and follow `init.md` in this skill directory.
+- `/harness init` → Read and follow `commands/init.md` in this skill directory.
   Bootstrap a project's harness from scratch.
 - No argument → Continue with the methodology below.
 
