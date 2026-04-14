@@ -31,7 +31,7 @@ Then invoke a skill in any conversation:
 
 /harness                # Context layer methodology
 /harness audit          # Evaluate existing project's context architecture
-/harness init           # Bootstrap harness from scratch
+/harness setup          # Bootstrap harness from scratch
 ```
 
 ## License

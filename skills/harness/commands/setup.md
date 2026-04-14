@@ -1,4 +1,4 @@
-# harness:init — Bootstrap a project's harness from scratch
+# harness:setup — Bootstrap a project's harness from scratch
 
 Set up the foundational context architecture for a new or un-configured 
 project. The goal is to give any agent working in this project the right 
