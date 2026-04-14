@@ -49,3 +49,4 @@ The `description` field is critical — it determines when the agent auto-trigge
 - The body of SKILL.md is a prompt, not documentation. Write it as instructions Claude will follow, not as a reference humans will read.
 - Subcommand files in `commands/` should be self-contained instructions — SKILL.md dispatches to them, they don't reference each other. Reference material goes in `references/`.
 - Frontmatter `description` is multi-line and acts as the trigger classifier. Include both the methodology description and concrete trigger phrases/argument hints.
+- When referencing another skill, use concept references: describe the *goal* first, then mention the skill as one way to achieve it. E.g., "Set up architectural documentation for the project — the design-driven skill can help with this." This keeps the skill functional even when the referenced skill isn't installed.

@@ -61,12 +61,16 @@ but keep the source of truth in one place and point others to it.
 
 ### 4. Set up L2 if needed
 
-For medium+ projects:
+For medium+ projects, the most common L2 need is architectural documentation 
+— a `design/` directory with module boundaries, data flow, key mechanisms, 
+and decision records. This gives the agent the structural awareness to work 
+within the system's shape rather than guessing. The design-driven skill can 
+help bootstrap this.
 
-- If the project would benefit from design-driven development, suggest 
-  running `/design-driven setup` to create the design/ directory
-- If skills are installed, verify their L1 metadata (description) is 
-  precise enough for trigger matching
+Also check:
+- Are installed skills' L1 metadata (description) precise enough for 
+  trigger matching?
+- Are there existing docs that should be promoted to L2?
 
 ### 5. Set up hooks if applicable
 
@@ -74,7 +78,8 @@ Identify mechanical checks that should run automatically:
 
 - Are there common mistakes the agent makes that a hook could catch?
 - Are there formatting/linting rules that should be enforced pre-commit?
-- Would a design-change reminder help? (see design-driven skill)
+- Would a design-change reminder help? (e.g. warn when design/ and 
+  source files are staged together)
 
 Hooks are zero-cost in context but high-value in consistency.
 

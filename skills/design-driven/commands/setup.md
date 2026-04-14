@@ -6,6 +6,11 @@ the methodology on an existing or new project.
 The specifics depend on the project and the AI tools being used — figure 
 out what fits and implement it. The goals below are what matter.
 
+If the project doesn't yet have an overall agent context architecture 
+(CLAUDE.md, layer structure), consider setting that up first — the harness 
+skill covers this. Design-driven focuses specifically on the architectural 
+documentation layer (L2).
+
 ## Steps
 
 ### 1. AI agent config (most important)
