@@ -14,7 +14,7 @@ Agent context is finite — structure it in layers: L1 (architecture, always pre
 
 ## Project Overview
 
-This is a collection of Claude Code skills — reusable methodology plugins that extend Claude Code's capabilities. Skills are installed into a user's project and invoked via slash commands (e.g., `/design-driven`).
+This is a collection of agent skills — reusable methodology plugins for AI-assisted development. Skills are installed into a project and invoked via slash commands (e.g., `/design-driven`).
 
 MIT licensed, maintained by Lidessen.
 
@@ -30,7 +30,7 @@ skills/
     assets/             ← Templates, images, data files (if needed)
 ```
 
-Each skill is a self-contained directory under `skills/`. The `SKILL.md` file is the entry point — its YAML frontmatter defines the skill's name, description, and argument hints, while the markdown body is the prompt that Claude Code executes when the skill is invoked. Subdirectories follow the [Agent Skills Specification](https://agentskills.io/specification) conventions; only create the ones the skill actually needs.
+Each skill is a self-contained directory under `skills/`. The `SKILL.md` file is the entry point — its YAML frontmatter defines the skill's name, description, and argument hints, while the markdown body is the prompt that the agent executes when the skill is invoked. Subdirectories follow the [Agent Skills Specification](https://agentskills.io/specification) conventions; only create the ones the skill actually needs.
 
 ## Skill Format Specification
 
@@ -41,7 +41,7 @@ A `SKILL.md` has two parts:
 1. **Frontmatter** (`---` delimited YAML): `name`, `description` (used for trigger matching), and optional fields (`license`, `compatibility`, `metadata`, `allowed-tools`).
 2. **Body** (markdown): The actual instructions Claude follows. May dispatch to sibling `.md` files based on arguments.
 
-The `description` field is critical — it determines when Claude Code auto-triggers the skill. It should list concrete trigger phrases and use cases.
+The `description` field is critical — it determines when the agent auto-triggers the skill. It should list concrete trigger phrases and use cases.
 
 ## Writing and Editing Skills
 

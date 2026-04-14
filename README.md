@@ -1,6 +1,6 @@
 # Skills
 
-A collection of [Claude Code](https://claude.ai/code) skills — reusable methodology plugins that extend Claude Code's capabilities via slash commands.
+A collection of [agent skills](https://agentskills.io) — reusable methodology plugins for AI-assisted development, invocable via slash commands.
 
 ## Available Skills
 
