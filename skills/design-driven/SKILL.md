@@ -14,10 +14,10 @@ description: |
   "write a design for", "what's the current design", or when onboarding to 
   understand a codebase's shape.
 
-  Supports arguments: `/design-driven init` to bootstrap design from an 
-  existing codebase, `/design-driven setup` to configure a project for 
-  design-driven development.
-argument-hint: "[init | setup]"
+  Supports arguments: `/design-driven init` to configure a project for 
+  design-driven development, `/design-driven bootstrap` to generate 
+  design from an existing codebase.
+argument-hint: "[init | bootstrap]"
 ---
 
 # Design-Driven Development
@@ -30,9 +30,9 @@ Human shapes the skeleton, agent builds the muscle.
 When invoked with an argument, dispatch to the corresponding file:
 
 - `/design-driven init` → Read and follow `commands/init.md` in this skill directory.
-  Bootstrap the initial `design/` directory from an existing codebase.
-- `/design-driven setup` → Read and follow `commands/setup.md` in this skill directory.
   First-time project configuration (agent configs, hooks, directory structure).
+- `/design-driven bootstrap` → Read and follow `commands/bootstrap.md` in this skill directory.
+  Generate the initial `design/` directory from an existing codebase.
 - No argument → Continue with the methodology below (the normal loop).
 
 ## Directory Structure
@@ -184,6 +184,6 @@ If it conflicts, surface the conflict before writing code.
 
 ## Creating a Design from Scratch
 
-When no design/DESIGN.md exists, run `/design-driven init` to explore the 
+When no design/DESIGN.md exists, run `/design-driven bootstrap` to explore the 
 codebase and generate the first version. See `references/templates.md` for the DESIGN.md 
 structure and `references/writing-guide.md` for style guidance.

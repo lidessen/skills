@@ -1,72 +1,73 @@
-# design-driven:init — Bootstrap design from existing codebase
+# design-driven:init — First-time project setup
 
-Generate the initial `design/` directory and DESIGN.md files by exploring 
-the current codebase. Use when adopting design-driven on a project that 
-already has code but no design docs.
+Configure a project for design-driven development. Run once when adopting 
+the methodology on an existing or new project.
 
-## Process
+The specifics depend on the project and the AI tools being used — figure 
+out what fits and implement it. The goals below are what matter.
 
-### 1. Explore
+If the project doesn't yet have an overall agent context architecture 
+(CLAUDE.md, layer structure), consider setting that up first — the harness 
+skill covers this. Design-driven focuses specifically on the architectural 
+documentation layer (L2).
 
-Don't rush. Understand the project before writing anything.
+## Steps
 
-```
-Shape       What are the major pieces? (packages, services, modules)
-            Look at: directory structure, package manifests, build config
+### 1. AI agent config (most important)
 
-Boundaries  How do the pieces talk to each other?
-            Look at: imports, HTTP clients, event emitters, message queues
+Add design-driven instructions to every AI agent config the project uses.
+Common locations:
 
-Entry       Where does execution start?
-            Look at: main files, server startup, CLI entry points
+- `CLAUDE.md` — Claude Code
+- `.cursorrules` — Cursor
+- `AGENTS.md` or `codex.md` — Codex / OpenAI agents
+- `.github/copilot-instructions.md` — GitHub Copilot
+- `.windsurfrules` — Windsurf
+- Any other agent instruction file the project uses
 
-Mechanisms  What are the 2-3 things that make this system unique?
-            Look at: actual source code of the core logic, not glue code.
-            This is the most important step — skim won't cut it.
+The instruction should communicate:
 
-Docs        What's already documented?
-            Look at: README, CLAUDE.md, existing design docs, doc comments
-            Build on what exists, don't duplicate.
-```
+- The `design/` directory contains the architectural source of truth — 
+  read it before starting any development task
+- If your change would alter the system's shape, propose a design change 
+  in `design/decisions/` and get approval before coding
+- Design changes get their own commit, separate from code changes
+- For non-trivial tasks, follow Plan → Build → Verify: write a blueprint 
+  in `blueprints/`, track progress with TODO (scaffolding), verify against 
+  the blueprint when done, then strip the TODO and keep the blueprint
 
-### 2. Draft
+Check which of these files already exist in the project and update them. 
+Don't create config files for tools the project doesn't use.
 
-Create both directories with the initial files:
+### 2. Directory structure
 
-- `design/DESIGN.md` — always. System shape, modules, data flow, 
-  key mechanisms, key decisions, constraints, non-goals.
-- `design/DESIGN-<aspect>.md` — only if a complex mechanism deserves 
-  its own page. Most projects don't need this on day one.
-- `design/decisions/` — create the directory with .gitkeep.
-- `blueprints/` — create the directory with .gitkeep. This is where 
-  task-level implementation records will live.
+Create these directories with .gitkeep so the convention is visible from 
+day one:
 
-Follow the format and principles in the main SKILL.md. Remember:
-- Module descriptions: two lines max (does / doesn't)
-- Mechanisms: describe the pattern, not the schema
-- Decisions: only record real tradeoffs with rejected alternatives
-- ASCII diagrams: "what talks to what" in 5 seconds
-- Under 200 lines per file
+- `design/` and `design/decisions/` — architectural skeleton and decision records
+- `blueprints/` — task-level implementation records
 
-### 3. Review
+### 3. Initial design
 
-Present the draft to the human. This is the first version of the 
-architectural skeleton — it sets the foundation for all future work. 
-Don't commit until the human has reviewed and approved.
+If no design/DESIGN.md exists yet, run the `init` command to explore the 
+codebase and generate the first version. If the project is brand new, 
+write DESIGN.md from scratch following the format in the main skill.
 
-Things to call out explicitly:
-- Any boundaries you weren't sure about
-- Any mechanisms you may have misunderstood
-- Any decisions you inferred but couldn't confirm from the code
+### 4. Hooks (optional)
 
-### 4. Wire up
+Set up hooks to reinforce design-driven discipline. For hook types and 
+general methodology (prompt vs script, consistency checks), the harness 
+skill covers this — here are the design-driven-specific hooks:
 
-After the design is approved, run the Setup steps from the main skill:
-- Update AI agent configs (CLAUDE.md, .cursorrules, etc.) to reference 
-  the new `design/` directory
-- Set up the pre-commit reminder if the human wants it
+**Boundary check** — After editing source files, remind to verify the 
+change stays within design/ boundaries. Especially useful when files 
+span multiple modules.
+
+**Design-code separation** — Before commit, check whether files under 
+`design/` are staged together with source files. If so, remind that 
+design changes should be committed separately. Don't block — just remind.
 
 ### 5. Commit
 
-Commit the `design/` directory, `blueprints/` directory, and the config 
-updates together as the initial design-driven setup.
+Commit the `design/` directory, `blueprints/` directory, agent config 
+updates, and hook together as the initial design-driven setup.

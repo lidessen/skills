@@ -25,13 +25,13 @@ npx skills install lidessen/skills/harness
 Then invoke a skill in any conversation:
 
 ```
-/design-driven          # Run the main loop
-/design-driven init     # Bootstrap design from existing codebase
-/design-driven setup    # First-time project configuration
+/design-driven              # Run the main loop
+/design-driven init         # First-time project configuration
+/design-driven bootstrap    # Generate design from existing codebase
 
-/harness                # Context layer methodology
-/harness audit          # Evaluate existing project's context architecture
-/harness setup          # Bootstrap harness from scratch
+/harness                    # Context layer methodology
+/harness audit              # Evaluate existing project's context architecture
+/harness init               # First-time project setup
 ```
 
 ## License

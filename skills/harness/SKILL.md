@@ -14,8 +14,8 @@ description: |
   setup", "organize agent context", "how should I structure my prompts".
 
   Supports arguments: `/harness audit` to evaluate an existing project's 
-  context architecture, `/harness setup` to bootstrap harness from scratch.
-argument-hint: "[audit | setup]"
+  context architecture, `/harness init` to set up harness from scratch.
+argument-hint: "[audit | init]"
 ---
 
 # Harness Architecture
@@ -31,8 +31,8 @@ When invoked with an argument, dispatch to the corresponding file:
 
 - `/harness audit` → Read and follow `commands/audit.md` in this skill directory.
   Evaluate an existing project's context architecture and suggest improvements.
-- `/harness setup` → Read and follow `commands/setup.md` in this skill directory.
-  Bootstrap a project's harness from scratch.
+- `/harness init` → Read and follow `commands/init.md` in this skill directory.
+  First-time project setup — bootstrap a project's harness from scratch.
 - No argument → Continue with the methodology below.
 
 ## The Three Layers
