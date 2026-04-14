@@ -25,6 +25,11 @@ argument-hint: "[init | bootstrap]"
 A mini methodology: design/ is the skeleton, code is the muscle. 
 Human shapes the skeleton, agent builds the muscle.
 
+design/ is also the institutional memory that outlives any single agent 
+session. Agents are ephemeral, but the architectural skeleton persists — 
+each new agent reads it, works within its boundaries, and leaves the 
+codebase in a state the next agent can trust.
+
 ## Commands
 
 When invoked with an argument, dispatch to the corresponding file:

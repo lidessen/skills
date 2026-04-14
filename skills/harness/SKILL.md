@@ -25,6 +25,11 @@ The craft of harness programming is migrating the right information to the
 right context layer, so the agent always has enough awareness to make good 
 decisions without drowning in details it doesn't yet need.
 
+Two concerns, one discipline: **context architecture** (what the agent 
+knows) and **agent lifecycle** (how the agent works across time). They 
+meet at artifacts — an artifact is both information (context) and a 
+mechanism for continuity (lifecycle).
+
 ## Commands
 
 When invoked with an argument, dispatch to the corresponding file:
@@ -35,7 +40,13 @@ When invoked with an argument, dispatch to the corresponding file:
   First-time project setup — bootstrap a project's harness from scratch.
 - No argument → Continue with the methodology below.
 
-## The Three Layers
+---
+
+## Part I: Context Architecture
+
+How to structure what the agent knows.
+
+### The Three Layers
 
 Every piece of information an agent might need belongs at one of three 
 abstraction levels:
@@ -67,7 +78,7 @@ L3 details polluting L1 (bloated CLAUDE.md full of implementation notes),
 or L1 context missing entirely (agent has no architectural awareness and 
 makes decisions that break system boundaries).
 
-## Mapping Artifacts to Layers
+### Mapping Artifacts to Layers
 
 ```
 L1 (always present)          L2 (on activation)         L3 (on demand)
@@ -106,25 +117,30 @@ A skill naturally spans all three layers:
   whether to activate a skill — make it precise.
 - **L2**: The markdown body of SKILL.md (<5000 tokens). Loaded when 
   activated. Contains the methodology, the loop, the principles.
-- **L3**: Supporting files (init.md, setup.md, scripts/, references/). 
+- **L3**: Supporting files (commands/, scripts/, references/). 
   Loaded only when the skill dispatches to them.
 
 Keep SKILL.md under 500 lines. If it's longer, something belongs in L3.
 
-### Hooks — L1 guardrails
+### Context Principles
 
-Hooks execute outside the context window but shape agent behavior. They're 
-L1 in effect (always active) but zero-cost in context tokens. Use hooks 
-for mechanical enforcement that doesn't need judgment:
+**Smallest effective context** — Every token in L1 competes with the 
+agent's working space for the current task. Write L1 artifacts ruthlessly 
+— include only what changes the agent's decisions. Details that are 
+nice-to-know but don't affect judgment belong in L2 or L3.
 
-- Pre-commit checks
-- File format validation
-- Forbidden pattern detection
+**Stable layers, volatile details** — L1 should change rarely (project 
+architecture doesn't shift daily). L2 changes per-task (each blueprint is 
+different). L3 changes constantly (code evolves). If you find yourself 
+updating CLAUDE.md frequently, the information probably belongs at a 
+lower layer.
 
-Don't use hooks for things that need context (architectural decisions, 
-code quality judgment). That's what L1/L2 principles are for.
+**Pointers over content** — When L1 needs to reference complex 
+information, point to it rather than inlining it. "See design/DESIGN.md 
+for module boundaries" is better than copying the module list into 
+CLAUDE.md. The agent loads L2/L3 when needed.
 
-## Diagnosing Layer Problems
+### Diagnosing Layer Problems
 
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|
@@ -134,7 +150,64 @@ code quality judgment). That's what L1/L2 principles are for.
 | Agent loads unnecessary files | Skill body has too many inline references | Split into supporting files, load on demand |
 | Agent repeats same mistakes | Missing hook or missing L1 principle | Add a hook (mechanical) or CLAUDE.md rule (judgment) |
 
-## Principles
+---
+
+## Part II: Agent Lifecycle
+
+How the agent works across time.
+
+### Succession over persistence
+
+Every agent instance is ephemeral — it lives for one session, then its 
+context is gone. Don't fight this. Design for succession: knowledge 
+survives through artifacts, not through any single agent's memory.
+
+The unit of continuity is the artifact chain, not the agent instance. 
+L1 and L2 artifacts (CLAUDE.md, design docs, blueprints) are the 
+institutional memory that outlives every session. Commit messages are 
+the archaeological record. Blueprint State sections are handoff documents 
+from one generation to the next. Verification criteria are how the next 
+generation trusts the previous one's work.
+
+To give an "agent" a longer effective lifecycle, don't extend the session 
+— raise the abstraction level. An agent operating at L1 (architecture) 
+spans the lifetime of the project. An agent operating at L3 (implementation 
+details) lives and dies within one task. The layers aren't just about 
+context efficiency — they're about temporal scope.
+
+### One task, one context
+
+A single task should fit within one context window. If it can't, it's 
+two tasks. This is the fundamental unit of agent work — each task gets 
+a focused context with only the information it needs, preventing earlier 
+work from polluting later decisions. When scoping tasks, ask: can the 
+agent complete this without its context degrading?
+
+### Hooks — lifecycle guardrails
+
+Hooks shape agent behavior from outside the context window — always 
+active, zero-cost in tokens. Two flavors:
+
+- **Prompt hooks** — inject a reminder, let the agent apply judgment. 
+  Best for checks that need context awareness (layer integrity, 
+  consistency, architectural boundaries).
+- **Script hooks** — run a command, pass or block mechanically. Best 
+  for checks that don't need judgment (linting, format validation, 
+  forbidden patterns).
+
+### Consistency after change
+
+When you change something that other files reference — a path, a name, 
+a term, a structure — check every file that depends on it. Stale 
+references are a common failure mode: you rename a directory but leave 
+old paths in SKILL.md, change a convention but leave the old wording in 
+CLAUDE.md. A prompt hook that reminds "did you update everything that 
+references what you just changed?" is one of the highest-value hooks 
+you can add to a project.
+
+---
+
+## Meta-principle
 
 ### Understand why, not just what
 
@@ -147,41 +220,3 @@ tokens but compounds into better decisions across every task.
 > novel situations, they need to be able to generalize — to apply broad 
 > principles rather than mechanically following specific rules."
 > — [Anthropic's constitution](https://www.anthropic.com/constitution)
-
-### Smallest effective context
-
-Every token in L1 competes with the agent's working space for the current 
-task. Write L1 artifacts ruthlessly — include only what changes the 
-agent's decisions. Details that are nice-to-know but don't affect judgment 
-belong in L2 or L3.
-
-### Stable layers, volatile details
-
-L1 should change rarely (project architecture doesn't shift daily). L2 
-changes per-task (each blueprint is different). L3 changes constantly 
-(code evolves). If you find yourself updating CLAUDE.md frequently, the 
-information probably belongs at a lower layer.
-
-### One task, one context
-
-A single task should fit within one context window. If it can't, it's 
-two tasks. This is the fundamental unit of agent work — each task gets 
-a focused context with only the information it needs, preventing earlier 
-work from polluting later decisions. When scoping tasks, ask: can the 
-agent complete this without its context degrading?
-
-### Consistency after change
-
-When you change something that other files reference — a path, a name, 
-a term, a structure — check every file that depends on it. Stale 
-references are a common failure mode: you rename a directory but leave 
-old paths in SKILL.md, change a convention but leave the old wording in 
-CLAUDE.md. A prompt hook that reminds "did you update everything that 
-references what you just changed?" is one of the highest-value hooks 
-you can add to a project.
-
-### Pointers over content
-
-When L1 needs to reference complex information, point to it rather than 
-inlining it. "See design/DESIGN.md for module boundaries" is better than 
-copying the module list into CLAUDE.md. The agent loads L2/L3 when needed.
