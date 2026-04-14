@@ -102,16 +102,23 @@ If you're unsure, it probably doesn't — just code.
 ## Implementation: Plan → Build → Verify
 
 **Plan** — Read design/, understand the task, write a blueprint in 
-`blueprints/<task-name>.md`. The TODO section is scaffolding: a progress 
-tracker, not a spec. See `references/templates.md` for the blueprint format.
+`blueprints/<task-name>.md`. Define verification criteria upfront — how 
+will you know this task is done? The TODO section is scaffolding: a 
+progress tracker, not a spec. See `references/templates.md` for the format.
+
+Size tasks to fit within a single session. If a task feels too large to 
+hold in your head at once, split it into smaller blueprints.
 
 **Build** — Code freely within design/ boundaries, following the blueprint's 
 approach. Check off TODO items as you go. If you discover a better approach 
-mid-build, update the blueprint first, then continue.
+mid-build, update the blueprint first, then continue. Update the State 
+section with decisions made and current progress, so work can resume if 
+the session is interrupted.
 
-**Verify** — Check: does the implementation match the approach? Is the scope 
-respected? Does it stay within design/ boundaries? Then tear down the 
-scaffolding: remove the TODO section, mark status as `done`.
+**Verify** — Check the implementation against the verification criteria 
+defined in Plan. Then confirm: does it stay within design/ boundaries? 
+Is the scope respected? Once verified, tear down the scaffolding: remove 
+the TODO and State sections, mark status as `done`.
 
 The blueprint sits between design/ and code in granularity:
 

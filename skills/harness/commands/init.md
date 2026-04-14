@@ -74,14 +74,34 @@ Also check:
 
 ### 5. Set up hooks if applicable
 
-Identify mechanical checks that should run automatically:
+Hooks are zero-cost in context but high-value in consistency. Two flavors:
 
-- Are there common mistakes the agent makes that a hook could catch?
-- Are there formatting/linting rules that should be enforced pre-commit?
-- Would a design-change reminder help? (e.g. warn when design/ and 
-  source files are staged together)
+**Prompt hooks** — Inject a reminder into the agent's context after an 
+action. Lightweight, no scripts needed, and the agent applies judgment 
+rather than rigid checks. Best for checks that need context awareness 
+(layer integrity, architectural boundaries, description quality). Example:
+```json
+{
+  "type": "prompt",
+  "prompt": "If you just edited CLAUDE.md, check: does every line pass 
+  the L1 litmus test? Would removing it cause a worse decision?"
+}
+```
 
-Hooks are zero-cost in context but high-value in consistency.
+**Script hooks** — Run a command that exits 0 (pass) or 2 (block). Best 
+for mechanical checks that don't need judgment (linting, format validation, 
+forbidden patterns).
+
+Common hook suggestions:
+- **Consistency after change** — prompt hook on Stop (end of turn), 
+  reminding to check all files that reference what was just changed. 
+  Put this on Stop, not PostToolUse — the agent may be mid-way through 
+  a batch of related edits. One of the highest-value hooks for any project.
+- **Layer integrity** — prompt hook after editing L1 artifacts, reminding 
+  to verify the change earns its place in L1
+- **Design-code separation** — script or prompt hook before commit, 
+  reminding that design/ changes should be committed separately
+- **Lint/format gates** — script hook to run project linters pre-commit
 
 ### 6. Review with the human
 

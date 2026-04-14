@@ -53,12 +53,19 @@ If no design/DESIGN.md exists yet, run the `init` command to explore the
 codebase and generate the first version. If the project is brand new, 
 write DESIGN.md from scratch following the format in the main skill.
 
-### 4. Pre-commit reminder (optional)
+### 4. Hooks (optional)
 
-Set up a lightweight git pre-commit hook that checks whether files under 
-`design/` are staged together with source files outside `design/`. If so, 
-print a reminder that design changes should be committed separately. 
-Don't block the commit — just remind.
+Set up hooks to reinforce design-driven discipline. For hook types and 
+general methodology (prompt vs script, consistency checks), the harness 
+skill covers this — here are the design-driven-specific hooks:
+
+**Boundary check** — After editing source files, remind to verify the 
+change stays within design/ boundaries. Especially useful when files 
+span multiple modules.
+
+**Design-code separation** — Before commit, check whether files under 
+`design/` are staged together with source files. If so, remind that 
+design changes should be committed separately. Don't block — just remind.
 
 ### 5. Commit
 

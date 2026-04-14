@@ -20,10 +20,19 @@ connect" rather than "which functions to call".
 ## Scope
 What's in / what's out for this task specifically.
 
+## Verification                  ← Define done criteria upfront
+- [ ] Criterion 1 (e.g., "all tests pass", "API returns expected shape")
+- [ ] Criterion 2
+- [ ] ...
+
 ## TODO                          ← Scaffolding — removed after verify
 - [ ] Step 1 description
 - [ ] Step 2 description
 - [ ] ...
+
+## State                         ← Scaffolding — removed after verify
+Decisions made during build, current progress, and anything needed to 
+resume if the session is interrupted. Update this as you go.
 ```
 
 ## Proposal format

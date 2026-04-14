@@ -162,6 +162,24 @@ changes per-task (each blueprint is different). L3 changes constantly
 (code evolves). If you find yourself updating CLAUDE.md frequently, the 
 information probably belongs at a lower layer.
 
+### One task, one context
+
+A single task should fit within one context window. If it can't, it's 
+two tasks. This is the fundamental unit of agent work — each task gets 
+a focused context with only the information it needs, preventing earlier 
+work from polluting later decisions. When scoping tasks, ask: can the 
+agent complete this without its context degrading?
+
+### Consistency after change
+
+When you change something that other files reference — a path, a name, 
+a term, a structure — check every file that depends on it. Stale 
+references are a common failure mode: you rename a directory but leave 
+old paths in SKILL.md, change a convention but leave the old wording in 
+CLAUDE.md. A prompt hook that reminds "did you update everything that 
+references what you just changed?" is one of the highest-value hooks 
+you can add to a project.
+
 ### Pointers over content
 
 When L1 needs to reference complex information, point to it rather than 

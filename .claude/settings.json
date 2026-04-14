@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "If you just edited a file under skills/ or a project doc (CLAUDE.md, README.md), do a quick self-check: For SKILL.md — name matches directory, description is precise for trigger matching, body under 500 lines, L3 content (templates, examples, reference data) in references/ not inlined. For CLAUDE.md — every line passes the litmus test (would removing it cause a worse architectural decision?). For all — layering is correct (L1 stable/small, L2 on activation, L3 on demand)."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Before finishing: if you changed something that other files reference (paths, names, terminology, structure), did you update all of them? Check for stale references."
+          }
+        ]
+      }
+    ]
+  }
+}
