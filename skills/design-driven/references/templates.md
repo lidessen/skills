@@ -109,5 +109,11 @@ records the change after the fact.
 (What this system explicitly doesn't do)
 ```
 
-Split into additional DESIGN-<aspect>.md files only when a complex mechanism 
-deserves its own page. Never more than 3 design files total.
+Split into additional DESIGN-<aspect>.md files only when a mechanism is 
+complex enough that folding it into DESIGN.md would push DESIGN.md past 
+~200 lines. The guiding principle: `design/` is L1 context — loaded every 
+time the agent works on the project — so keep the total small enough to 
+read in one pass. If you find yourself wanting many DESIGN-<aspect>.md 
+files, that is usually a signal that DESIGN.md is mixing abstraction 
+levels, or that some content belongs in module-level docs (L2) rather 
+than the architectural skeleton.
