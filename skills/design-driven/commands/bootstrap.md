@@ -1,12 +1,16 @@
 # design-driven:bootstrap — Bootstrap design from existing codebase
 
-Generate the initial `design/` directory and DESIGN.md files by exploring 
-the current codebase. Use when adopting design-driven on a project that 
-already has code but no design docs.
+Generate the initial `design/DESIGN.md` by exploring the current 
+codebase. Use when adopting design-driven on a project that already 
+has code but no design docs.
 
-Work in three phases: **Plan → Implement → Verify**. Don't skip phase 1 
-to start writing, and don't skip phase 3 to ship faster — each phase 
-catches a different class of mistake.
+Bootstrap handles plumbing idempotently — it's fine to run without 
+having run `/design-driven init` first. If directories or agent 
+configs are missing, they are set up in Phase 4.
+
+Work in four phases: **Plan → Implement → Verify → Wire up**. Don't 
+skip Phase 1 to start writing, and don't skip Phase 3 to ship faster 
+— each phase catches a different class of mistake.
 
 ## Phase 1 — Plan
 
@@ -22,8 +26,9 @@ Before exploring the code, see what's already written:
   agent configs — do they already describe the architecture?
 - Existing `docs/`, `architecture/`, ADRs, or RFC folders — is there 
   prior art you should build on instead of duplicate?
-- `design/` directory — if it already exists, this may be an update, 
-  not a bootstrap. Stop and ask the human.
+- `design/` directory — if it already exists, this is probably an 
+  audit or update, not a bootstrap. Stop and ask the human whether 
+  they meant `/design-driven audit`.
 
 ### 1.2 Explore the codebase
 
@@ -81,14 +86,17 @@ your best guess and flag them in phase 3.
 
 Now write the files per the plan.
 
-### 2.1 Create the directory structure
+### 2.1 Ensure the directory structure exists
+
+Create these if they're missing (bootstrap is idempotent — skip any 
+that already exist):
 
 - `design/` and `design/decisions/` (with `.gitkeep`)
 - `blueprints/` (with `.gitkeep`)
 
 ### 2.2 Draft DESIGN.md (and any DESIGN-<aspect>.md)
 
-Follow the structure in `references/templates.md`. Remember:
+Follow the structure in `../references/templates.md`. Remember:
 
 - **Module descriptions:** two lines max — what it *does* and what it 
   explicitly *doesn't* do
@@ -102,8 +110,8 @@ Follow the structure in `references/templates.md`. Remember:
 - Write in present tense, describing the system as it is. Don't 
   narrate how it got there.
 
-Style guidance lives in `references/writing-guide.md` — load it if you 
-need a refresher on voice and level of detail.
+Style guidance lives in `../references/writing-guide.md` — load it if 
+you need a refresher on voice and level of detail.
 
 ## Phase 3 — Verify
 
@@ -150,7 +158,7 @@ Read the draft end-to-end as if you'd never seen it:
   If you see function signatures, error codes, or schema fields, cut 
   them — they belong in code, not design.
 
-## Phase 4 — Review, wire up, commit
+## Phase 4 — Wire up, review, commit
 
 ### 4.1 Human review
 
@@ -163,15 +171,17 @@ Present the draft. Call out explicitly:
 
 Don't commit until the human has reviewed and approved.
 
-### 4.2 Wire up
+### 4.2 Wire up agent configs
 
-After approval, run the Setup steps from the main skill:
+Update AI agent configs (CLAUDE.md, .cursorrules, AGENTS.md, etc.) to 
+reference the new `design/` directory. Check `init.md` in this 
+directory for the full list of common config locations and the 
+instruction template — reuse that content, don't re-derive it.
 
-- Update AI agent configs (CLAUDE.md, .cursorrules, etc.) to reference 
-  the new `design/` directory
-- Set up the pre-commit reminder if the human wants it
+If the user wants hooks (proposal gate, boundary reminder, design-code 
+separation), set them up now per `init.md`'s Hooks section.
 
 ### 4.3 Commit
 
-Commit `design/`, `blueprints/`, and the config updates together as 
-the initial design-driven setup.
+Commit `design/`, `blueprints/`, the agent config updates, and any 
+hook configs together as the initial design-driven setup.

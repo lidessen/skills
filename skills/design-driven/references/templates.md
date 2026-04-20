@@ -8,7 +8,7 @@ Load this file when you need to create one of these artifacts.
 ```markdown
 # <Task Name>
 
-**Status:** planning | in-progress | done
+**Status:** in-progress | done
 **Date:** YYYY-MM-DD
 **Design context:** Which design/ sections this task relates to
 
@@ -37,12 +37,16 @@ resume if the session is interrupted. Update this as you go.
 
 ## Proposal format
 
-Keep it short. One file, under 50 lines:
+Keep it short. One file, under 50 lines.
+
+**Filename:** `design/decisions/NNN-kebab-title.md`, where `NNN` is the 
+next unused three-digit number — scan the directory, take max+1, pad 
+to three digits (start at `001` if empty).
 
 ```markdown
 # <Title>
 
-**Status:** proposed | adopted | rejected
+**Status:** proposed | adopted | rejected | adopted (retroactive)
 **Date:** YYYY-MM-DD
 
 ## Context
@@ -60,6 +64,10 @@ What else was considered and why it lost.
 If adopted: which DESIGN.md sections were updated.
 If rejected: why, in one paragraph.
 ```
+
+Use `adopted (retroactive)` only during audit, when the shape change 
+already happened in code without a proposal at the time — the file 
+records the change after the fact.
 
 ## DESIGN.md structure
 
