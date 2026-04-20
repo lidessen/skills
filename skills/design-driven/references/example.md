@@ -8,16 +8,28 @@ feel-for-the-rhythm reference, not a literal script.
 > "Add a `/history` endpoint that returns the last N messages in a 
 > conversation."
 
-## Step 1 — Read design/
+## Step 1 — Read current state + check pending claims
 
-Open `design/DESIGN.md`. Key things to notice:
+**Current state** (what the system actually is):
+
+Open `design/DESIGN.md` and read the relevant code.
 
 - There's a `ConversationStore` module that owns message persistence.
 - The `API` module owns HTTP routing.
 - "Doesn't do" on `API`: no business logic, only shape conversion.
 - Key mechanism: all reads go through `ConversationStore.query()`.
+- Skim `ConversationStore` source to confirm `query()` actually matches 
+  what DESIGN.md says. If they disagree, stop — that's drift and 
+  calls for `/design-driven audit`, not new work on a stale skeleton.
 
-Also scan `blueprints/` for any `in-progress` files — none.
+**Pending claims** (what's queued or in flight):
+
+- `blueprints/` for `in-progress` files — none (no concurrent work)
+- Recent done blueprints' `## Follow-ups` sections — anything that 
+  sounds like this task or blocks it? None.
+- `design/decisions/` for `proposed` files — none in this area
+
+Nothing blocks the plan. Proceed.
 
 ## Step 2 — Does this change the shape?
 
@@ -48,10 +60,15 @@ In: route, handler, input validation, integration test.
 Out: pagination cursors (future), filtering by sender.
 
 ## Verification
+### Behavior
 - [ ] GET /history/:id returns last N messages, default 50
 - [ ] Returns 404 for missing conversation
 - [ ] Integration test passes against the real store
+
+### Design constraints
 - [ ] Stays within API module — no store internals exposed
+- [ ] ConversationStore.query() still the only read path
+- [ ] No new module introduced (no shape change → no proposal needed)
 
 ## TODO
 - [ ] Add route
@@ -91,16 +108,70 @@ Check off TODOs as you go.
 
 Run the checklist:
 
-- GET /history/:id returns last N messages → ✓
-- 404 on missing conversation → ✓
-- Integration test passes → ✓
-- API didn't reach into store internals → ✓
+- Behavior: all four pass → ✓
+- Design constraints: API stayed thin, store was only read via query(), 
+  no new modules → ✓
 
 Re-read the blueprint. Nothing out of scope crept in. Pagination 
 cursors stayed out — good.
 
-Strip TODO and State sections. Flip Status to `done`. Commit the 
-blueprint together with the code that implements it.
+## Step 6 — Close out
+
+Feed learnings back before tearing down scaffolding:
+
+- **Doc-only drift?** `ConversationStore.query()` gained a `limit` arg 
+  during build. DESIGN.md only says "reads go through query()", which 
+  is still accurate — no update needed. (If DESIGN.md had enumerated 
+  query()'s parameters, we'd update it here.)
+- **Follow-ups?** Yes — pagination cursors, which got scope-shaved. 
+  Add a `## Follow-ups` section to this blueprint:
+  ```
+  ## Follow-ups
+  - paginate-history — cursor-based pagination for /history; 
+    current endpoint returns newest N only, no way to page back
+  ```
+- **Recurring pattern?** "Endpoint → query() with new param" is likely 
+  to repeat. Not yet worth a DESIGN.md edit, but flag for the next 
+  time it happens.
+
+Strip TODO and State sections (keep Follow-ups). Flip Status to `done`. 
+Commit the blueprint together with the code.
+
+---
+
+## Next session — Task B picks up
+
+Days later, a new session arrives with: "add keyword search to /history".
+
+Task B doesn't care what Task A did. It reads **current state**:
+
+- `DESIGN.md` says `ConversationStore.query()` is the single read path 
+  and supports id/time-based retrieval.
+- Reading `query()` in the code: signature takes id, time range, and 
+  a `limit`. DESIGN.md still matches the code — the `limit` is a 
+  dimension within "read by id/time" (it bounds results, doesn't 
+  change the query *kind*). No drift.
+
+Then pending-claims scan:
+
+- `blueprints/in-progress/*` — none
+- Recent done blueprints' Follow-ups — `paginate-history` is the only 
+  hit, and it's about cursor pagination, not keyword search. Not this 
+  task.
+- `design/decisions/` for `proposed` files — none near this area
+
+**Shape question**: adding keyword filter to `query()`. DESIGN.md says 
+`query()` supports id/time retrieval. Keyword search is a different 
+**kind** of query (content-based vs metadata-based), not another bound 
+on the same kind. That's a mechanism extension, not a parameter tweak.
+
+Verdict: shape territory. Write proposal `009-query-text-filter.md` 
+before coding. If adopted, update DESIGN.md's Key Mechanisms to widen 
+`query()`'s description, then plan Task B's blueprint.
+
+**The point**: Task B made this judgment entirely by reading current 
+DESIGN.md and current code — zero dependency on what Task A's 
+blueprint said. That's the invariant worth preserving.
 
 ---
 

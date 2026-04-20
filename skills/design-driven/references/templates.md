@@ -21,18 +21,28 @@ connect" rather than "which functions to call".
 What's in / what's out for this task specifically.
 
 ## Verification                  ← Define done criteria upfront
-- [ ] Criterion 1 (e.g., "all tests pass", "API returns expected shape")
-- [ ] Criterion 2
-- [ ] ...
+### Behavior
+- [ ] Functional check 1 (e.g., "returns expected shape", "tests pass")
+- [ ] Functional check 2
 
-## TODO                          ← Scaffolding — removed after verify
+### Design constraints
+- [ ] Stays within module boundaries as defined in DESIGN.md
+- [ ] Honors relevant Constraints and Non-goals
+- [ ] If shape changed: an adopted proposal exists in design/decisions/
+
+## TODO                          ← Scaffolding — removed at close out
 - [ ] Step 1 description
 - [ ] Step 2 description
 - [ ] ...
 
-## State                         ← Scaffolding — removed after verify
+## State                         ← Scaffolding — removed at close out
 Decisions made during build, current progress, and anything needed to 
 resume if the session is interrupted. Update this as you go.
+
+## Follow-ups                    ← Kept after close out (if any)
+Items that got scope-shaved but remain worth doing. Names and one-line 
+intents, not full blueprints.
+- `<task-name>` — one-line intent
 ```
 
 ## Proposal format

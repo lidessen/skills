@@ -92,6 +92,39 @@ The agent has 70% freedom.
 **Litmus test:** If changing it would change the system's *shape*, it's the 30%. 
 If it changes *behavior within the same shape*, it's the 70%.
 
+The 30% constraint applies across the **entire development cycle**, not 
+just during "architecture tasks". design/ is a constant frame; every 
+phase — coding, testing, reviewing, debugging, refactoring, releasing, 
+deprecating — operates inside it. Design-driven isn't one stage of the 
+workflow; it's the skeleton every stage hangs on.
+
+## Across the development cycle
+
+Every activity inherits the same 30% constraint and the same 70% 
+freedom. design/ doesn't dictate *how* each activity runs — it sets 
+what they all must respect.
+
+- **Planning** — read DESIGN.md first; scope the task against existing 
+  modules and non-goals
+- **Coding** — stay within the owning module's boundaries
+- **Testing** — test at module boundaries and named mechanisms; 
+  internal behavior that isn't in DESIGN.md is 70% territory
+- **Code review** — design-level comments (boundary violation, silent 
+  shape drift, missing proposal) take priority over style nits
+- **Debugging** — locate the bug in its module. If the real fix would 
+  cross a boundary, that's a proposal signal, not a clever patch
+- **Refactoring** — within a module: free. Crossing modules or 
+  changing a mechanism: proposal first
+- **Release / rollback** — shape changes ship together with their 
+  adopted proposal; rollback preserves the skeleton
+- **Deprecation** — removing a module or mechanism is a shape change 
+  → proposal
+- **Onboarding** — new contributors read DESIGN.md before the code
+
+When an activity isn't listed here, the rule is the same: ask whether 
+the action stays within the shape (70% — proceed) or changes it (30% 
+— proposal).
+
 ## The Loop
 
 Every development task follows one path:
@@ -136,12 +169,32 @@ Every development task follows one path:
 connect, altering a key mechanism, introducing a new architectural pattern. 
 Use the 30/70 litmus test above: if you're unsure, it probably doesn't — just code.
 
-## Implementation: Plan → Build → Verify
+## Implementation: Plan → Build → Verify → Close out
 
-**Plan** — Read design/, understand the task, write a blueprint in 
-`blueprints/<task-name>.md`. Define verification criteria upfront — how 
-will you know this task is done? The TODO section is scaffolding: a 
-progress tracker, not a spec. See `references/templates.md` for the format.
+**Plan** — Before drafting, you need two things: **current state** and 
+**pending claims** on the area you're about to touch.
+
+*Current state* lives in:
+- `design/DESIGN.md` — the shape
+- The relevant source code — the implementation
+
+*Pending claims* live in:
+- `blueprints/` — `in-progress` files that may conflict with your work
+- Recent done blueprints' `## Follow-ups` sections — scope-shaved work 
+  that may be exactly what your task is, or what it depends on
+- `design/decisions/` — any proposal currently in `proposed` state 
+  blocks source edits in its area until resolved
+
+Past blueprints are **records, not state**. Don't reconstruct current 
+behavior by reading their Approach or (former) State sections — read 
+DESIGN.md and the code. If those two disagree, that's drift; stop and 
+run `/design-driven audit` rather than layer new work on a stale 
+skeleton.
+
+Then write `blueprints/<task-name>.md` with approach, scope, and 
+verification criteria upfront — how will you know this task is done? 
+The TODO and State sections are scaffolding: progress trackers, not 
+specs. See `references/templates.md` for the format.
 
 Size tasks to fit within a single session. A workable heuristic: a 
 blueprint should fit in ~10 TODO items, and its State section should 
@@ -152,12 +205,43 @@ blueprint alone. If a task blows past either, split it.
 approach. Check off TODO items as you go. If you discover a better approach 
 mid-build, update the blueprint first, then continue. Update the State 
 section with decisions made and current progress, so work can resume if 
-the session is interrupted.
+the session is interrupted. When a build-time decision is borderline 
+(technically 70% but not obvious), log it in State so review can catch it.
 
 **Verify** — Check the implementation against the verification criteria 
-defined in Plan. Then confirm: does it stay within design/ boundaries? 
-Is the scope respected? Once verified, tear down the scaffolding: remove 
-the TODO and State sections, mark status as `done`.
+defined in Plan. Confirm: does it stay within design/ boundaries? Is 
+the scope respected?
+
+A failing test (or an observation during verify) that reveals something 
+DESIGN.md doesn't account for is a **signal about design silence**, not 
+a bug to patch around. Either fix DESIGN.md (doc-only drift), raise a 
+proposal (shape-level), or add to Constraints / Non-goals — don't mute 
+the test.
+
+**Close out** — This step is what keeps DESIGN.md **current state** 
+rather than a historical snapshot. Skipping it rots the skeleton 
+silently; future tasks can no longer trust DESIGN.md, and the whole 
+methodology collapses. Not optional.
+
+Before tearing down scaffolding, reconcile:
+
+- **Doc-only drift** — did this task make any statement in DESIGN.md 
+  less accurate? A boundary widened, a mechanism gained a dimension, 
+  a constraint became visible, a module's "doesn't" list needs an 
+  addition. Update DESIGN.md now, commit separately from code. This 
+  is the mechanism that lets the next task just read DESIGN.md and 
+  trust it — no archaeology required.
+- **Follow-ups** — scope-shaved items worth doing later. Add a 
+  `## Follow-ups` section with names and one-line intents. These are 
+  forward-looking pending claims — the next task in this area picks 
+  them up via its pending-claims scan.
+- **Recurring pattern** — if this task's approach is likely to repeat 
+  (e.g., "every new read endpoint extends query() with a filter arg"), 
+  promote it into DESIGN.md's Key Mechanisms so future tasks inherit 
+  it without re-deriving.
+
+Then strip the TODO and State sections (keep Follow-ups), mark status 
+as `done`, commit the blueprint with the code.
 
 The blueprint sits between design/ and code in granularity:
 
@@ -173,14 +257,15 @@ code         The actual embedder, vector store, query functions, tests
 ```
 
 **Skip the blueprint** for bug fixes, small config changes, or tasks that 
-take less time to do than to plan.
+take less time to do than to plan. Skipping the blueprint does not skip 
+the design constraint — you still work inside DESIGN.md's boundaries, 
+you just don't need a written plan to do it.
 
-**After verify** — done blueprints stay in `blueprints/` as reference. 
-The folder grows over time; that's expected. If it gets unwieldy (dozens 
-of done blueprints), move older ones under `blueprints/archive/` rather 
-than deleting them — prior blueprints are how new agents learn how past 
-work was shaped. A fresh agent resuming a session should check 
-`blueprints/` for any `in-progress` files before starting new work.
+**After verify** — done blueprints stay in `blueprints/` as a historical 
+record. They're not the next task's source of truth (DESIGN.md + code 
+is); they're audit trails and the home for Follow-ups. The folder 
+grows over time; if it gets unwieldy, move older ones under 
+`blueprints/archive/` rather than deleting them.
 
 ## Proposals and Decisions
 
