@@ -271,19 +271,46 @@ grows over time; if it gets unwieldy, move older ones under
 
 When a task requires changing the system's shape:
 
-1. Write a proposal in `design/decisions/NNN-title.md`, where `NNN` is 
-   the next unused three-digit number — scan `design/decisions/`, take 
-   max+1, pad to three digits (start at `001` if empty). See 
-   `references/templates.md` for the format.
-2. Wait for the human to review. Do not edit source code until the 
+1. Draft the proposal in `design/decisions/NNN-title.md`, where `NNN` 
+   is the next unused three-digit number — scan `design/decisions/`, 
+   take max+1, pad to three digits (start at `001` if empty). Fill in 
+   every section **except** Cold review. See `references/templates.md` 
+   for the format.
+2. **Dispatch an adversarial cold reviewer** before the human sees it.
+   Use the Agent tool with the prompt in 
+   `references/cold-review-prompt.md`, passing the DESIGN.md path and 
+   the proposal path. The reviewer reads nothing else — no conversation 
+   history, no drafts. Paste findings into the Cold review section; 
+   address each inline (fix the proposal above, or write a rebuttal). 
+   Don't skip this; see the rationale below.
+3. Wait for the human to review. Do not edit source code until the 
    proposal is marked `adopted` or `rejected`.
-3. If adopted: update DESIGN.md, mark proposal adopted, commit both together.
-4. If rejected: record why in Outcome, mark rejected.
-5. Then implement freely within the (new) boundaries.
+4. If adopted: update DESIGN.md, mark proposal adopted, commit both 
+   together.
+5. If rejected: record why in Outcome, mark rejected.
+6. Then implement freely within the (new) boundaries.
 
 Adopted proposals update DESIGN.md — the proposal file stays as the reasoning 
 record. Rejected proposals stay too — so the next person with the same idea 
 can see why it was already considered.
+
+**Why the proposal template is heavier than other artifacts** 
+(Recommendation + alternatives with strongest cases + pre-mortem + 
+adversarial cold review): skeleton rework is expensive, so shape 
+decisions get more pressure-testing than implementation decisions. 
+A thirty-minute pre-mortem plus a cold review pass is cheap next to 
+an un-un-doable module split. If the template feels heavy for a 
+given proposal, the proposal is probably too small to be a shape 
+change — just code it.
+
+**Why cold review by a subagent, not self-review by the author.** 
+The author who just wrote the proposal is the worst person to find 
+its blindspots: they already convinced themselves it's right. A 
+neutral fresh reviewer is better; an adversarial fresh reviewer — 
+explicitly told to assume there's a flaw and hunt for it, like QA 
+testing a developer's feature — is better still. Self-check after 
+you just wrote it is self-grading your own homework. See 
+`references/cold-review-prompt.md` for the reviewer prompt.
 
 ## Reading an Existing Design
 

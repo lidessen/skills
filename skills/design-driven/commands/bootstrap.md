@@ -117,61 +117,119 @@ you need a refresher on voice and level of detail.
 
 The draft is not done until you've checked it against the code and 
 against itself. This phase is where hallucinated APIs, wrong module 
-names, and inconsistent mental models get caught.
+names, and inconsistent mental models get caught. Skeleton rework is 
+expensive — be willing to spend real effort here.
 
-### 3.1 Fact-check against the code
+Run the draft through five dimensions. Each exists because it catches 
+a different class of mistake.
+
+### 3.1 Completeness — no laundered guesses
 
 For each claim in the draft, confirm it from the source:
 
-- **Module names and paths** — do they match the actual directory and 
-  file names?
-- **Boundaries (does / doesn't)** — does the code actually enforce or 
-  respect the boundary you described, or is it aspirational?
-- **Data flow diagram** — trace the happy path through the real code. 
-  Every arrow should correspond to a real call, import, or message.
-- **Mechanisms** — re-read the core source for each mechanism. Is 
-  your description accurate, or did you pattern-match from the name?
-- **Decisions** — can you point to the code (or a commit/comment) 
-  that shows the rejected alternative was actually considered? If not, 
-  demote it or cut it.
+- **Module names and paths** match the actual directory and file names
+- **Boundaries (does / doesn't)** are actually enforced or respected 
+  by the code, not aspirational
+- **Data flow** — trace the happy path through real code; every arrow 
+  is a real call, import, or message
+- **Mechanisms** — re-read the core source; your description is 
+  accurate, not pattern-matched from the name
+- **Decisions** — you can point to code (or a commit/comment) showing 
+  the rejected alternative was actually considered; otherwise demote 
+  or cut
 
 Mark anything you couldn't verify from the code as "inferred" — don't 
 quietly launder guesses into the skeleton.
 
-### 3.2 Consistency check
+### 3.2 Consistency — the draft doesn't contradict itself
 
-Read the draft end-to-end as if you'd never seen it:
+Read end-to-end as if you'd never seen it:
 
-- Do the modules in the **Architecture** diagram match the ones in the 
-  **Modules** section? (Same names, same count.)
-- Does the **Data Flow** only touch modules defined in **Modules**?
-- Do **Key Mechanisms** reference modules and flows that exist above?
-- Do **Non-goals** contradict anything claimed elsewhere?
+- Modules in the **Architecture** diagram match those in **Modules** 
+  (same names, same count)
+- **Data Flow** only touches modules defined in **Modules**
+- **Key Mechanisms** reference modules and flows that exist above
+- **Non-goals** don't contradict anything claimed elsewhere
 - Across files (DESIGN.md + any DESIGN-<aspect>.md): same terminology, 
-  no overlapping or contradicting descriptions.
+  no overlapping or contradicting descriptions
 
-### 3.3 Principle check
+### 3.3 Clarity — no shape a reader could build the wrong way
 
-- Is every file under 200 lines?
-- Is each module description two lines max?
+- Every file under 200 lines
+- Each module description two lines max
+- No wording that two readers could interpret differently — if a 
+  boundary line says "owns X-adjacent logic", pin down what "X-adjacent" 
+  means or cut it
+- Diagrams readable in 5 seconds; no kitchen-sink arrows
+
+### 3.4 Scope — shape only, no implementation leaking in
+
 - Is this the 30% (shape) or did 70% (implementation detail) leak in? 
   If you see function signatures, error codes, or schema fields, cut 
   them — they belong in code, not design.
+- Is the project actually one system, or several loosely-coupled 
+  ones? If it's several, consider separate DESIGN.mds rather than 
+  forcing one skeleton over unrelated pieces.
 
-## Phase 4 — Wire up, review, commit
+### 3.5 YAGNI — every piece earns its place
 
-### 4.1 Human review
+- Is every module listed because it exists and matters to shape, or 
+  because "an architecture doc should probably mention it"? Cut 
+  decorative entries.
+- Is every mechanism here because it actually defines system behavior, 
+  or because it sounded architectural? A mechanism nobody needs to 
+  know to work on the code isn't a mechanism — it's trivia.
+- Is any DESIGN-<aspect>.md file solving a problem you've actually 
+  run into, or anticipating one? If it's anticipatory, fold back into 
+  DESIGN.md until the complexity justifies the split.
 
-Present the draft. Call out explicitly:
+## Phase 4 — Adversarial review, human review, wire up, commit
+
+### 4.1 Adversarial cold review
+
+Phase 3 was author self-verify — necessary but insufficient. You just 
+wrote this draft; you're the worst-positioned person to see what it 
+missed. Before the human sees it, dispatch an adversarial reviewer 
+in a fresh context.
+
+Use the Agent tool with the prompt in `../references/cold-review-prompt.md`. 
+The reviewer reads DESIGN.md (and any DESIGN-<aspect>.md) only — no 
+conversation history, no Phase 1 notes. The reviewer is instructed 
+to assume there's a flaw and hunt for it, not to confirm the parts 
+that look fine.
+
+Reviewer returns findings on Completeness / Consistency / Clarity / 
+Scope / YAGNI. For each finding:
+
+- **Fix**: edit DESIGN.md, record the finding + fix in the Phase 4 
+  conversation so there's a trail
+- **Defend**: one-sentence rebuttal the human will see during 4.2
+- **Accept as known limitation**: add to Constraints or Non-goals
+
+Silent dismissal isn't allowed. The point is that the findings (and 
+how they were handled) show the human what was pressure-tested before 
+they see the draft.
+
+### 4.2 Human review
+
+Present the draft **section by section**, not all at once — wait for 
+confirmation (or a fix) on each before moving to the next. This 
+catches shape errors early, before later sections layer on top of a 
+wrong module boundary or miscast mechanism.
+
+Order: Architecture → Modules → Data Flow → Key Mechanisms → Key 
+Decisions → Constraints → Non-goals.
+
+For each section, surface explicitly:
 
 - Anything marked "inferred" — the human may know the real answer
 - Boundaries you weren't sure about
 - Mechanisms you may have misunderstood
 - Open questions from Phase 1 that you guessed on
 
-Don't commit until the human has reviewed and approved.
+Don't commit until the human has reviewed and approved all sections.
 
-### 4.2 Wire up agent configs
+### 4.3 Wire up agent configs
 
 Update AI agent configs (CLAUDE.md, .cursorrules, AGENTS.md, etc.) to 
 reference the new `design/` directory. Check `init.md` in this 
@@ -181,7 +239,7 @@ instruction template — reuse that content, don't re-derive it.
 If the user wants hooks (proposal gate, boundary reminder, design-code 
 separation), set them up now per `init.md`'s Hooks section.
 
-### 4.3 Commit
+### 4.4 Commit
 
 Commit `design/`, `blueprints/`, the agent config updates, and any 
 hook configs together as the initial design-driven setup.

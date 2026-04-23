@@ -192,16 +192,56 @@ Date: 2026-04-20
 /history endpoint hits ConversationStore on every call; p99 
 latency degrades above 10k messages per conversation.
 
-## Proposal
+## Recommendation
 Add a HistoryCache module between API and ConversationStore. 
 Read-through cache, invalidated on write. API → HistoryCache 
-→ ConversationStore.
+→ ConversationStore. Keeps ConversationStore's "doesn't do 
+performance heuristics" boundary intact and makes the cache 
+an explicit module with its own tests.
 
-## Rejected alternatives
-- Add caching inside ConversationStore: violates its "doesn't do 
-  performance heuristics" boundary.
-- Cache at the HTTP layer: couples cache to transport; internal 
-  callers would bypass it.
+## Alternatives seriously considered
+- **Do nothing / tune ConversationStore's existing query.** 
+  Strongest case: if the hot path is really one N+1 pattern, an 
+  index or batched read could buy us a year without new modules. 
+  Rejected: profiling shows it's genuinely the read volume, not a 
+  query shape.
+- **Cache inside ConversationStore.** Strongest case: fewer moving 
+  parts, one module owns storage end-to-end. Rejected: violates 
+  its "doesn't do performance heuristics" boundary; next optimization 
+  erodes it further.
+- **Cache at the HTTP layer.** Strongest case: zero-dep, transparent 
+  to internal callers that don't need it. Rejected: couples cache 
+  to transport; internal callers (e.g., summarizer) would bypass it 
+  and re-hit the store.
+
+## Pre-mortem
+A year out, most likely rip-out cause: cache invalidation drifts 
+from reality as we add new write paths (bulk import, retroactive 
+edits) and callers start seeing stale histories. Mitigation has 
+to be "every write path goes through one invalidation point" — 
+if that invariant cracks, the cache goes.
+
+## Cold review
+(Dispatched to a subagent reading only DESIGN.md + this proposal. 
+Findings below; author responses indented.)
+
+- **Completeness** — "invalidated on write" is unspecified: what 
+  counts as a write? Soft deletes? Metadata updates? Batch imports?
+  > Author: pinned down. Any call that mutates ConversationStore 
+  > state routes through an explicit invalidate(key) hook; the set 
+  > of mutating calls is enumerated in ConversationStore's Does list.
+- **Consistency** — none.
+- **Clarity** — "Read-through cache, invalidated on write" could 
+  mean "write-through" to a reader unfamiliar with the pattern.
+  > Author: reworded to "reads check cache then fall through to 
+  > ConversationStore on miss; writes go directly to ConversationStore 
+  > and trigger cache invalidation."
+- **Scope** — reviewer asked whether invalidation policy deserves 
+  its own proposal.
+  > Author: no — invalidation is a property of the cache module, 
+  > decided when the module is introduced. Splitting would create 
+  > an adopted module with undefined semantics.
+- **YAGNI** — none. p99 regression is measured, not speculative.
 ```
 
 Wait for the human. Once adopted:

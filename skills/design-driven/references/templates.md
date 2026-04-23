@@ -47,7 +47,10 @@ intents, not full blueprints.
 
 ## Proposal format
 
-Keep it short. One file, under 50 lines.
+Keep it tight — aim for under 80 lines. If a proposal touches multiple 
+independent modules or mechanisms, split it into separate proposals 
+before drafting. Mega-proposals are where "didn't think it through" 
+hides — each independent shape change deserves its own pressure test.
 
 **Filename:** `design/decisions/NNN-kebab-title.md`, where `NNN` is the 
 next unused three-digit number — scan the directory, take max+1, pad 
@@ -62,12 +65,43 @@ to three digits (start at `001` if empty).
 ## Context
 One paragraph: what situation prompted this proposal.
 
-## Proposal
-What changes to the system's shape. Same level as DESIGN.md — 
-module boundaries, data flow, mechanisms. No implementation details.
+## Recommendation
+The proposed shape change, and one paragraph on why it's the right one. 
+Same level as DESIGN.md — module boundaries, data flow, mechanisms. 
+No implementation details.
 
-## Rejected alternatives
-What else was considered and why it lost.
+## Alternatives seriously considered
+Each alternative: the shape it would take, plus its strongest case — 
+the scenario where it would beat the recommendation. If you can't name 
+a strongest case, you didn't seriously consider it; either think harder 
+or drop it. Include "do nothing / keep current shape" as one alternative.
+
+## Pre-mortem
+A year from now, this proposal has been adopted and is being ripped 
+out. Why? Name the most plausible failure mode — the assumption that 
+turned out wrong, the constraint that tightened, the scaling axis that 
+wasn't accounted for. If nothing comes to mind, the shape hasn't been 
+stressed enough yet — keep thinking.
+
+## Cold review
+Filled in by an **adversarial reviewer in a fresh context** — a 
+subagent dispatched via the Agent tool, or the author in a cleared 
+session. Not by the current author in the current session.
+
+The author must NOT pre-fill this. "Self-check after you just wrote 
+it" is self-grading your own homework — a neutral fresh reviewer is 
+already better, and an adversarial one (instructed to assume the 
+proposal has a flaw and hunt for it) is better still. That's the 
+gate; everything less leaks through.
+
+How to run it: hand `references/cold-review-prompt.md` to a subagent, 
+with paths to DESIGN.md and this proposal. The reviewer returns 
+findings on Completeness / Consistency / Clarity / Scope / YAGNI — 
+each specific enough that "yes, that's fine" isn't a valid dismissal. 
+Paste findings here. Address each inline: fix the proposal above, or 
+write a one-sentence rebuttal. Silent dismissal isn't allowed — a 
+future reader should be able to see what was raised and what the 
+author did about it.
 
 ## Outcome
 (Filled in after decision)
@@ -77,7 +111,8 @@ If rejected: why, in one paragraph.
 
 Use `adopted (retroactive)` only during audit, when the shape change 
 already happened in code without a proposal at the time — the file 
-records the change after the fact.
+records the change after the fact. Retroactive proposals still fill 
+Pre-mortem and Self-review, using what's now known from the code.
 
 ## DESIGN.md structure
 
