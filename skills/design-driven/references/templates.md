@@ -111,8 +111,9 @@ If rejected: why, in one paragraph.
 
 Use `adopted (retroactive)` only during audit, when the shape change 
 already happened in code without a proposal at the time — the file 
-records the change after the fact. Retroactive proposals still fill 
-Pre-mortem and Self-review, using what's now known from the code.
+records the change after the fact. Retroactive proposals still go 
+through Pre-mortem and Cold review, using what's now known from the 
+code; skipping them defeats the point of filing the record at all.
 
 ## DESIGN.md structure
 
