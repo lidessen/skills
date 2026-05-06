@@ -111,7 +111,7 @@ same rate, you don't have a compass; you have a notebook.
 | File | Who writes | When | Human's role |
 |---|---|---|---|
 | `GOAL.md` | agent | Only at bootstrap or explicit GOAL change | Approves each section, line by line |
-| `journal-YYYY-MM.md` | agent | End of each work session | Reviews entry draft in chat before write |
+| `journal-YYYY-MM.md` | agent | End of session, or on STOP / rotation | Reviews entry draft in chat before write |
 | `OPEN-STOPS.md` | agent | When a STOP is created or resolved | Confirms the line in chat |
 | STOP signals | agent surfaces | When trigger condition hit | Decides: change path / change goal / agent misjudged |
 
@@ -227,9 +227,13 @@ for the current month. The first entry of a new month is a brief
 "carry-over" summary: open STOPs, which path is being walked, what last
 month closed with.
 
-This is automatic; no human action needed. The failure mode to avoid:
-agent appending May entries to April's file. Always verify the filename
-matches today's month before appending.
+File creation is automatic, but the carry-over entry itself is a journal
+entry — it goes through the same chat-review protocol as any other entry.
+The agent drafts the carry-over content in chat, gets confirmation, then
+appends. The failure mode to avoid: agent appending May entries to
+April's file, or silently writing a carry-over without surfacing it.
+Always verify the filename matches today's month before appending, and
+always echo the carry-over draft before writing.
 
 ### OPEN-STOPS.md
 

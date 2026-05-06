@@ -43,8 +43,9 @@ When working on this initiative, follow the goal-driven protocol:
 
 - At session start, read `goals/GOAL.md` and `goals/OPEN-STOPS.md`. List
   open STOPs to the human before starting new work. Verify the current
-  month's journal file exists; create `goals/journal-YYYY-MM.md` if the
-  month rolled over.
+  month's journal file exists; if the month rolled over, create
+  `goals/journal-YYYY-MM.md` and propose a carry-over entry (open STOPs,
+  current path, last-month close) in chat before appending.
 - At session end, draft a journal entry in chat (what done, observations,
   per-criterion check with evidence, judgment) and get confirmation before
   appending.
