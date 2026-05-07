@@ -169,16 +169,32 @@ a concrete observation from the session. `C1 ✓` without evidence is
 forbidden — it must be `C1 ✓ (ran 30 queries, recall 76%)` or
 `C1 unclear (no test this session)`. Bare verdicts hide drift.
 
+**Verdicts include time.** Some criteria are met or not at the moment
+they're checked (latency under 500ms either is or isn't true today).
+Others accumulate toward a deadline ("200 paid subscribers by Sep 30"),
+and in the run-up they're neither met nor failed — they're on a
+trajectory. Judge them by trajectory: one plainly on pace is
+`✓ (on pace: <evidence>)`; one whose trajectory has visibly diverged is
+`✗ (off pace: <observation> projects <gap>)`. The evidence rule still
+applies — "on pace" needs an observation, not optimism. This is the same
+verdict vocabulary, used with awareness that what counts as "served"
+depends on when the criterion is supposed to land.
+
 ### Moment 3 — STOP signals
 
 Two types of STOP, each with a different escalation path. Both halt work
 until the human decides.
 
 **Type A — Criterion not served.**
-A criterion is failing or has been violated. The path is wrong, or this
-particular criterion is wrong.
-- Example: "C2: P95 < 500ms" but production shows 720ms after three
-  attempts at different storage layers.
+A criterion is failing now, or evidence makes its future failure visible
+in time to act. The point of STOP is to surface infeasibility while
+there's still room to redirect — waiting for a deadline to confirm what
+trajectory already shows wastes that room.
+- Example (current violation): "C2: P95 < 500ms" but production shows
+  720ms after three attempts at different storage layers.
+- Example (predictable violation): "C1: ≥ 200 paid subs by Sep 30" with
+  22 at end of month one — linear extrapolation lands near 66, not 200.
+  The criterion isn't violated yet, but the path is.
 - Agent surfaces in chat, proposes three options:
   - (a) Change path (try Y instead of X)
   - (b) Change criterion (require human-approved GOAL edit)
@@ -301,17 +317,25 @@ When design-driven isn't installed, none of this applies. Goal-driven
 still works alone — shape decisions just live as journal observations,
 without a separate proposal flow.
 
-## Lightweight mode
+## Structure follows need
 
-For solo personal scenarios with one stream and ≤ 1 expected STOP, you can:
+The scaffolding around GOAL.md — OPEN-STOPS.md, monthly journal rotation,
+audits — earns its cost when it's load-bearing. A short, single-stream
+initiative with no STOPs in sight doesn't need an OPEN-STOPS index; the
+one STOP, if it ever appears, lives visibly in the journal. A six-week
+project doesn't need monthly rotation; a single `journal.md` carries it
+until it doesn't.
 
-- Skip OPEN-STOPS.md (track the rare STOP inline in the journal)
-- Use a single `journal.md` if the project is < 2 months total
-- Keep GOAL.md regardless — that's the irreducible core
+Add structure when the absence starts to hurt: create OPEN-STOPS.md when
+a second open STOP exists and you can no longer hold both in mind; rotate
+to monthly files when one journal becomes too long to scan. The directory
+layout shown above is the mature shape, not the starting shape — start
+small and grow into it.
 
-The skill scales down by dropping the maintenance scaffolding, never by
-dropping the compass. If you find yourself dropping GOAL.md, you don't
-need this skill — use a notebook.
+GOAL.md is the exception. It's the compass, not scaffolding. Even a
+two-week initiative benefits from articulating it. If GOAL.md feels like
+overhead for what you're doing, this skill isn't what you need; use a
+notebook.
 
 ## Example walkthrough
 

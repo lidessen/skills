@@ -32,18 +32,22 @@ If sync is broken, the protocol has been violated somewhere. The audit
 fixes it but should also note when the violation happened (which entry,
 which session).
 
-### 1.2 Stale criteria scan
+### 1.2 Criteria observability scan
 
-For each active criterion in GOAL.md, count how many of the last 20
-journal entries reference it (✓, ✗, or unclear with evidence about it).
+A criterion is "stale" when it should be observable but isn't — not just
+when a counter says "no references in N entries." Some criteria can't be
+measured early (no churn before customers; no recall before evaluation
+runs). Their early silence is correct, not stale.
 
-- 0 references in 20 entries → candidate for retirement. The criterion
-  isn't being measured; either nobody cares anymore or there's no
-  instrumentation.
-- All `unclear` references → candidate for instrumentation. The
-  criterion matters but no observation ever lands on it.
-- Mostly ✓ with no ✗ ever → not necessarily wrong, but worth checking:
-  is the bar set too low?
+For each active criterion, ask: should this be observable by now? If yes
+and recent entries are silent or all-`unclear`, surface it — either it's
+quietly going un-instrumented, or it stopped mattering. If no, leave it;
+note when it's expected to start being measured. A criterion that's been
+✓ many times without an ✗ in its history is worth a sanity check on bar
+height.
+
+Surface candidates; don't classify. The human knows whether a silent
+criterion is unmeasured-yet-mattering or genuinely on its way to retired.
 
 ### 1.3 Naked verdicts
 
