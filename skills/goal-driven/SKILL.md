@@ -317,6 +317,14 @@ Four interaction points to watch when both are present:
    use different command names — `review` vs `audit` — for the same
    periodic-inspection role.)
 
+A third sibling skill — evidence-driven — overlays build-time discipline
+on top of design-driven (TDD cycle, falsifiable verification, evidence-
+trail State). Goal-driven doesn't read or write to evidence-driven's
+domain directly, but the rigor it provides at the execution layer makes
+the upward feedback loop trustworthy: STOP signals citing build
+observations are only credible if those observations have evidence
+behind them.
+
 ## Structure follows need
 
 The scaffolding around GOAL.md — OPEN-STOPS.md, monthly record rotation,

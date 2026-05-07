@@ -224,6 +224,12 @@ with evidence captured, a comparison against a known-good state. The
 form depends on the task; the *falsifiability* doesn't. "Looks right to 
 me" isn't verification.
 
+For projects where build-time discipline materially affects outcome 
+quality, the evidence-driven skill is a sibling overlay that deepens 
+this falsifiability rule (TDD cycle, anti-cargo-cult guards, evidence-
+trail State). Design-driven works alone without it; evidence-driven 
+adds rigor on top when the work calls for it.
+
 A failing test (or an observation during verify) that reveals something 
 DESIGN.md doesn't account for is a **signal about design silence**, not 
 a bug to patch around. Either fix DESIGN.md (doc-only drift), raise a 
