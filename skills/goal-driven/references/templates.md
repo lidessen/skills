@@ -172,7 +172,7 @@ current month's journal alone.
 
 When a STOP resolution involves changing GOAL.md, the agent:
 
-1. Updates GOAL.md (with line-by-line human confirmation as in bootstrap).
+1. Updates GOAL.md (with line-by-line human confirmation, same as `set`).
 2. Adds a line to GOAL.md's Revisions section:
    `YYYY-MM-DD: <change> (resolves STOP from <date>)`
 3. Appends to the original STOP entry: `→ resolved YYYY-MM-DD: GOAL

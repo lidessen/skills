@@ -1,12 +1,9 @@
-# goal-driven:bootstrap — Interview-driven GOAL.md
+# goal-driven:set — Interview-driven GOAL.md
 
-Create the initial `goals/GOAL.md` by interviewing the human. Use when
-adopting goal-driven on a project that doesn't have one yet — or when
+Create the initial `goals/GOAL.md` by interviewing the human, and set up
+the minimal scaffolding around it. Run once per initiative — when
+adopting goal-driven on a project that doesn't have one yet, or when
 re-setting after a major change in direction.
-
-Bootstrap handles plumbing idempotently — fine to run without having run
-`/goal-driven init` first. If directories or stub files are missing, set
-them up in Phase 4.
 
 The interview is the whole point. Do **not** draft GOAL.md alone in your
 head, ask "approve?", and write the file. Section by section, asking,
@@ -23,7 +20,7 @@ If `goals/GOAL.md` already has non-stub content, stop and ask the human:
 
 - "There's already content in `goals/GOAL.md` — do you want to redo from
   scratch (I'll archive the current one), or did you mean
-  `/goal-driven audit` to refresh it?"
+  `/goal-driven review` to step back and re-assess?"
 
 If they confirm redo: move existing `goals/GOAL.md` to
 `goals/GOAL.archived-YYYY-MM-DD.md` before continuing.
@@ -50,7 +47,7 @@ human nodded at is not the same as a wording they confirmed.
 
 Extract one or two sentences describing the world-state at success, not
 the activity that produces it. The exact phrasing matters: every future
-criterion check, every STOP, every audit reads back to this sentence.
+criterion check, every STOP, every review reads back to this sentence.
 
 Failure modes to push back on:
 - **Activity description** ("build a semantic search system") — that's a
@@ -144,12 +141,46 @@ load-bearing. See SKILL.md "Structure follows need."
 
 ### 4.2 Update agent configs
 
-Append goal-driven instructions to agent config files (CLAUDE.md,
-.cursorrules, AGENTS.md, etc.) — see `init.md` Step 2 for the snippet and
-the list of common config locations. Reuse that content; don't re-derive.
+Append goal-driven instructions to every AI agent config the project
+uses. Common locations:
 
-If the human ran `/goal-driven init` previously, configs are already
-updated — verify and skip.
+- `CLAUDE.md` — Claude Code
+- `.cursorrules` — Cursor
+- `AGENTS.md` or `codex.md` — Codex / OpenAI agents
+- `.github/copilot-instructions.md` — GitHub Copilot
+- `.windsurfrules` — Windsurf
+- Any other agent instruction file the project uses
+
+Minimal paste-ready snippet (trim or expand to match the project's tone):
+
+```markdown
+## Goal-driven planning
+
+When working on this initiative, follow the goal-driven protocol:
+
+- At session start, read `goals/GOAL.md` and surface any open STOPs
+  (from `OPEN-STOPS.md` if it exists, otherwise by scanning recent
+  journal entries). If the project uses monthly journals, ensure the
+  current month's file exists; on rollover, propose a carry-over entry
+  in chat before appending.
+- At session end, draft a journal entry in chat (what done, observations,
+  per-criterion check with evidence, judgment) and get confirmation
+  before appending.
+- If a criterion verdict is `✗`, or new evidence questions the north
+  star, surface a STOP in chat and wait for the human's decision. Never
+  silently rewrite the path past a STOP.
+- Never edit `GOAL.md` without an explicit, confirmed change request
+  from the human, echoed back line by line.
+```
+
+Check which config files already exist; don't create files for tools the
+project doesn't use.
+
+A SessionStart hook can enforce the protocol mechanically — emit a
+reminder to read GOAL.md and surface open STOPs at every session start.
+This is opt-in and rarely necessary; the skill description usually
+carries enough weight on its own. If the human asks for it, the harness
+or hookify skill can generate the config.
 
 ### 4.3 First journal entry
 
@@ -157,7 +188,7 @@ Add a "kickoff" entry to the journal. Format:
 
 ```markdown
 ## YYYY-MM-DD — Kickoff
-- What I did: bootstrapped GOAL.md via interview.
+- What I did: established GOAL.md via interview.
 - Observations: north star confirmed; <N> success criteria; <M> invariants.
 - Criteria check: all unclear — no work done yet.
 - Judgment: no change. Next session begins real work.
@@ -168,7 +199,7 @@ This anchors the journal so the next session has something to read.
 ### 4.4 Commit
 
 Commit `goals/`, agent config updates, and any hook configs together as
-the goal-driven setup. One commit, clear message: "goal-driven: bootstrap
+the goal-driven setup. One commit, clear message: "goal-driven: set
 GOAL.md and journal scaffolding".
 
 ### 4.5 Tell the human what's next

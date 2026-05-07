@@ -8,27 +8,28 @@ description: |
   both files; the human approves edits via chat.
 
   Use this skill for multi-week initiatives where upfront design is the
-  wrong tool: research, exploratory features, personal quarterly planning,
-  learning projects, writing a book or article series, job search. Trigger
-  on phrases like "set a goal", "track my progress on X", "manage my
-  quarterly work", "this is exploratory", "I know the goal but not the
-  path", "plan my Q2", or when starting a months-long initiative without a
-  clear technical shape.
+  wrong tool: research, exploratory features, learning projects with a
+  shippable output, writing a book or article series, job search,
+  side-business launches. Trigger on phrases like "set a goal", "track
+  my progress on X", "this is exploratory", "I know the goal but not
+  the path", or when starting a months-long initiative without a clear
+  technical shape.
 
-  Do NOT trigger for single-task work, bug fixes, week-long features with
-  a clear plan, or anything where a TODO list suffices — this skill is
-  overkill for those, and the protocol's overhead outweighs its value.
+  Do NOT trigger for single-task work, bug fixes, week-long features
+  with a clear plan, vague aspirations ("be healthier", "write more"),
+  habit tracking, or general life management — this skill is overkill
+  for those. A TODO list, notebook, or habit tracker serves better.
 
   Pairs with design-driven. Goal-driven manages why and how-far;
   design-driven manages what-shape. Use both when a project is uncertain on
   direction AND structure. Each works alone — they cross-reference but do
   not depend on each other.
 
-  Supports arguments: `/goal-driven init` to create empty goals/
-  scaffolding, `/goal-driven bootstrap` to interview-drive an initial
-  GOAL.md, `/goal-driven audit` to run periodic maintenance on the journal
-  and STOPs.
-argument-hint: "[init | bootstrap | audit]"
+  Supports arguments: `/goal-driven set` to interview-drive an initial
+  GOAL.md and scaffolding, `/goal-driven review` for strategic
+  checkpoint plus protocol maintenance, `/goal-driven close` to wrap
+  up a finished initiative with a retrospective and archive.
+argument-hint: "[set | review | close]"
 ---
 
 # Goal-Driven
@@ -44,23 +45,24 @@ or future-you — pick up a months-long initiative without losing direction.
 
 When invoked with an argument, dispatch to the corresponding file:
 
-- `/goal-driven init` → Read and follow `commands/init.md`.
-  One-time scaffolding: create `goals/` directory, empty stub files,
-  optional hook. Does not write GOAL.md content.
-- `/goal-driven bootstrap` → Read and follow `commands/bootstrap.md`.
-  Interview the human and produce the initial GOAL.md. Idempotently handles
-  scaffolding if `init` wasn't run first.
-- `/goal-driven audit` → Read and follow `commands/audit.md`.
-  Periodic maintenance: check OPEN-STOPS sync, scan stale criteria, find
-  "naked ✓" entries without evidence, propose month rotation if missed.
+- `/goal-driven set` → Read and follow `commands/set.md`.
+  Interview the human and produce the initial GOAL.md, plus minimal
+  scaffolding. Run once per initiative.
+- `/goal-driven review` → Read and follow `commands/review.md`.
+  Strategic checkpoint plus protocol maintenance: re-assess where the
+  project stands against GOAL, surface drift, propose corrections.
+- `/goal-driven close` → Read and follow `commands/close.md`.
+  Wrap up a finished initiative: draft retrospective, mark GOAL closed,
+  archive `goals/`.
 - No argument → continue with the methodology below (the normal loop).
 
 **Which command when:**
 
-- New initiative, no `goals/` yet → `bootstrap` (does init plumbing too)
-- Want plumbing without committing to content yet → `init`
-- ≥ 2 weeks since last audit, or journal feels overgrown → `audit`
-- Mid-task, just logging progress → no argument (normal loop)
+- New initiative → `set`
+- ≥ 2 weeks since last review, journal feels overgrown, midpoint of an
+  explicit timeline, or you sense you've drifted → `review`
+- Initiative is done, abandoned, or superseded → `close`
+- Mid-work, just logging progress → no argument (normal loop)
 
 ## When to use this skill (and when not)
 
@@ -76,6 +78,18 @@ When invoked with an argument, dispatch to the corresponding file:
   design-driven blueprints
 - Goals you can't articulate at all → spend an hour writing first; come
   back
+
+**For personal use specifically.** This skill works for personal
+initiatives that look like projects, not for general life management.
+The threshold is four conditions held together: multi-week+ horizon;
+articulable falsifiable criteria (or paired proxies); willingness to
+engage with the agent ≥ weekly; the cost of failure warrants the
+friction. Below that — vague aspirations ("be healthier", "write
+more"), weekly habits, generic quarterly planning — a notebook or habit
+tracker serves better. Concrete fits: book / article series, learning
+projects with a shippable output, job search, side-business launch,
+training plans with concrete metrics. Concrete misfits: anything where
+"how would I know I'm done?" can't be answered without hand-waving.
 
 ## Directory structure
 
@@ -114,7 +128,7 @@ same rate, you don't have a compass; you have a notebook.
 
 | File | Who writes | When | Human's role |
 |---|---|---|---|
-| `GOAL.md` | agent | Only at bootstrap or explicit GOAL change | Approves each section, line by line |
+| `GOAL.md` | agent | Only at initial set or explicit GOAL change | Approves each section, line by line |
 | `journal-YYYY-MM.md` | agent | End of session, or on STOP / rotation | Reviews entry draft in chat before write |
 | `OPEN-STOPS.md` | agent | When a STOP is created or resolved | Confirms the line in chat |
 | STOP signals | agent surfaces | When trigger condition hit | Decides: change path / change goal / agent misjudged |
@@ -137,7 +151,7 @@ why it matters to the criteria), and when evidence threatens the goal
 (rationalizing past inconvenient signals to keep moving). The protocol
 intervenes at exactly those moments. Outside them, normal work.
 
-### Moment 1 — Bootstrap (creating GOAL.md)
+### Moment 1 — Setting the goal (creating GOAL.md)
 
 The agent interviews the human via chat. It does **not** draft GOAL.md
 alone and present it for review. It asks, in order:
@@ -152,7 +166,7 @@ alone and present it for review. It asks, in order:
 
 The agent **echoes each section back as it's drafted**, gets confirmation,
 moves on. GOAL.md is written only after all sections are confirmed. See
-`commands/bootstrap.md` for the full interview script.
+`commands/set.md` for the full interview script.
 
 ### Moment 2 — End of every work session
 
@@ -250,8 +264,9 @@ defenses, in order of strength:
 2. **If no observation touches a criterion this session, the verdict is
    `unclear`, not ✓.** Default to unclear. ✓ is earned, not assumed.
 3. **`unclear` accumulating across many sessions is itself a signal** —
-   that criterion isn't being measured. The audit command catches this and
-   nominates such criteria for retirement or for explicit instrumentation.
+   that criterion isn't being measured. The review command catches this
+   and nominates such criteria for retirement or for explicit
+   instrumentation.
 
 This rule is the single biggest reason this skill might survive contact
 with reality. Without it, the criteria check decays into checkbox theater
@@ -264,12 +279,14 @@ STOPs across files get forgotten, GOAL.md drifts inconsistent after
 edits. The protocol handles each — month-bounded journal files cap
 volume once the project is long enough to warrant them, OPEN-STOPS.md
 indexes unresolved STOPs across files when more than one is in flight,
-and `/goal-driven audit` periodically reconciles all three. See
-`commands/audit.md` for what audit checks; `references/templates.md` for
-journal, STOP, OPEN-STOPS, and carry-over formats.
+and `/goal-driven review` periodically reconciles all three plus
+re-assesses strategy. See `commands/review.md` for what review covers;
+`references/templates.md` for journal, STOP, OPEN-STOPS, and carry-over
+formats.
 
-Audit when ≥ 2 weeks pass since the last one, ≥ 30 new entries
-accumulate, a fresh agent picks up the project, or things just feel off.
+Review when ≥ 2 weeks pass since the last one, ≥ 30 new entries
+accumulate, the project hits the midpoint of its explicit timeline, a
+fresh agent picks up the project, or things just feel off.
 
 ## Standalone vs paired with design-driven
 
@@ -294,14 +311,16 @@ Four interaction points to watch when both are present:
    criteria.
 3. **STOP resolution requires shape change** → resolve the goal STOP
    first, then open a design decision.
-4. **Audits cross-check** — goal audit notes design decisions not
-   reflected in the journal; design audit notes GOAL invariants
-   potentially at risk.
+4. **Cross-checks during periodic inspection** — goal-driven's review
+   surfaces design decisions not reflected in the journal; design-driven's
+   audit surfaces GOAL invariants potentially at risk. (The two skills
+   use different command names — `review` vs `audit` — for the same
+   periodic-inspection role.)
 
 ## Structure follows need
 
 The scaffolding around GOAL.md — OPEN-STOPS.md, monthly journal rotation,
-audits — earns its cost when it's load-bearing. A short, single-stream
+periodic reviews — earns its cost when it's load-bearing. A short, single-stream
 initiative with no STOPs in sight doesn't need an OPEN-STOPS index; the
 one STOP, if it ever appears, lives visibly in the journal. A six-week
 project doesn't need monthly rotation; a single `journal.md` carries it
@@ -320,5 +339,5 @@ notebook.
 
 ## Example walkthrough
 
-For a concrete end-to-end example — bootstrap, several journal entries,
+For a concrete end-to-end example — set, several journal entries,
 two STOP scenarios, resolution — see `references/example.md`.

@@ -1,11 +1,11 @@
 # Example walkthrough
 
 A concrete end-to-end run of goal-driven on one initiative, showing
-bootstrap, several journal entries, both STOP types, and resolution.
+`set`, several journal entries, both STOP types, and resolution.
 
 The initiative: **adding semantic search to a chat application's history.**
 
-## Bootstrap (interview, not draft)
+## Set (interview, not draft)
 
 **Agent:** "In one or two sentences, what should be true when this is
 done?"
@@ -81,7 +81,7 @@ kickoff entry to `journal-2026-04.md`.)
 
 ```markdown
 ## 2026-04-08 — Kickoff
-- What I did: bootstrapped GOAL.md via interview.
+- What I did: established GOAL.md via interview (ran /goal-driven set).
 - Observations: 3 criteria (C1 recall ≥ 70%, C2 P95 < 500ms, C3 no new
   infra), 2 invariants, 2 non-goals.
 - Criteria check: all unclear — no work yet.
