@@ -27,7 +27,7 @@ description: |
   driven is an always-on overlay, not a phase-bounded skill; reviewing
   evidence quality is a natural sub-pass of design-driven's audit when
   both are installed.
-argument-hint: "[init]"
+argument-hint: "[init | <task description>]"
 ---
 
 # Evidence-Driven
@@ -61,21 +61,28 @@ and the whole feedback loop breaks down.
 
 ## Commands
 
-When invoked with an argument, dispatch to the corresponding file:
+Two entry points: one for project setup (one-time), one for applying
+the discipline to an actual task (per task).
 
 - `/evidence-driven init` → Read and follow `commands/init.md`.
-  One-time scaffolding: agent config snippet, optional pre-commit hooks,
-  optional CI integration notes. No artifacts of its own.
-- No argument → continue with the methodology below.
+  One-time scaffolding: agent config snippet, optional pre-commit
+  hooks, optional CI integration notes. No artifacts of its own.
+- `/evidence-driven [task description]` → Apply the discipline to the
+  named task (or ask for it, if no description given). Walks the
+  workflow described in **When invoked on a task** below.
 
-**Why no audit command.** Unlike goal-driven and design-driven,
-evidence-driven has no phase boundaries — it's an always-on overlay
-applied during every Build and Verify. There's no event that warrants
-a periodic "evidence-driven audit" the way design-driven warrants a
-periodic check against the codebase. When evidence quality drift needs
-inspection, it surfaces naturally during design-driven's audit (which
-walks the same blueprints) or by user request ("review my recent
-evidence quality"); no dedicated command is needed.
+**Why these two and nothing else.** Unlike goal-driven and design-driven,
+evidence-driven has no phase boundaries — it's a discipline applied
+during work, not a periodic phase. Sub-actions like "plan", "verify",
+"write a test", "check rigor" are all moments inside the bare-invocation
+workflow, not separate commands. Users shouldn't have to choose which
+verb fits where; one entry point per task is the natural shape.
+
+There is also no audit command. Evidence-quality drift surfaces during
+design-driven's audit when both skills are installed (it walks the
+same blueprints), or by ad-hoc user request. A dedicated periodic
+audit would manufacture phase boundaries the discipline doesn't
+have.
 
 ## When to use this skill
 
@@ -204,6 +211,104 @@ the specific failure, the test isn't doing the work.
 Same principle for non-test evidence: every checklist item, every
 manual capture, every trace should be tied to a specific risk it
 addresses. Generic "ran it and it worked" entries don't qualify.
+
+## When invoked on a task
+
+`/evidence-driven [task description]` triggers a structured workflow.
+If no task description is given, ask the user what task to apply
+rigor to. Then walk Plan → Build → Verify, with TDD discipline and
+evidence-trail State.
+
+### Plan
+
+In chat, produce four things:
+
+1. **Risks** — what could fail in this code? Skim DESIGN.md if
+   present for module-level constraints; consult any blueprint Scope
+   for boundaries. Each risk is a concrete failure mode, not a
+   category.
+2. **Tests / checks** — for each risk, the specific test (or trace,
+   or manual check) that catches it. Name the test and what failure
+   it surfaces. Reuse blueprint Verification items if present.
+3. **TDD sequence** — the order: which test to write first, which
+   implementation step it drives, which test next. The sequence is
+   the working contract for Build.
+4. **Evidence checklist for done** — what observations confirm each
+   Verify check. This is the rubric for the Verify step.
+
+Confirm with the user before moving to Build. The plan is the
+working contract; if the user disagrees with the framing, this is
+where to surface it cheaply.
+
+### Build
+
+Walk the TDD sequence from Plan, one step at a time:
+
+1. Write the next test from the sequence
+2. Run it; confirm it fails *for the right reason* (not a syntax
+   error in the test itself)
+3. Write the minimal code to make it pass
+4. Run again; confirm pass
+5. Update State (in blueprint if present, in chat otherwise) with
+   what changed at what file:line, and which test now passes
+6. Repeat for the next step
+
+If a step reveals a flaw in the Plan (a missing risk, a wrong test
+sequencing), pause and update Plan before continuing. Don't silently
+deviate.
+
+### Verify
+
+Walk the evidence checklist from Plan. Each item gets a concrete
+observation captured — test output, trace excerpt, manual run
+result. Naked check-offs are forbidden; if no observation supports
+an item, it's `unclear`, not `✓`.
+
+If a Verify item fails: the work isn't done. Either fix the
+implementation or surface a blocker. Don't claim done with an
+outstanding `✗`.
+
+### Consuming context from design-driven
+
+When design-driven is installed and the task has a blueprint:
+- Skim DESIGN.md for the touched module's boundaries and constraints
+- Read the blueprint in full — Approach, Scope, Verification, TODO,
+  State are the working surface
+- Skim relevant `design/decisions/` if the task area has past
+  decisions
+
+Plan output **augments the blueprint's Verification section in place**
+— each existing check gets sub-bullets specifying test name, what
+failure each test catches, and the risk it covers. Example:
+
+```markdown
+## Verification
+### Behavior
+- [ ] Returns paginated results (limit and offset honored)
+  - Test: `test_pagination.py::test_limit_honored` — fails if limit
+    silently ignored. Catches "limit param dropped at handler".
+  - Test: `test_pagination.py::test_offset_honored` — fails if all
+    pages return same first item.
+- [ ] Returns empty array on out-of-range page
+  - Test: `test_pagination.py::test_out_of_range` — fails if returns
+    500 instead of empty array.
+```
+
+Don't change Approach, Scope, Design constraints, or TODO main items
+— those are design-driven's territory. Build phase TODOs may gain
+TDD sub-steps inline ("write test first / then implement") without
+restructuring the TODO list.
+
+When no blueprint exists: Plan output stays in chat as the working
+contract for the task. If the work would benefit from a written
+blueprint (multi-session, complex), suggest invoking design-driven
+to bootstrap one before continuing.
+
+When design-driven isn't installed at all: Plan output goes wherever
+the project's task structure lives (Linear comment, GitHub issue
+description, scratch markdown). The discipline doesn't require any
+specific artifact format — it requires a falsifiable contract
+somewhere.
 
 ## With design-driven
 
