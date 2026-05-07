@@ -53,6 +53,36 @@ When invoked with an argument, dispatch to the corresponding file:
 - `design/` exists, starting a task → no argument (normal loop)
 - `design/` exists and feels stale, or code has drifted → `audit`
 
+## When to use this skill
+
+design-driven is the right tool when the system has identifiable shape
+worth committing to — modules, mechanisms, boundaries that won't be
+rewritten next week. Most ongoing engineering work fits.
+
+**When another phase is the better starting point:**
+
+- **The destination is unclear, not just the path.** No falsifiable
+  success criteria, no deadline, no measurable target → start at the
+  strategy layer with `/goal-driven set`. design-driven becomes the
+  right tool once shape is the question, not direction.
+- **The shape is volatile** — you'd rewrite DESIGN.md weekly. The
+  project is still in exploration; goal-driven covers this phase.
+  Bring in design-driven when shape stabilizes.
+- **The work is one-off** — bug fix, script, throwaway prototype.
+  No framework needed.
+
+**Signals during design-driven work that warrant another skill:**
+
+- A criterion in goal-driven keeps failing despite shape being right
+  → may be a goal-level question (criterion wrong, north star
+  questioned), not a design issue. Surface as a goal STOP.
+- "Verified" bugs still ship → build-time discipline gap; layer
+  evidence-driven over the Build/Verify phase via
+  `/evidence-driven init`.
+- Same class of bugs recurs because shape is wrong (not the code
+  implementing it) → write a `design/decisions/NNN-*.md` proposal,
+  don't keep patching.
+
 ## Directory Structure
 
 ```

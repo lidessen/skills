@@ -11,6 +11,17 @@ A collection of [agent skills](https://agentskills.io) — reusable methodology 
 | [goal-driven](skills/goal-driven/SKILL.md) | `/goal-driven` | Goal-driven methodology for strategy-layer initiatives where the destination is clearer than the path. `GOAL.md` is the stable compass (north star + falsifiable criteria); the record captures what was tried and whether each criterion is still served. Pairs with design-driven. |
 | [harness](skills/harness/SKILL.md) | `/harness` | Agent harness architecture — structure a project's agent context across layers (L1 architecture → L2 design → L3 implementation) for effective AI-assisted development. |
 
+## Which skill, when?
+
+| If you're... | Use |
+|---|---|
+| Starting an initiative where the destination is clearer than the path | `/goal-driven` |
+| Working in a system whose shape needs documenting / maintaining | `/design-driven` |
+| Building production code where build-time discipline matters | `/evidence-driven` |
+| Setting up agent context architecture for a project | `/harness` |
+
+The first three compose where phases overlap (goal sets *why*, design sets *what shape*, evidence demands *prove it works*). Each works alone; see each SKILL.md for explicit handoff signals between them.
+
 ## Installation
 
 ```bash

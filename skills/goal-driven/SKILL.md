@@ -301,6 +301,13 @@ Each manages its own files; cross-references go by ID, not content (a
 record entry says "adopted decision 003"; a decision says "blocks goal
 STOP 2026-05-02 if rejected").
 
+**When to bring in design-driven from a goal-only project.** The signal
+is: you can describe the system's shape in 2–3 sentences and an outside
+engineer would build the same mental model. At that point, run
+`/design-driven bootstrap` to extract the implicit shape into DESIGN.md.
+Goal-driven keeps running alongside; design-driven takes over the "how"
+question. Until that signal, defer — premature DESIGN.md gets rewritten.
+
 Four interaction points to watch when both are present:
 
 1. **Goal pivot crosses design boundaries** → also open a

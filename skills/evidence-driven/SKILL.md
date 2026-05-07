@@ -233,6 +233,12 @@ discipline you bring to whatever task structure exists (Linear ticket,
 GitHub issue, a markdown checklist). The principles don't depend on
 blueprint format.
 
+**Handoff back to design-driven.** An evidence finding that a class of
+bugs recurs because the shape is wrong (not the code implementing it)
+is a design proposal trigger — write a `design/decisions/NNN-*.md`,
+don't keep rewriting the same tests. evidence-driven catches symptoms;
+design-driven addresses root.
+
 ## With goal-driven
 
 Indirect — through design-driven. Evidence-driven doesn't read
@@ -249,6 +255,13 @@ trace").
 
 So while there's no direct cross-reference, evidence-driven raises the
 signal-to-noise ratio of the cross-skill feedback channels.
+
+**Handoff back to goal-driven.** An evidence finding that a criterion
+fails its spirit even when the literal threshold is met — latency
+hits the target number but tail-latency is bad UX, coverage hits 90%
+but production bugs keep shipping — is a goal-level question, not an
+evidence-quality one. Surface as a Type A STOP candidate; the
+criterion may need restating.
 
 ## When to skip
 
