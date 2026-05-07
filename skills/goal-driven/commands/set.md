@@ -205,7 +205,7 @@ candidates:
 - A criterion whose number / threshold deserves explaining
 - A non-goal that's tempting to revisit later (story explains why we
   said no the first time)
-- A General Line phrasing that took multiple iterations to land on
+- A phrasing of the General Line that took multiple iterations to land on
 - An invariant whose cost we explicitly accepted
 
 Propose **at most one** — the highest-value candidate. The human
