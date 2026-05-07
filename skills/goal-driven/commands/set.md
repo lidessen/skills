@@ -97,20 +97,61 @@ doesn't drop").
 
 Past 4 invariants, some are probably criteria or non-goals in disguise.
 
-### 2.4 Non-goals — what's tempting but isn't success
+### 2.4 Non-goals — the forbidden zones
 
-Extract the things the human will be tempted to call success later but
-explicitly aren't. Common patterns:
+Non-goals draw a perimeter: types of work that, even when tempting, this
+initiative will not pursue. They are **scope boundaries, not inverted
+goals.** The job of a non-goal is to pre-empt scope creep — when someone
+later argues "but it would be *great* if we also did X", the non-goal is
+the answer that has already been thought through.
 
-- Possible "phase 2" features — name as non-goals, not delayed goals
-- Adjacent improvements the team will be tempted to make along the way
-- Metrics that will rise as a side effect but aren't the point
+**The single most common failure: non-goals that are just goals
+restated in the negative.** "We want fast search → non-goal: slow
+search." That delimits nothing — nothing realistic was tempting in that
+direction. A real non-goal names *something an honest reviewer might
+lobby for* and then declines it, with a reason.
+
+Pressure-test each candidate with this question: *"If we did this,
+would we be doing the **wrong work**, or just **less of the right
+work**?"* Wrong-work items belong in non-goals. Less-of-the-right items
+belong in prioritization or as stretch notes — not in GOAL.md.
+
+Anti-pattern → fix:
+
+- "Don't ship a buggy product" — inverted goal; cut.
+- "Not for casual users" — too abstract. Turn it into a forbidden
+  scope: "No beginner onboarding flow this round; ships only for users
+  who already know the domain."
+- "Avoid scope creep" — meaningless. Name the specific creep: "No
+  generic policy platform across BUs — this initiative ships for one
+  BU's needs only."
+
+Common shapes that produce real non-goals:
+
+- **Adjacent platforms tempting to re-implement.** "We don't build our
+  own agent runtime — we integrate with existing frameworks." A
+  reviewer who thinks runtime ownership matters hits this line and
+  knows the trade-off was already weighed.
+- **Adjacent users we won't serve in this iteration.** "No multi-tenant
+  isolation; single-tenant only this round."
+- **Possible 'phase 2' features that will get lobbied for.** Name as
+  non-goals, not 'later goals'. 'Later' converges with 'now' under
+  pressure; 'forbidden, with a reason' doesn't.
+- **Metrics / outcomes that will rise as side effects.** Don't pretend
+  they're the goal: "Not optimizing for DAU — retention is the target;
+  DAU may move but isn't measured."
+- **Replacing systems we should integrate with.** "We don't rewrite
+  CRM/ticketing/IM — only integrate via tools."
 
 Most humans first say they don't have any non-goals. They do; they just
-haven't named them. Prompt with the patterns above until something
-lands.
+haven't named them. Prompt with: *"Is there work an outsider would
+suggest you should also do, that you've already decided against? Why?"*
+Then run candidates through the wrong-work / less-of-right test before
+accepting them.
 
-Echo each non-goal back; confirm.
+Echo each non-goal back **with the reason it's out of scope**, not just
+the name; confirm. A non-goal without a reason rots into a question mark
+the next time someone lobbies for it.
 
 ## Phase 3 — Draft
 
@@ -266,3 +307,8 @@ all 8 simultaneously, the goal is too compound — split or reframe.
 They do; they just haven't named them. Prompt with: "What did you almost
 include but decided to leave out? What would be a sign of scope creep
 later?"
+
+**Accepting inverted goals as non-goals.** "We want X → non-goal: not
+X" delimits nothing. If a non-goal candidate doesn't name a specific
+*tempting* path the initiative declines, it isn't doing the work of a
+non-goal. Push for a forbidden zone with a reason, or cut the line.

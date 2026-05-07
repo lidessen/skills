@@ -37,10 +37,14 @@ signal even if criteria are on track.
 0–4 invariants is typical.
 
 ## Non-goals
-What's tempting to call success but isn't. The defense against scope creep.
+Forbidden zones — types of work that, even when tempting, this
+initiative declines. Each line names a specific *tempting* path and the
+reason it's out of scope. Not inverted goals ("don't ship slow
+search" delimits nothing). Test: would an honest reviewer ever lobby
+for this? If no, it's not a non-goal worth listing.
 
-- <non-goal 1>
-- <non-goal 2>
+- <forbidden zone 1> — <one-line reason>
+- <forbidden zone 2> — <one-line reason>
 
 ## Revisions
 Lightweight log of GOAL.md changes (git has the full diff; this is for

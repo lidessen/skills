@@ -162,7 +162,10 @@ alone and present it for review. It asks, in order:
    that's achieved?" Push for falsifiable; if soft, push for a proxy
    indicator.
 3. **Invariants** — "What must stay true regardless of how we get there?"
-4. **Non-goals** — "What's tempting to call success but isn't?"
+4. **Non-goals** — "What's tempting but explicitly out of scope? What
+   would an outsider lobby for that we've already decided against, and
+   why?" Push back if a candidate is just an inverted goal — non-goals
+   are forbidden zones, not goals restated in the negative.
 
 The agent **echoes each section back as it's drafted**, gets confirmation,
 moves on. GOAL.md is written only after all sections are confirmed. See

@@ -60,19 +60,34 @@ existing keyword search API contract is unchanged*. OK?"
 
 **Human:** "Yes."
 
-**Agent:** "What's tempting to call success but isn't?"
+**Agent:** "What's tempting but explicitly out of scope — work an
+outside reviewer might lobby for that you've already decided against?"
 
 **Human:** "Cross-user search would be cool but is out. And multi-language
 — Chinese only for now, English nice-to-have but not blocking."
 
-**Agent:** "Non-goals: *cross-user search*; *multi-language beyond
-Chinese*. English support is desired but not required for success — should
-I write that as a non-goal too, or note it as a stretch?"
+**Agent:** "For each, the reason matters — it's what stops the line
+from rotting into a question mark next time someone lobbies. Why
+cross-user search out?"
+
+**Human:** "Privacy review would balloon scope; this is single-user
+search inside one's own history."
+
+**Agent:** "And multi-language beyond Chinese?"
+
+**Human:** "Embedding model trade-offs differ by language. Pinning to
+Chinese keeps the model choice simple."
+
+**Agent:** "Non-goals captured as: *cross-user search — privacy review
+would expand scope beyond a single user's own history*; *multi-language
+beyond Chinese — keeps embedding model choice simple, avoids
+per-language tuning*. English support is desired but not required —
+should I write that as a non-goal or note it as a stretch?"
 
 **Human:** "Note as stretch — don't make it a non-goal."
 
-**Agent:** "Got it. I'll add a note under Non-goals: 'English support is a
-stretch goal, not required for success'."
+**Agent:** "Got it. I'll add a note under Non-goals: 'English support
+is a stretch goal, not required for success'."
 
 (Agent writes `goals/GOAL.md`, shows it in chat, gets final OK, adds
 kickoff entry to `record-2026-04.md`.)
