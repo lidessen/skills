@@ -344,17 +344,26 @@ Triggered by:
 - **User-initiated**: "let me explain why I'm doing this" — the agent
   helps draft.
 
-### Modification protocol — three friction tiers
+### Modification protocols — different shapes for different artifacts
 
-| Artifact | Protocol |
-|---|---|
-| `GOAL.md` | Line-by-line echo + Revisions log entry (heaviest) |
-| `stories/X.md` | Paragraph-level echo + human approval + write + bump `Last updated` (medium) |
-| record entry | Draft + confirm + append (lightest) |
+| Artifact | Modification | Frequency |
+|---|---|---|
+| `GOAL.md` | Line-by-line echo + Revisions log entry; deliberate event | Rare |
+| `stories/X.md` | Paragraph-level echo + human approval + write + bump `Last updated`; evolving update | Occasional |
+| record entry | Draft + confirm + append; routine | Per session |
 
-Stories are heavier than record entries because they shape future
-GOAL judgment, but lighter than GOAL itself because they're descriptive
-(not normative).
+The shape of friction differs more than the magnitude. GOAL changes
+are **discrete events** — formal, with audit trail in Revisions —
+because they invalidate prior criterion checks and any STOPs that
+depend on the old wording. Story updates are **evolving** — a
+paragraph here, a paragraph there, no formal log needed because they
+describe rather than prescribe. Record entries are **continuous** —
+every session adds one, structured but quick.
+
+Don't conflate "more chat turns" with "more important". A multi-
+paragraph story update may take more turns than a one-line GOAL
+revision but is less consequential — the GOAL revision changes what
+"done" means; the story update only changes how we explain it.
 
 Each story carries a `_Last updated: YYYY-MM-DD_` footer. A story
 untouched for many months while related GOAL items have shifted is a
@@ -364,15 +373,19 @@ candidate for refresh — surfaced during review.
 
 | Aspect | record | stories |
 |---|---|---|
-| Organization | chronological (by month file) | topical (by file name) |
-| Tense | past ("today I did X") | present ("this criterion now means …") |
-| Mutability | append-only | freely editable |
-| Count | a few files over a project | 5–15 typical |
-| Use | look at history | look at current understanding |
+| **Role** | Event log — raw observations as they happened | Synthesis — current curated understanding distilled from accumulated events |
+| Organization | Chronological (by month file) | Topical (by file name) |
+| Tense | Past ("today I did X") | Present ("this criterion now means …") |
+| Mutability | Append-only | Freely editable |
+| Count | A few files over a project | 5–15 typical |
+| Use | Reconstruct what happened | See what we currently believe |
 
-A record entry recording "today's work shifted my understanding of C2"
-is the *trigger* for updating `stories/c2-meaning.md`, not the
-explanation itself.
+Content can overlap; roles differ. A record entry "today's work
+shifted my understanding of C2" is the *trigger* for updating
+`stories/c2-meaning.md`; the story IS the synthesized current view
+that absorbs many such triggers. Read record to reconstruct the
+sequence of events; read stories to see the current settled
+understanding distilled from those events.
 
 ### Cross-references
 

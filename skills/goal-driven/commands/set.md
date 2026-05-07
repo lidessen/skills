@@ -208,22 +208,24 @@ candidates:
 - A north star phrasing that took multiple iterations to land on
 - An invariant whose cost we explicitly accepted
 
-Propose them in chat (no more than 2–3, even for ambitious goals):
+Propose **at most one** — the highest-value candidate. The human
+just spent the interview confirming GOAL.md line by line; piling on
+2–3 more paragraph-echo cycles right after burns out the willingness
+to engage carefully:
 
-> Three things in the GOAL feel worth interpreting beyond the terse
-> text. Want any drafted now?
->
-> 1. `stories/why-X.md` — <one-line reason>
-> 2. `stories/what-Y-means.md` — <one-line reason>
-> 3. `stories/Z-rationale.md` — <one-line reason>
+> One thing in the GOAL feels worth interpreting now beyond the terse
+> text: `stories/why-X.md` — <one-line reason>. Want me to draft it,
+> or leave for later when a STOP makes the choice live?
 
-Human picks zero, one, or more. For each picked, draft paragraph by
-paragraph in chat (same protocol as story updates — see SKILL.md
-"Stories" section), get approval, write to `goals/stories/<topic>.md`.
-Creating the first story brings the directory into being.
+If the human says yes, draft paragraph by paragraph in chat (same
+protocol as story updates — see SKILL.md "Stories" section), get
+approval, write to `goals/stories/<topic>.md`. Creating the first
+story brings the directory into being.
 
-If the human picks none, that's fine. Stories can be added later when
-a STOP forces a re-interpretation. Don't push.
+If the human says no or "not now", that's fine — possibly the more
+common answer at set time. Other candidate stories will surface
+organically when a STOP resolution or review finding makes them live.
+Don't push.
 
 See `references/templates.md` for the story file template.
 

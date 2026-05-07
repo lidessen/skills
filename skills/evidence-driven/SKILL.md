@@ -195,6 +195,18 @@ This is auditable: the next agent can re-run those checks, find the
 exact code locations, and verify each claim. State becomes evidence,
 not just progress signaling.
 
+**State needs a durable home.** Design-driven's blueprint State
+section is the canonical surface, but other persistent locations
+work: an external task system's update field, a scratch markdown
+the agent maintains, a Notion or wiki page if that's the project's
+convention. The chat history is **not** a State surface — it doesn't
+survive session boundaries. If the task you're applying rigor to has
+no persistent surface available and the work won't fit in one
+session, either create one (the simplest move is suggesting
+design-driven to bootstrap a blueprint) or evidence-driven can't
+deliver on its own thesis. Better to admit that than to write
+"evidence" into chat that evaporates.
+
 ### 4. Anti-cargo-cult: the "would this have caught X" check
 
 Tests can be written that pass but catch nothing. Common patterns:
@@ -300,15 +312,18 @@ TDD sub-steps inline ("write test first / then implement") without
 restructuring the TODO list.
 
 When no blueprint exists: Plan output stays in chat as the working
-contract for the task. If the work would benefit from a written
-blueprint (multi-session, complex), suggest invoking design-driven
-to bootstrap one before continuing.
+contract — but only if the task fits in a single session. If the work
+spans sessions, the State and Plan need a durable home or they're
+lost on resume. Either suggest invoking design-driven to bootstrap a
+blueprint, or commit to keeping a scratch markdown the agent updates
+each session. Don't pretend chat is a persistence layer.
 
 When design-driven isn't installed at all: Plan output goes wherever
-the project's task structure lives (Linear comment, GitHub issue
-description, scratch markdown). The discipline doesn't require any
-specific artifact format — it requires a falsifiable contract
-somewhere.
+the project's task structure already lives (Linear comment, GitHub
+issue description, scratch markdown). The discipline doesn't require
+any specific artifact format — it requires a falsifiable contract
+somewhere durable. If no such surface exists *and* the task isn't
+single-session, evidence-driven is the wrong tool until one does.
 
 ## With design-driven
 
