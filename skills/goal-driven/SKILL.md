@@ -180,6 +180,20 @@ applies — "on pace" needs an observation, not optimism. This is the same
 verdict vocabulary, used with awareness that what counts as "served"
 depends on when the criterion is supposed to land.
 
+**Identify the principal tension.** A session usually faces several
+criteria, several risks, several open questions — but attention is finite.
+At any moment one tension dominates: the one whose resolution would most
+unblock the rest. Name it in the judgment instead of treating all criteria
+symmetrically. "This week the binding constraint is C1 pace; C2 stable;
+C3 not under pressure" gives a future reader a sharper picture than a
+flat list of three verdicts, and tells the next session where to spend
+its attention first.
+
+The principal tension shifts. Last week's pace concern may give way to
+this week's sustainability question; the right focus changes as the
+project moves through phases. Re-identify it each session from current
+observations and recent entries, not from habit.
+
 ### Moment 3 — STOP signals
 
 Two types of STOP, each with a different escalation path. Both halt work

@@ -74,6 +74,9 @@ Rules:
 - Every ✓ and ✗ MUST have parenthetical evidence from this session.
 - `unclear` is the default when nothing happened on a criterion. Bare
   ✓ is forbidden.
+- Judgment names the principal tension this session — which criterion,
+  risk, or open question is currently binding — rather than summarizing
+  all of them flatly. The tension may shift session-to-session.
 - Title is a one-line summary; the entry should be readable in 30 seconds.
 - Length: 5–15 lines. If much longer, split into multiple entries or push
   detail elsewhere.
