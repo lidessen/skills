@@ -331,13 +331,12 @@ Evidence-driven assumes design-driven's blueprint structure exists. The
 blueprint's `Verify` section defines *what to check*; evidence-driven
 defines *how to check rigorously*.
 
-Concrete division of labor:
+Concrete division of labor when both are installed:
 
 | Concern | Lives in |
 |---|---|
 | Blueprint format (TODO, State, Verify, Follow-ups sections) | design-driven |
-| "Verify needs falsifiable check" baseline rule | design-driven |
-| State update on every TODO check-off baseline rule | design-driven |
+| Falsifiable-Verify baseline + State-on-every-TODO baseline | design-driven (and independently restated in this skill's Principles 1 and 3, so evidence-driven works alone if design-driven isn't installed) |
 | TDD cycle, evidence anti-patterns, cargo-cult guards | evidence-driven |
 | State entry quality (specific, auditable, not hollow) | evidence-driven |
 | What counts as "real" falsifiable evidence | evidence-driven |

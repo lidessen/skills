@@ -130,9 +130,9 @@ workflow; it's the skeleton every stage hangs on.
 
 ## Across the development cycle
 
-Every activity inherits the same 30% constraint and the same 70% 
-freedom. design/ doesn't dictate *how* each activity runs — it sets 
-what they all must respect.
+The 30/70 rule applies across every phase of work, but each phase
+has its own specific application — the bullets below name the
+concrete move per activity, not just the abstract principle.
 
 - **Planning** — read DESIGN.md first; scope the task against existing 
   modules and non-goals
@@ -151,9 +151,10 @@ what they all must respect.
   → proposal
 - **Onboarding** — new contributors read DESIGN.md before the code
 
-When an activity isn't listed here, the rule is the same: ask whether 
-the action stays within the shape (70% — proceed) or changes it (30% 
-— proposal).
+For activities not listed, derive the application yourself: ask
+whether the action stays within the shape (70% — proceed) or changes
+it (30% — proposal). The bullets above are common cases, not an
+exhaustive checklist.
 
 ## The Loop
 
