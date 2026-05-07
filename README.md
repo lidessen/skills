@@ -44,9 +44,8 @@ Then invoke a skill in any conversation:
 /design-driven init         # First-time project configuration
 /design-driven bootstrap    # Generate design from existing codebase
 
-/evidence-driven            # Apply build-time discipline
+/evidence-driven            # Apply build-time discipline (always-on overlay)
 /evidence-driven init       # Wire up agent configs + optional hooks
-/evidence-driven audit      # Review recent blueprints for evidence quality
 
 /goal-driven                # Continue the running protocol
 /goal-driven set            # Interview-driven GOAL.md + scaffolding

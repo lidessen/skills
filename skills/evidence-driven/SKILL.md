@@ -23,9 +23,11 @@ description: |
   other.
 
   Supports arguments: `/evidence-driven init` to wire up agent configs
-  and optional pre-commit hooks; `/evidence-driven audit` to review
-  recent blueprints for evidence quality.
-argument-hint: "[init | audit]"
+  and optional pre-commit hooks. No periodic-audit command — evidence-
+  driven is an always-on overlay, not a phase-bounded skill; reviewing
+  evidence quality is a natural sub-pass of design-driven's audit when
+  both are installed.
+argument-hint: "[init]"
 ---
 
 # Evidence-Driven
@@ -64,19 +66,16 @@ When invoked with an argument, dispatch to the corresponding file:
 - `/evidence-driven init` → Read and follow `commands/init.md`.
   One-time scaffolding: agent config snippet, optional pre-commit hooks,
   optional CI integration notes. No artifacts of its own.
-- `/evidence-driven audit` → Read and follow `commands/audit.md`.
-  Periodic review of recent blueprints for evidence quality: naked
-  Verify check-offs, hollow State entries, cargo-culted tests, missing
-  observation traces.
 - No argument → continue with the methodology below.
 
-**Which command when:**
-
-- Adopting evidence-driven on a project for the first time → `init`
-- Recurring failures from "tests passed but bug shipped" or "State said
-  done but I can't tell what changed" → `audit`
-- Mid-task, building → no argument (the discipline applies to your
-  current work via the principles below)
+**Why no audit command.** Unlike goal-driven and design-driven,
+evidence-driven has no phase boundaries — it's an always-on overlay
+applied during every Build and Verify. There's no event that warrants
+a periodic "evidence-driven audit" the way design-driven warrants a
+periodic check against the codebase. When evidence quality drift needs
+inspection, it surfaces naturally during design-driven's audit (which
+walks the same blueprints) or by user request ("review my recent
+evidence quality"); no dedicated command is needed.
 
 ## When to use this skill
 

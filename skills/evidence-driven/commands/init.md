@@ -114,7 +114,10 @@ initial evidence-driven setup. One commit, clear message:
   installed), and the agent will apply evidence-driven principles to
   Build/Verify naturally.
 - If recurring evidence-quality problems show up after some real use,
-  run `/evidence-driven audit` to surface them.
+  ask the agent to "review my recent evidence quality" — no dedicated
+  command, but the SKILL.md principles tell it what to look for. When
+  design-driven is also installed, its `/design-driven audit` will
+  naturally surface evidence-quality issues during its blueprint pass.
 - If the discipline feels heavy for a particular project, that's a
   signal — either the project doesn't fit (use a lighter approach),
-  or the discipline needs tuning (audit findings inform the tuning).
+  or the discipline needs tuning.
