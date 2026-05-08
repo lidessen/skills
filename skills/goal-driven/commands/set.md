@@ -39,13 +39,13 @@ Look at `goals/GOAL.md`:
 ### 1.2 Detect installed sibling skills
 
 Scan for sibling methodology skills already wired into this project. The
-results inform both the interview (Phase 2) and the CLAUDE.md block
+results inform both the interview (Phase 2) and the agent-config block
 written in Phase 4.
 
 | Sibling | Detection signal |
 |---|---|
-| design-driven | `design/DESIGN.md` exists, OR CLAUDE.md contains `<!-- skill:design-driven -->` block |
-| evidence-driven | CLAUDE.md contains `<!-- skill:evidence-driven -->` block, OR pre-commit hook references evidence-driven |
+| design-driven | `design/DESIGN.md` exists, OR any agent config file (see Phase 4.2 list) contains `<!-- skill:design-driven -->` block |
+| evidence-driven | Any agent config file (see Phase 4.2 list) contains `<!-- skill:evidence-driven -->` block, OR pre-commit hook references evidence-driven |
 
 Note which siblings are present. No action yet — used in later phases.
 
@@ -252,14 +252,19 @@ doesn't use):
 - `AGENTS.md` or `codex.md` — Codex / OpenAI agents
 - `.github/copilot-instructions.md` — GitHub Copilot
 - `.windsurfrules` — Windsurf
+- Any other agent instruction file the project uses
 
 **Algorithm for each file.** If the file contains
 `<!-- skill:goal-driven -->`, replace everything between markers
 (inclusive of markers) with the new block. Otherwise, append the new
 block at the end (preceded by a blank line).
 
-**Block content** — base, plus a conditional Interactions section
-populated from Phase 1.2 detection:
+**Block content** — base, plus a conditional Interactions subsection
+populated from Phase 1.2 detection. The template below shows the full
+block with both possible Interactions lines; **emit only the lines
+whose sibling was actually detected**, and omit the entire `### Interactions`
+heading if no siblings were detected. Do not copy the meta-instruction
+itself into the file.
 
 ```markdown
 <!-- skill:goal-driven -->
@@ -282,8 +287,6 @@ When working on this initiative, follow the goal-driven protocol:
   from the human, echoed back line by line.
 
 ### Interactions
-<!-- Only emit lines whose sibling was detected in Phase 1.2.
-     If no siblings detected, omit this whole subsection. -->
 
 - **with design-driven** (detected: `design/DESIGN.md` present) —
   goal-driven owns *why* and *how-far*; design-driven owns
@@ -384,7 +387,7 @@ Commit `goals/`, agent config updates, and any hook configs together.
 One commit, clear message:
 
 - First-run: `goal-driven: set GOAL.md and record scaffolding`
-- Update: `goal-driven: refresh CLAUDE.md block (siblings: <list>)`
+- Update: `goal-driven: refresh agent config blocks (siblings: <list>)`
 
 If update mode produced no actual changes (block already current,
 plumbing already in place), skip the commit — empty commits add noise.

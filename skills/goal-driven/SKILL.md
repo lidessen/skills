@@ -47,10 +47,10 @@ When invoked with an argument, dispatch to the corresponding file:
 
 - `/goal-driven set` → Read and follow `commands/set.md`.
   First run: interview the human and produce the initial GOAL.md,
-  plus scaffolding. Re-run: update mode — refreshes the CLAUDE.md
-  agent-config block (including cross-references to sibling skills
-  installed since), re-checks plumbing. Doesn't re-interview the
-  goal; for re-assessment use `review`.
+  plus scaffolding. Re-run: update mode — refreshes the agent-config
+  blocks (including cross-references to sibling skills installed
+  since), re-checks plumbing. Doesn't re-interview the goal; for
+  re-assessment use `review`.
 - `/goal-driven review` → Read and follow `commands/review.md`.
   Strategic checkpoint plus protocol maintenance: re-assess where the
   project stands against GOAL, surface drift, propose corrections.
@@ -62,8 +62,8 @@ When invoked with an argument, dispatch to the corresponding file:
 **Which command when:**
 
 - New initiative → `set`
-- A sibling skill was installed/removed and CLAUDE.md cross-references
-  feel stale → `set` again (update mode; no re-interview)
+- A sibling skill was installed/removed and agent-config cross-
+  references feel stale → `set` again (update mode; no re-interview)
 - ≥ 2 weeks since last review, record feels overgrown, midpoint of an
   explicit timeline, or you sense you've drifted → `review`
 - Initiative is done, abandoned, or superseded → `close`
