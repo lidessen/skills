@@ -103,21 +103,16 @@ paradigm's primitives. Flesh follows. Often the user-visible result
 
 A reframe is a multi-session exploration. The document is the
 pause-and-resume mechanism: any agent (a future you, a different
-session, a teammate) can pick up where work left off because the full
-thinking trail lives in the file, not in any session's memory.
+session, a teammate) can pick up where work left off because the
+full thinking trail lives in the file, not in any session's memory.
 
 One file per redefinition target. Structure follows
-`references/template.md`. The agent reads the file at the start of
-every session and updates it at the end of every meaningful move.
-
-Concept documents are abstract methodology applied to abstract
-content — without form discipline they read like noise. The template
-mandates several expressive devices (plain-language summary on top,
-vignettes paired with essence claims, text diagrams for skeletons,
-verb-tagged blocks for stress and comprehension tests, dependency
-tables) because each prevents a specific failure mode. Treat them as
-defaults; the only documented escape hatch is "v1 skeleton may be
-prose-only while shape is still forming".
+`references/template.md` — the template mandates expressive form
+(plain-language summary, vignettes, ASCII diagrams, verb-tagged
+blocks, dependency tables) because abstract methodology applied to
+abstract content reads like noise without it. Treat the form
+requirements as defaults; the only documented escape hatch is "v1
+skeleton may be prose-only while shape is still forming."
 
 ### Directory layout
 
@@ -128,287 +123,135 @@ concepts/
     <target>.md        ← closed concepts moved here by /reframe close
 ```
 
-Each file carries YAML frontmatter so its state is machine-readable:
-
-```yaml
----
-target: AI-native CRM
-paradigm: AI-native
-status: active        # active | closed
-opened: 2026-05-08
----
-```
+Each file carries YAML frontmatter (`target / paradigm / status /
+opened`) so its state is machine-readable. See
+`references/template.md` for the exact frontmatter and section
+structure.
 
 ### Resume-or-start flow
 
 When the user invokes the skill with no argument:
 
-1. List files in `concepts/` (excluding `concepts/archive/`). For each,
-   read the frontmatter `status` field; offer files with
+1. List files in `concepts/` (excluding `concepts/archive/`). For
+   each, read the frontmatter `status` field; offer files with
    `status: active` as resume candidates.
-2. If the user picks one, load it and continue from its current phase.
-   If they want a new target, create a new file from the template and
-   start at Phase 1.
-3. If no `concepts/` directory exists, suggest `/reframe init` first —
-   but if the user prefers to skip plumbing, just create the directory
-   and document inline.
+2. If the user picks one, load it and continue from its current
+   phase. If they want a new target, create a new file from the
+   template and start at Phase 1.
+3. If no `concepts/` directory exists, suggest `/reframe init`
+   first — but if the user prefers to skip plumbing, just create
+   the directory and document inline.
 
 ---
 
 ## Phase 1: Essence Extraction
 
-Strip the target domain to 3-5 abstract functions. The test for an
-essence statement: would it still be true thirty years from now,
-under any paradigm we can imagine?
-
-Common failure modes when extracting essence:
-
-- **Listing features instead of functions.** "Customer profile,
-  pipeline view, reporting dashboard" — those are flesh. The
-  underlying function is "remember relationships, track interactions,
-  surface opportunities."
-- **Smuggling paradigm assumptions.** "User clicks through stages" —
-  that's a paradigm artifact (mouse + form). The function underneath
-  is "advance state in response to evidence."
-- **Compressing too far.** "It's just data management." Too abstract
-  to constrain skeleton design.
+Strip the target domain to 3-5 abstract functions that survive any
+paradigm. Each function is paired with a one-sentence justification
+and a concrete vignette grounding the abstraction in scene.
 
 Calibration: an essence statement should be specific enough that it
-*could not* be implemented the wrong way, and abstract enough that it
-prescribes no specific implementation. "Track interactions" is too
-vague. "Maintain a per-relationship running synthesis updated by every
-recorded interaction" is essence-grade — it tells you what must be
-possible without saying how.
+*could not* be implemented the wrong way, and abstract enough that
+it prescribes no specific implementation.
 
-Write the result under `## Essence` in the document. One sentence per
-function, plus one sentence of justification ("why is this essence
-rather than artifact?"), then a one- to two-sentence concrete vignette
-showing the function in scene. The vignette is what makes the
-abstraction stick — without it, essence reads as jargon. See
-`references/template.md` for the format.
+Write under `## Essence` per `references/template.md`. For failure
+modes (feature-listing, smuggling paradigm assumptions, over-
+compression), worked examples, and "when stuck" guidance, see
+`references/phase-guide.md`.
 
 ## Phase 2: Paradigm Primitives
 
-What does the new paradigm actually offer as building blocks? Be
-operationally concrete. Slogans ("AI is native") are not primitives —
-the primitives are the operational consequences of the slogan.
+Identify 4-8 operationally concrete building blocks the new
+paradigm offers. A primitive must be specific enough that a
+skeleton can be expressed *in* it; slogans don't count. If a
+candidate is still a slogan ("AI native"), drill down to operational
+consequences.
 
-For AI-native, primitives might be:
-
-- Every action is exposed as a tool with a JSON schema
-- Agents can read arbitrary context (emails, meetings, prior chats)
-  rather than only what was typed into a form
-- State can be inferred from evidence instead of entered by hand
-- Natural language and structured data flow both ways
-- Background agents can act between user sessions
-
-Calibration: a primitive must be something a skeleton can *be
-expressed in*. If a candidate primitive is still a slogan, drill
-down. "AI native" → what does "native" mean operationally? Keep
-drilling until the answer is concrete enough to load-bear.
-
-Write the result under `## Paradigm Primitives`. Aim for 4-8
-primitives. Fewer than 4 usually means under-specified; more than 8
-means some are not load-bearing and can be folded.
+Write under `## Paradigm Primitives`. For an example primitive set
+(AI-native), the drilling-down test, and "when stuck" guidance, see
+`references/phase-guide.md`.
 
 ## Phase 3: Skeleton Reconstruction
 
-Re-express the essence using the primitives — not "essence with
-primitives sprinkled on", but essence *expressed in* primitives end-
-to-end.
+Re-express the essence using the primitives — essence *expressed
+in* primitives end-to-end, not essence with primitives sprinkled
+on. Version explicitly: v1 will be wrong somewhere; v2 absorbs
+what stress tests reveal.
 
-The hardest discipline: refuse to reach for the traditional shape
-when the new shape is unclear. If you find yourself drafting "a deal
-table with a stage column", catch yourself — that's old skeleton.
-The reframe question is: *what is a deal, in a world where state is
-inferred from evidence?* Maybe it's "a relationship trajectory with a
-confidence-weighted suggested stage that the user confirms or
-overrides." Maybe it's something else entirely. Sit with the
-question.
+The hardest discipline is refusing the traditional shape when the
+new shape is unclear. Better to leave a placeholder ("[unresolved
+in this paradigm]") than to fill it with a familiar mental model.
 
-Version explicitly. The first skeleton will be wrong somewhere. Write
-v1, run stress tests (Phase 4), write v2 in light of what failed.
-Keep prior versions visible but collapsed using `<details>` /
-`<summary>` HTML tags (supported in GitHub-flavored markdown) so the
-evolution trail stays legible without dominating the page.
-
-Write under `## Skeleton (vN)`. Three elements are required from v2
-onward; v1 may be prose-only while shape is still forming:
-
-1. **A text diagram of the core flow** (state machine, data flow, or
-   dependency graph in ASCII). Six lines of diagram teach more than
-   six paragraphs of prose.
-2. **A Components → Primitives dependency table** so "expressed in
-   primitives" is auditable rather than hand-waved. A component row
-   with no checkmarks is old skeleton sneaking in.
-3. **A short rationale per component** linking it back to an essence
-   function and justifying the shape over the obvious traditional
-   one.
-
-Between consecutive versions, write a one-paragraph **delta annotation**
-naming what changed and which stress or comprehension test triggered
-it — readers shouldn't diff component lists by hand. See
-`references/template.md` for the format.
+Output requires a text-diagram of the core flow, a Components →
+Primitives dependency table, and per-component rationale (v1 may
+be prose-only). Between consecutive versions, write a delta
+annotation. See `references/template.md` for the format and
+`references/phase-guide.md` for the "sit with the question"
+discipline.
 
 ## Phase 4: Skeleton Stress Test
 
-Probe the skeleton by removing traditional crutches one at a time
-and watching what happens:
-
-- "Suppose there are no input forms — can the skeleton still ingest
-  what it needs?"
-- "Suppose there are no manual stage transitions — does the skeleton
-  produce stage state from evidence?"
-- "Suppose there are no scheduled reports — does the skeleton surface
-  what users need to know without polling?"
-- "Suppose the user never logs in for a week — what still happens
-  correctly?"
-
-For each crutch removed, three possible outcomes:
-
-1. **Skeleton holds.** New primitives carry the load. Record this —
-   it's positive evidence the reframe is real, not cosmetic.
-2. **Skeleton bends but holds with adjustment.** Modify the skeleton
-   to absorb the load. Bump the version.
-3. **Skeleton collapses.** Either essence was misidentified (back to
-   Phase 1), primitives are insufficient (back to Phase 2), or this
-   particular function genuinely doesn't redefine in the new paradigm
-   — it stays traditional, and that's the boundary of the reframe.
+Probe by removing traditional crutches one at a time. Three
+possible outcomes per probe: skeleton **holds** (positive evidence),
+**bends** (adjust skeleton, bump version), or **collapses** (back
+to Phase 1 or 2 — or document the boundary if the function
+legitimately stays traditional).
 
 Outcome 3 is not failure. Knowing where the new paradigm *doesn't*
-help is part of the design. Document the boundary explicitly so it
-doesn't get re-litigated later.
+help is part of the design.
 
-Write all stress tests and outcomes under `## Stress Tests`. The
-section is append-only history — don't delete failed attempts; their
-existence is the evidence that the surviving skeleton was tested.
-
-Each entry uses the verb-tagged block format (`Date / Removed /
-Hypothesis / Result / Diagnosis`). Free-form prose entries are
-rejected on later read because the structure is what makes the log
-skim-readable months later. See `references/template.md`.
+Write under `## Stress Tests` (append-only) using the verb-tagged
+block format `Date / Removed / Hypothesis / Result / Diagnosis`.
+For probe-question patterns and append-only discipline, see
+`references/phase-guide.md`.
 
 ## Phase 5 (cross-cutting): Transfer Learning
 
-Mature domains have already solved problems isomorphic to the ones
-the new domain is groping with. The discipline is: **mine for
-patterns, not for shapes**. Translate, don't copy.
+Mature domains have already solved isomorphic problems. Mine for
+patterns, not shapes. Translate, don't copy. For each candidate
+source, ask: what abstract problem did it solve, and does the new
+domain face an isomorphic one? Note deliberate non-transfers too,
+to prevent re-litigation.
 
-Examples of fruitful transfers:
-
-- AI agent context management ↔ software engineering's information
-  architecture (L1/L2/L3 layering, just-in-time loading, the
-  principle that more context isn't always better)
-- Conversation memory across sessions ↔ email threading and version
-  control merge semantics
-- Tool schema design ↔ API design conventions and Unix pipe
-  composability
-- Agent attention/budget management ↔ Kanban WIP limits and OS
-  scheduler quotas
-- Background agent coordination ↔ build system DAGs
-
-For each candidate source domain, ask two questions:
-
-1. What problem did the source domain solve, *abstractly*?
-2. Does the new domain face an isomorphic problem?
-
-If yes, the source pattern *seeds* the new design — never as a
-verbatim copy. The translation step is where the value lives. Note
-deliberate non-transfers too: "considered borrowing X but it relies
-on assumption Y that doesn't hold here." Non-transfers prevent
-re-considering the same option later.
-
-Transfer is cross-cutting — invoke it during Phase 2 (primitive
-identification), Phase 3 (skeleton drafting), Phase 4 (rescue when
-the skeleton bends). Write under `## Transfer Log`.
+Invoke during Phase 2 (primitive identification), Phase 3 (skeleton
+drafting), or Phase 4 (rescue when skeleton bends). Write under
+`## Transfer Log`. For example transfers and the two-question test,
+see `references/phase-guide.md`.
 
 ## Phase 6: Flesh
 
 Once the skeleton holds, plan the user-facing surface as a
-*projection* of the skeleton. Two rules govern flesh:
+*projection* of skeleton state. Two governance rules: **familiarity
+is fine, mimicry is suspicious** (every flesh element must name
+the skeleton state it projects); **flesh never adds capability the
+skeleton lacks** (if it tries to, revise the skeleton instead).
 
-- **Familiarity is fine, mimicry is suspicious.** A list view that
-  resembles a traditional one is fine *as long as* it's a projection
-  of skeleton state. If you can't name which skeleton state it
-  projects, it's not flesh — it's old paradigm leaking through, and
-  the data behind it is probably in the wrong shape.
-- **Flesh never adds capability the skeleton lacks.** If the user
-  needs to do X, X must be expressible in the skeleton. If not, the
-  right move is to revise the skeleton (back to Phase 3), not to
-  bolt X onto the surface. A surface capability the skeleton can't
-  reason about will fight the rest of the system forever.
-
-Write under `## Flesh Plan` as a three-column table: flesh element,
-skeleton state it projects, user need it serves. If you can't fill
-all three columns for a row, the element isn't flesh — it's old
-paradigm leaking through. See `references/template.md`.
+Write under `## Flesh Plan` as a three-column table — element /
+skeleton state / user need. If you can't fill all three columns
+for a row, the element isn't flesh — it's old paradigm leaking
+through. See `references/template.md` for the format and
+`references/phase-guide.md` for the governance rationale.
 
 ## Phase 7: Comprehension Test
 
-Skeleton soundness does not imply flesh comprehensibility. A
-skeleton built from genuinely new primitives will project a surface
-that may *look* familiar yet behave in unfamiliar ways — and users
-may not bridge the gap on their own. Phase 7 closes the loop with
-the lightest credible evidence that the projection is legible to
-the people who will use it.
+Skeleton soundness ≠ flesh comprehensibility. Phase 7 closes the
+build-verify loop with the lightest credible evidence that the
+projection is legible to actual users — symmetric with Phase 4
+(where 4 tests bones, 7 tests skin). Without it, the methodology
+is asymmetric and ships sound skeletons users can't read.
 
-This is symmetric with Phase 4: Phase 4 stress-tests the skeleton
-against removed traditional crutches; Phase 7 stress-tests the
-flesh against actual user comprehension. Without Phase 7 the
-methodology is asymmetric — we verify that the bones hold but never
-verify that the skin can be read.
-
-### How to test (lightest credible evidence)
-
-Match the artifact's fidelity to the risk:
-
-- **Lowest risk** — narrate the flow in plain language to a target
-  user; ask them to predict what happens next at each step.
-  `/reframe explain for <audience>` produces this artifact directly
-  — generate it, walk it through with the target user, log
-  reactions.
-- **Medium risk** — wireframe walkthrough or paper prototype.
-- **Higher risk** — interactive mock with real interaction patterns.
-- **Highest risk** — working prototype on a thin slice of the
-  skeleton.
-
-Reframe does not prescribe research methodology. The discipline is
-"the cheapest evidence that would change your mind". Heavier
-artifacts are scope creep into UX research; lighter ones leave the
-question unanswered.
-
-### Three diagnoses, three feedback paths
-
-When users cannot navigate the flesh, the cause matters — different
-causes feed back into different earlier phases. Misdiagnosis turns
+Three diagnoses with three feedback paths when users can't
+navigate: **flesh problem** → revise Phase 6; **skeleton problem**
+→ revise Phase 3 (also the surest signal of "novelty for novelty's
+sake"); **essence problem** → revise Phase 1. Misdiagnosis turns
 the loop into mindless flesh iteration that drifts the skeleton.
 
-1. **Flesh problem.** Skeleton is sound; the projection is awkward.
-   *Feedback → Phase 6.* Revise how skeleton state is surfaced
-   without changing the skeleton.
-2. **Skeleton problem.** No projection of this skeleton can land in
-   the user's head — the bones are too foreign for the audience.
-   *Feedback → Phase 3.* This is also the most common signal that
-   the reframe has slipped into "novelty for novelty's sake".
-3. **Essence problem.** The flesh projects the skeleton faithfully
-   and the skeleton holds, but it doesn't serve what users actually
-   need. The wrong functions were extracted as essence.
-   *Feedback → Phase 1.* Hardest diagnosis to face, but the cheapest
-   place to learn it is here, not after launch.
-
-### Boundary: this is the last gate before graduation
-
-Phase 7 is the final check before the concept can graduate via
-`/reframe close`. It is not the start of full user research — that
-discipline belongs downstream, in design-driven's blueprint Verify
-sections and in the implementation phase. Phase 7 ends as soon as
-there's enough evidence to know which (if any) of the three feedback
-paths to walk.
-
-Capture results under `## Comprehension Tests` — append-only, using
-the verb-tagged block format (`Date / Artifact / Users / Observation /
-Diagnosis / Feedback`). Same shape as Stress Tests, different fields.
-See `references/template.md`.
+Use `/reframe explain for <audience>` to generate the lowest-
+fidelity test artifact directly — narration tier. Write under
+`## Comprehension Tests` (append-only) using the verb-tagged format
+`Date / Artifact / Users / Observation / Diagnosis / Feedback`. For
+the four risk tiers, the graduation boundary, and detailed diagnosis
+rationale, see `references/phase-guide.md`.
 
 ---
 
@@ -428,41 +271,17 @@ under test. See `references/traps.md` for the full catalog.
 
 ## How reframe relates to the other *-driven skills
 
-Reframe is the most upstream of the methodology skills — it operates
-*before* the system has a settled shape. The lifecycle:
+Reframe is the most upstream of the methodology skills, operating
+*before* the system has a settled shape. It pairs with **design-
+driven** as predecessor (settled skeleton graduates into
+`design/DESIGN.md` via `/reframe close`), runs **parallel to
+goal-driven** on a different axis (shape vs destination), and
+lightly overlaps **evidence-driven** at Phases 4 and 7 (claims need
+falsifiable observations).
 
-```
-[concept layer]   reframe          ← shape not yet decided
-                    │ (settled)
-                    ▼
-[structure layer] design-driven    ← shape decided, architecture maintained
-                    │
-                    ▼
-[execution layer] evidence-driven  ← discipline overlay during implementation
-
-  vertical: goal-driven runs in parallel as the destination compass
-```
-
-- **Pairs with design-driven as predecessor.** When a concept's
-  skeleton settles (Phase 4 stress tests *and* Phase 7 comprehension
-  tests both pass), `/reframe close` graduates it into
-  `design/DESIGN.md`. Reframe is the
-  *pre-architectural sketchbook*; design-driven is *post-settlement
-  architecture*. Don't substitute design-driven for reframe in
-  unsettled territory — design-driven assumes a shape exists to be
-  documented.
-- **Pairs with goal-driven as parallel companion.** Goal-driven
-  manages "why and how far" (destination); reframe manages "what
-  shape in a new paradigm". Different axes. A multi-month initiative
-  in unsettled territory often uses both: `GOAL.md` for destination,
-  `concepts/<target>.md` for shape. They reference each other but
-  neither depends on the other.
-- **Light overlap with evidence-driven.** Phase 4 stress tests and
-  Phase 7 comprehension tests both borrow evidence-driven discipline
-  (don't claim "skeleton holds" or "users understand it" without a
-  falsifiable observation). But reframe is primarily conceptual
-  exploration, not execution discipline — evidence-driven earns its
-  keep later, during implementation of the settled skeleton.
+For the lifecycle diagram, full pairing details (including when
+*not* to substitute design-driven for reframe), and handoff
+mechanics, see `references/cross-skill.md`.
 
 ## When NOT to use this skill
 
