@@ -4,6 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Guiding Principles
 
+<!-- lidessen-setup:begin v=1 -->
 ### Principles over rules
 
 Skills should help agents understand *why*, not just specify *what*. A skill that explains reasoning and principles produces better judgment across novel situations than one that mechanically lists rules. Favor broad principles over rigid prescriptions — give the agent enough context to generalize, not just enough rules to comply. ([Anthropic's constitution](https://www.anthropic.com/constitution): "If we want models to exercise good judgment across a wide range of novel situations, they need to be able to generalize — to apply broad principles rather than mechanically following specific rules.")
@@ -19,6 +20,9 @@ Agent throughput keeps rising; human review capacity doesn't. When designing a s
 ### Principal contradiction first
 
 When a task has many decisions or moving parts, agents drift unless something forces sequencing. Identify the *principal contradiction* — the load-bearing decision whose resolution changes the shape of all downstream work — and lock it before drafting details. Operational test (cascade): for each candidate, ask "if this is wrong and the rest is right, does the rest still hold?" If no, it's principal; lock it first. If yes, it's secondary; defer. The same logic recurs across this repo at different layers — design-driven's 30/70 (skeleton vs flesh), goal-driven's General Line (destination before path), reframe's 3-5 abstract functions (essence before shape). This principle adds the *execution layer*: within a single task, locate the load-bearing decision before drafting downstream artifacts. Roots in Mao's [On Contradiction](https://www.marxists.org/reference/archive/mao/selected-works/volume-1/mswv1_17.htm) — the principal contradiction's existence and development determines the form of the others; grasp it and "纲举目张" follows. Re-evaluate at transitions: once the principal is resolved, the next layer's contradiction may become principal.
+<!-- lidessen-setup:end -->
+
+> The principles between the markers above are managed by `/setup-lidessen-skills` and sourced from [`skills/setup-lidessen-skills/references/cross-cutting-principles.md`](skills/setup-lidessen-skills/references/cross-cutting-principles.md). Do not hand-edit between markers; edit the canonical reference instead, then run `/setup-lidessen-skills sync` to propagate.
 
 ## Project Overview
 
