@@ -103,6 +103,15 @@ One file per redefinition target. Structure follows
 `references/template.md`. The agent reads the file at the start of
 every session and updates it at the end of every meaningful move.
 
+Concept documents are abstract methodology applied to abstract
+content — without form discipline they read like noise. The template
+mandates several expressive devices (plain-language summary on top,
+vignettes paired with essence claims, text diagrams for skeletons,
+verb-tagged blocks for stress and comprehension tests, dependency
+tables) because each prevents a specific failure mode. Treat them as
+defaults; the only documented escape hatch is "v1 skeleton may be
+prose-only while shape is still forming".
+
 ### Directory layout
 
 ```
@@ -166,7 +175,10 @@ possible without saying how.
 
 Write the result under `## Essence` in the document. One sentence per
 function, plus one sentence of justification ("why is this essence
-rather than artifact?").
+rather than artifact?"), then a one- to two-sentence concrete vignette
+showing the function in scene. The vignette is what makes the
+abstraction stick — without it, essence reads as jargon. See
+`references/template.md` for the format.
 
 ## Phase 2: Paradigm Primitives
 
@@ -213,9 +225,23 @@ Keep prior versions visible but collapsed using `<details>` /
 `<summary>` HTML tags (supported in GitHub-flavored markdown) so the
 evolution trail stays legible without dominating the page.
 
-Write under `## Skeleton (vN)` with a short rationale linking each
-load-bearing piece back to a primitive. If a piece can't be traced to
-a primitive, that's a smell — investigate before continuing.
+Write under `## Skeleton (vN)`. Three elements are required from v2
+onward; v1 may be prose-only while shape is still forming:
+
+1. **A text diagram of the core flow** (state machine, data flow, or
+   dependency graph in ASCII). Six lines of diagram teach more than
+   six paragraphs of prose.
+2. **A Components → Primitives dependency table** so "expressed in
+   primitives" is auditable rather than hand-waved. A component row
+   with no checkmarks is old skeleton sneaking in.
+3. **A short rationale per component** linking it back to an essence
+   function and justifying the shape over the obvious traditional
+   one.
+
+Between consecutive versions, write a one-paragraph **delta annotation**
+naming what changed and which stress or comprehension test triggered
+it — readers shouldn't diff component lists by hand. See
+`references/template.md` for the format.
 
 ## Phase 4: Skeleton Stress Test
 
@@ -249,6 +275,11 @@ doesn't get re-litigated later.
 Write all stress tests and outcomes under `## Stress Tests`. The
 section is append-only history — don't delete failed attempts; their
 existence is the evidence that the surviving skeleton was tested.
+
+Each entry uses the verb-tagged block format (`Date / Removed /
+Hypothesis / Result / Diagnosis`). Free-form prose entries are
+rejected on later read because the structure is what makes the log
+skim-readable months later. See `references/template.md`.
 
 ## Phase 5 (cross-cutting): Transfer Learning
 
@@ -300,8 +331,10 @@ Once the skeleton holds, plan the user-facing surface as a
   bolt X onto the surface. A surface capability the skeleton can't
   reason about will fight the rest of the system forever.
 
-Write under `## Flesh Plan`. For each flesh element, state which
-skeleton state it projects and which user need it serves.
+Write under `## Flesh Plan` as a three-column table: flesh element,
+skeleton state it projects, user need it serves. If you can't fill
+all three columns for a row, the element isn't flesh — it's old
+paradigm leaking through. See `references/template.md`.
 
 ## Phase 7: Comprehension Test
 
@@ -362,10 +395,10 @@ sections and in the implementation phase. Phase 7 ends as soon as
 there's enough evidence to know which (if any) of the three feedback
 paths to walk.
 
-Capture results under `## Comprehension Tests` in the document —
-append-only, mirroring the shape of `## Stress Tests`. Each entry:
-the artifact tested, the user(s) involved, what was observed, the
-diagnosis, the feedback path taken.
+Capture results under `## Comprehension Tests` — append-only, using
+the verb-tagged block format (`Date / Artifact / Users / Observation /
+Diagnosis / Feedback`). Same shape as Stress Tests, different fields.
+See `references/template.md`.
 
 ---
 
