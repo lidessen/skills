@@ -35,8 +35,10 @@ description: |
   Supports arguments: `/reframe init` to set up the project's
   `concepts/` working directory and register the skill in agent
   configs, `/reframe close` to finalize a concept document with a
-  retrospective and archive it.
-argument-hint: "[init | close]"
+  retrospective and archive it, `/reframe explain [for <audience>]`
+  to translate a concept document into an audience's working
+  vocabulary (output to chat; not persisted by default).
+argument-hint: "[init | close | explain [for <audience>]]"
 ---
 
 # Reframe
@@ -64,6 +66,11 @@ When invoked with an argument, dispatch to the corresponding file:
 - `/reframe close` → Read and follow `commands/close.md` in this skill
   directory. Finalize a concept document with a retrospective and
   archive it.
+- `/reframe explain [for <audience>] [about <focus>]` → Read and follow
+  `commands/explain.md` in this skill directory. Translate the
+  concept document into an audience's working vocabulary; output to
+  chat. Doubles as a Phase 7 narration-fidelity comprehension-test
+  artifact.
 - No argument → Continue with the methodology below. If `concepts/`
   contains active documents, list them and offer to resume one. If
   empty, ask the user what they want to reframe and create a new
@@ -357,6 +364,9 @@ Match the artifact's fidelity to the risk:
 
 - **Lowest risk** — narrate the flow in plain language to a target
   user; ask them to predict what happens next at each step.
+  `/reframe explain for <audience>` produces this artifact directly
+  — generate it, walk it through with the target user, log
+  reactions.
 - **Medium risk** — wireframe walkthrough or paper prototype.
 - **Higher risk** — interactive mock with real interaction patterns.
 - **Highest risk** — working prototype on a thin slice of the

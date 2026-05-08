@@ -63,6 +63,7 @@ Then invoke a skill in any conversation:
 /reframe                    # Start or resume a concept exploration
 /reframe init               # Set up concepts/ directory + agent configs
 /reframe close              # Finalize a concept; archive or graduate to design/
+/reframe explain            # Translate the concept doc into an audience's vocabulary
 ```
 
 ## License
