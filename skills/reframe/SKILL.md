@@ -21,6 +21,15 @@ description: |
   paradigm (use technical-article-writing), or for vague "make it AI"
   requests with no concrete domain to redefine.
 
+  Pairs with design-driven as upstream: reframe explores what shape a
+  system should take in a new paradigm; once the skeleton settles, it
+  graduates into design/DESIGN.md and design-driven takes over.
+  Parallel to goal-driven (which manages destination clarity, not
+  shape clarity) — multi-month explorations in unsettled territory
+  often use both: GOAL.md as compass, concepts/<target>.md as the
+  working theory of shape. Each works alone — they cross-reference
+  but do not depend on each other.
+
   Supports arguments: `/reframe init` to set up the project's
   `concepts/` working directory and register the skill in agent
   configs, `/reframe close` to finalize a concept document with a
@@ -327,6 +336,43 @@ Skeleton then load-bears on something that doesn't exist. Calibrate
 primitives to what's available, not what's imagined.
 
 ---
+
+## How reframe relates to the other *-driven skills
+
+Reframe is the most upstream of the methodology skills — it operates
+*before* the system has a settled shape. The lifecycle:
+
+```
+[concept layer]   reframe          ← shape not yet decided
+                    │ (settled)
+                    ▼
+[structure layer] design-driven    ← shape decided, architecture maintained
+                    │
+                    ▼
+[execution layer] evidence-driven  ← discipline overlay during implementation
+
+  vertical: goal-driven runs in parallel as the destination compass
+```
+
+- **Pairs with design-driven as predecessor.** When a concept's
+  skeleton settles (Phase 4 stress tests pass), `/reframe close`
+  graduates it into `design/DESIGN.md`. Reframe is the
+  *pre-architectural sketchbook*; design-driven is *post-settlement
+  architecture*. Don't substitute design-driven for reframe in
+  unsettled territory — design-driven assumes a shape exists to be
+  documented.
+- **Pairs with goal-driven as parallel companion.** Goal-driven
+  manages "why and how far" (destination); reframe manages "what
+  shape in a new paradigm". Different axes. A multi-month initiative
+  in unsettled territory often uses both: `GOAL.md` for destination,
+  `concepts/<target>.md` for shape. They reference each other but
+  neither depends on the other.
+- **Light overlap with evidence-driven.** The Phase 4 stress test
+  borrows evidence-driven discipline (don't claim "skeleton holds"
+  without a falsifiable observation). But reframe is primarily
+  conceptual exploration, not execution discipline — evidence-driven
+  earns its keep later, during implementation of the settled
+  skeleton.
 
 ## When NOT to use this skill
 
