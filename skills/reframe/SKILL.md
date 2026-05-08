@@ -12,9 +12,11 @@ description: |
   Use when the user is designing something whose conventions don't
   yet exist and where copying the traditional reference design would
   lead them astray. Trigger on phrases like "AI native X", "agent-
-  first X", "重新定义 X", "重做 X 但底层换", "reframe X for Y",
-  "X 在新范式下应该长什么样", "做一个没有先例的系统", or when the
-  user voices the tension between "穿新鞋走老路" and "立得住的新骨架".
+  first X", "redefine X", "rebuild X from scratch under Y", "reframe
+  X for Y", "what should X look like in the new paradigm", "design a
+  system with no precedent", or when the user voices the tension
+  between "new shoes on the old path" and "a skeleton that holds on
+  its own".
 
   Do NOT trigger for incremental redesigns within an existing
   paradigm (use design-driven), for explanatory writing about a
@@ -305,18 +307,18 @@ skeleton state it projects and which user need it serves.
 
 ## Common traps
 
-**穿新鞋走老路 — new shoes, old path.** Skeleton is traditional, the
-surface is reskinned with paradigm vocabulary. Detection: try
-describing the system without any paradigm-specific verbs. If the
-description matches a traditional system in the same domain, the
-reframe is cosmetic.
+**New shoes, old path.** Skeleton is traditional, the surface is
+reskinned with paradigm vocabulary. Detection: try describing the
+system without any paradigm-specific verbs. If the description
+matches a traditional system in the same domain, the reframe is
+cosmetic.
 
-**为新而新 — novelty for novelty's sake.** Skeleton is genuinely new
-but does the essence functions worse than the traditional version.
-Users get fashionable architecture and worse outcomes. Detection:
-walk through each essence function and ask "better, worse, or
-sideways for the user?" Sideways is acceptable. Worse means the
-reframe has lost the plot.
+**Novelty for novelty's sake.** Skeleton is genuinely new but does
+the essence functions worse than the traditional version. Users get
+fashionable architecture and worse outcomes. Detection: walk through
+each essence function and ask "better, worse, or sideways for the
+user?" Sideways is acceptable. Worse means the reframe has lost the
+plot.
 
 **Premature flesh.** Drawing UI before the skeleton has settled. The
 flesh then constrains skeleton revision — changing the skeleton
