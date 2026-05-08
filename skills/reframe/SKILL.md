@@ -22,9 +22,9 @@ description: |
   requests with no concrete domain to redefine.
 
   Supports arguments: `/reframe init` to set up the project's
-  `reframe/` working directory and register the skill in agent
-  configs, `/reframe close` to finalize a redefinition with a
-  retrospective and archive the working document.
+  `concepts/` working directory and register the skill in agent
+  configs, `/reframe close` to finalize a concept document with a
+  retrospective and archive it.
 argument-hint: "[init | close]"
 ---
 
@@ -48,14 +48,14 @@ surface as a projection of the new skeleton.
 When invoked with an argument, dispatch to the corresponding file:
 
 - `/reframe init` → Read and follow `commands/init.md` in this skill
-  directory. First-time project plumbing: create `reframe/`, register
+  directory. First-time project plumbing: create `concepts/`, register
   the skill in agent configs.
 - `/reframe close` → Read and follow `commands/close.md` in this skill
-  directory. Finalize a redefinition with a retrospective and archive
-  the working document.
-- No argument → Continue with the methodology below. If `reframe/`
-  contains in-progress documents, list them and offer to resume one.
-  If empty, ask the user what they want to reframe and create a new
+  directory. Finalize a concept document with a retrospective and
+  archive it.
+- No argument → Continue with the methodology below. If `concepts/`
+  contains active documents, list them and offer to resume one. If
+  empty, ask the user what they want to reframe and create a new
   document from `references/template.md`.
 
 ---
@@ -81,7 +81,7 @@ paradigm's primitives. Flesh follows. Often the user-visible result
 *resembles* a traditional system — that's fine, that's the projection
 — but every operation underneath flows through new primitives.
 
-## The artifact: `reframe/<target>.md`
+## The artifact: `concepts/<target>.md`
 
 A reframe is a multi-session exploration. The document is the
 pause-and-resume mechanism: any agent (a future you, a different
@@ -92,16 +92,39 @@ One file per redefinition target. Structure follows
 `references/template.md`. The agent reads the file at the start of
 every session and updates it at the end of every meaningful move.
 
+### Directory layout
+
+```
+concepts/
+  <target>.md          ← active concept document (e.g. ai-native-crm.md)
+  archive/
+    <target>.md        ← closed concepts moved here by /reframe close
+```
+
+Each file carries YAML frontmatter so its state is machine-readable:
+
+```yaml
+---
+target: AI-native CRM
+paradigm: AI-native
+status: active        # active | closed
+opened: 2026-05-08
+---
+```
+
+### Resume-or-start flow
+
 When the user invokes the skill with no argument:
 
-1. List existing `reframe/*.md` files (non-archived). If any are
-   marked `Status: active`, offer them as resume candidates.
-2. If the user picks one, load it and continue from its current
-   phase. If they want a new target, create a new file from the
-   template and start at Phase 1.
-3. If no `reframe/` directory exists, suggest `/reframe init` first
-   — but if the user prefers to skip plumbing, just create the
-   directory and document inline.
+1. List files in `concepts/` (excluding `concepts/archive/`). For each,
+   read the frontmatter `status` field; offer files with
+   `status: active` as resume candidates.
+2. If the user picks one, load it and continue from its current phase.
+   If they want a new target, create a new file from the template and
+   start at Phase 1.
+3. If no `concepts/` directory exists, suggest `/reframe init` first —
+   but if the user prefers to skip plumbing, just create the directory
+   and document inline.
 
 ---
 
@@ -175,7 +198,9 @@ question.
 
 Version explicitly. The first skeleton will be wrong somewhere. Write
 v1, run stress tests (Phase 4), write v2 in light of what failed.
-Keep v1 visible (collapsed) so the evolution stays legible.
+Keep prior versions visible but collapsed using `<details>` /
+`<summary>` HTML tags (supported in GitHub-flavored markdown) so the
+evolution trail stays legible without dominating the page.
 
 Write under `## Skeleton (vN)` with a short rationale linking each
 load-bearing piece back to a primitive. If a piece can't be traced to
