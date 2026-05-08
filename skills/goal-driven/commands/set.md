@@ -46,6 +46,7 @@ written in Phase 4.
 |---|---|
 | design-driven | `design/DESIGN.md` exists, OR any agent config file (see Phase 4.2 list) contains `<!-- skill:design-driven -->` block |
 | evidence-driven | Any agent config file (see Phase 4.2 list) contains `<!-- skill:evidence-driven -->` block, OR pre-commit hook references evidence-driven |
+| reframe | `concepts/` directory exists with at least one `.md` file, OR any agent config file contains `<!-- skill:reframe -->` block |
 
 Note which siblings are present. No action yet — used in later phases.
 

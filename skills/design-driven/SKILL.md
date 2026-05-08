@@ -65,9 +65,16 @@ rewritten next week. Most ongoing engineering work fits.
   success criteria, no deadline, no measurable target → start at the
   strategy layer with `/goal-driven set`. design-driven becomes the
   right tool once shape is the question, not direction.
-- **The shape is volatile** — you'd rewrite DESIGN.md weekly. The
-  project is still in exploration; goal-driven covers this phase.
-  Bring in design-driven when shape stabilizes.
+- **The shape itself is unsettled because the paradigm is new** (no
+  industry precedent — AI-native systems, agent-first interfaces,
+  post-mobile categories). Writing DESIGN.md prematurely will lock
+  in a traditional skeleton dressed in new vocabulary. Use
+  `/reframe` first to redraw the skeleton from the new paradigm's
+  primitives; once it settles, graduate it into DESIGN.md.
+- **The shape is volatile within a known paradigm** — you'd rewrite
+  DESIGN.md weekly because the project is still exploring direction.
+  goal-driven covers this phase. Bring in design-driven when shape
+  stabilizes.
 - **The work is one-off** — bug fix, script, throwaway prototype.
   No framework needed.
 

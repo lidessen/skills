@@ -46,18 +46,23 @@ evidence.
 ## Position in the layered stack
 
 ```
+concept:         reframe           (what shape in a new paradigm; only when no precedent)
 strategy:        goal-driven       (why; success criteria; when to STOP)
 architecture:    design-driven     (what shape; module boundaries; mechanisms)
 execution:       evidence-driven   (prove it works; falsifiability; rigor)
 task tracking:   external          (issue tracker / TODO — operational layer)
 ```
 
-The three methodology layers are concurrent, not sequential. Information
+The methodology layers are concurrent, not sequential. Information
 flows in both directions: build observations feed back to design (shape
-proposal), design adoptions feed back to goal (criterion check), and so
-on. Evidence-driven is the discipline that makes those upstream signals
-trustworthy — without it, every claim "the code works" is unfalsifiable
-and the whole feedback loop breaks down.
+proposal), design adoptions feed back to goal (criterion check), reframe
+graduates settled skeletons into design once the concept stabilizes,
+and so on. Evidence-driven is the discipline that makes those upstream
+signals trustworthy — without it, every claim "the code works" is
+unfalsifiable and the whole feedback loop breaks down. Reframe (the
+concept layer) only enters the stack when the project is in unsettled
+paradigm territory; once it closes, the stack reverts to the three
+core layers.
 
 ## Commands
 
@@ -356,6 +361,36 @@ bugs recurs because the shape is wrong (not the code implementing it)
 is a design proposal trigger — write a `design/decisions/NNN-*.md`,
 don't keep rewriting the same tests. evidence-driven catches symptoms;
 design-driven addresses root.
+
+## With reframe
+
+Light, surgical overlap. Reframe is conceptual exploration, not
+execution — most of its phases (essence extraction, primitive
+listing, transfer learning, flesh planning) don't engage
+evidence-driven at all. But two phases borrow the discipline:
+
+- **Phase 4 — Skeleton Stress Test.** Each "did the skeleton hold
+  when this crutch was removed?" verdict is exactly the kind of
+  claim that needs falsifiable evidence. "It held" without an
+  observation is theater. The Stress Tests log entry should record
+  the specific scenario probed and what behavior was (or would be)
+  observed — not a summary judgment.
+- **Phase 7 — Comprehension Test.** "Users understood the flow"
+  is a claim that demands evidence at least as much as "the code
+  works". The lightest credible artifact (narration / wireframe /
+  mock / thin prototype) plus a captured user observation is the
+  evidence pattern. "Looks intuitive to me" isn't.
+
+When reframe and evidence-driven are both installed, the concept
+document's Stress Tests and Comprehension Tests entries should
+follow this skill's rule: every verdict cites the observation that
+could have shown the opposite. This carries forward when the
+concept graduates into design-driven — those captured observations
+become the seed for the blueprint's Verification section.
+
+Handoff direction is always concept → design → evidence → code.
+Evidence-driven doesn't read or write `concepts/` files; it just
+raises the signal-to-noise ratio of the verdicts inside them.
 
 ## With goal-driven
 

@@ -25,6 +25,12 @@ description: |
   direction AND structure. Each works alone — they cross-reference but do
   not depend on each other.
 
+  Also runs parallel to reframe when the initiative is in unsettled
+  paradigm territory (AI-native, agent-first). Goal-driven owns
+  destination clarity; reframe owns shape clarity in the new paradigm.
+  GOAL.md as compass, concepts/<target>.md as the working theory of
+  shape — neither depends on the other.
+
   Supports arguments: `/goal-driven set` to interview-drive an initial
   GOAL.md and scaffolding, `/goal-driven review` for strategic
   checkpoint plus protocol maintenance, `/goal-driven close` to wrap
@@ -428,6 +434,16 @@ engineer would build the same mental model. At that point, run
 `/design-driven bootstrap` to extract the implicit shape into DESIGN.md.
 Goal-driven keeps running alongside; design-driven takes over the "how"
 question. Until that signal, defer — premature DESIGN.md gets rewritten.
+
+**When to bring in reframe instead of design-driven.** If the
+initiative is in unsettled paradigm territory (AI-native, agent-first,
+post-mobile) and "what shape?" is ill-formed because no precedent
+exists, use `/reframe` before design-driven. Reframe redraws the
+skeleton from the new paradigm's primitives in `concepts/<target>.md`;
+once stress and comprehension tests pass, `/reframe close` graduates
+the skeleton into DESIGN.md and the design-driven flow takes over. In
+the unsettled phase, GOAL.md and `concepts/<target>.md` run in
+parallel — destination compass and shape working-theory.
 
 Four interaction points to watch when both are present:
 
