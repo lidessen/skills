@@ -371,7 +371,7 @@ to engage carefully:
 > or leave for later when a STOP makes the choice live?
 
 If the human says yes, draft paragraph by paragraph in chat (same
-protocol as story updates — see SKILL.md "Stories" section), get
+protocol as story updates — see `../references/stories.md`), get
 approval, write to `goals/stories/<topic>.md`. Creating the first
 story brings the directory into being.
 
