@@ -1,47 +1,82 @@
 # goal-driven:set — Interview-driven GOAL.md
 
-Create the initial `goals/GOAL.md` by interviewing the human, and set up
-the minimal scaffolding around it. Run once per initiative — when
-adopting goal-driven on a project that doesn't have one yet, or when
-re-setting after a major change in direction.
+Create or refresh `goals/GOAL.md` and the plumbing around it. The
+interview is the heart of the first run; subsequent runs are
+**update mode** — refreshing scaffolding, sibling integration, and
+the CLAUDE.md block without re-interviewing for the goal itself.
 
-The interview is the whole point. Do **not** draft GOAL.md alone in your
-head, ask "approve?", and write the file. Section by section, asking,
-echoing, getting confirmation, then moving on. The point is that the human
-ends up owning the compass — the agent is the writer, not the author.
+The interview is the whole point on first run. Do **not** draft GOAL.md
+alone in your head, ask "approve?", and write the file. Section by
+section, asking, echoing, getting confirmation, then moving on. The point
+is that the human ends up owning the compass — the agent is the writer,
+not the author.
 
-Work in four phases: **Prepare → Interview → Draft → Wire up**.
+Work in four phases: **Prepare → Interview → Draft → Wire up**. In
+update mode, skip Phase 2 and Phase 3 (GOAL.md already exists and stays
+human-owned); run Phase 1 detection and Phase 4 wire-up only.
 
 ## Phase 1 — Prepare
 
-### 1.1 Check current state
+### 1.1 Detect run mode
 
-If `goals/GOAL.md` already has non-stub content, stop and ask the human:
+Look at `goals/GOAL.md`:
 
-- "There's already content in `goals/GOAL.md` — do you want to redo from
-  scratch (I'll archive the current one), or did you mean
-  `/goal-driven review` to step back and re-assess?"
+- **First-run** — file missing or only stub content. Run all four
+  phases. Tell the human: "Setting up goal-driven for the first time;
+  I'll interview you for the goal."
+- **Update** — file exists with real content. Tell the human: "Goal
+  already set; re-running `set` will refresh the scaffolding, sibling
+  integration, and CLAUDE.md block — won't touch GOAL.md or records.
+  Want a redo from scratch instead? (rare — usually `/goal-driven
+  review` is what you want for re-assessment.)"
 
-If they confirm redo: move existing `goals/GOAL.md` to
-`goals/GOAL.archived-YYYY-MM-DD.md` before continuing.
+  Default behavior in update mode: skip interview/draft phases, jump to
+  Phase 1.2 (sibling detection) → Phase 4 (wire-up). Only redo from
+  scratch if the human explicitly asks; if so, archive existing
+  `goals/GOAL.md` to `goals/GOAL.archived-YYYY-MM-DD.md` and proceed
+  as first-run.
 
-### 1.2 Surface what's already known
+### 1.2 Detect installed sibling skills
+
+Scan for sibling methodology skills already wired into this project. The
+results inform both the interview (Phase 2) and the CLAUDE.md block
+written in Phase 4.
+
+| Sibling | Detection signal |
+|---|---|
+| design-driven | `design/DESIGN.md` exists, OR CLAUDE.md contains `<!-- skill:design-driven -->` block |
+| evidence-driven | CLAUDE.md contains `<!-- skill:evidence-driven -->` block, OR pre-commit hook references evidence-driven |
+
+Note which siblings are present. No action yet — used in later phases.
+
+### 1.3 Surface what's already known
 
 If there's prior context — `README.md`, project notes, prior conversation,
-emails, an existing scratch document — read it. The interview is faster
-when the agent can ask "I see in your notes that X — is that the north
-star, or a means to it?" rather than starting blank.
+emails, an existing scratch document, and (especially) `design/DESIGN.md`
+if design-driven is installed — read it. The interview is faster when
+the agent can ask "I see in your notes / design that X — is that the
+north star, or a means to it?" rather than starting blank.
 
 If the project is new with no prior writing, skip this; start the
-interview from zero.
+interview from zero. (Update mode skips this section entirely.)
 
 ## Phase 2 — Interview
+
+(First-run only. Skip in update mode.)
 
 Four sections, drawn out one at a time and confirmed before moving on.
 Phrasing is the agent's; the descriptions below are *why* each section
 matters and *what good answers look like*. The interview's value is the
 human's commitment to the wording — a draft the agent wrote and the
 human nodded at is not the same as a wording they confirmed.
+
+**If design-driven is installed** (per Phase 1.2 detection), use
+`design/DESIGN.md` as the starting context — modules, invariants, and
+non-goals there are clues to the goal's shape. Don't import them
+verbatim; ask the human whether each is goal-level (compass) or
+shape-level (already owned by design-driven). The interview narrows
+faster when it can react to existing artifacts instead of starting
+blank.
 
 ### 2.1 General Line — what should be true when this is done
 
@@ -94,6 +129,14 @@ Common patterns to prompt with when the human draws a blank: data
 boundaries ("user data stays local"), process rules ("no weekends"),
 scope walls ("only contracted work"), quality floors ("test coverage
 doesn't drop").
+
+If design-driven is installed and `design/DESIGN.md` lists invariants
+or non-goals at the architecture layer, surface them: "DESIGN.md says
+*<invariant>* — should this also be a goal invariant, or is it
+purely shape-level?" Goal invariants are about the initiative's
+direction (the project must always X); design invariants are about
+the system's structure. Same words, different scope — keep them
+separate, but cross-check.
 
 Past 4 invariants, some are probably criteria or non-goals in disguise.
 
@@ -169,6 +212,12 @@ final read catches typos and ordering issues, not substance.
 
 ## Phase 4 — Wire up
 
+This phase runs in **both** first-run and update mode. It's idempotent:
+each step does nothing if state is already current, or refreshes
+otherwise. Re-running `/goal-driven set` on a project that's already set
+up is the supported way to refresh the CLAUDE.md block after siblings
+get installed or removed.
+
 ### 4.1 Ensure plumbing exists
 
 If missing (idempotent — skip what's already there):
@@ -180,21 +229,40 @@ Don't create `OPEN-STOPS.md` or monthly-rotation files now; they're
 added later when project volume or open-STOP count makes them
 load-bearing. See SKILL.md "Structure follows need."
 
-### 4.2 Update agent configs
+### 4.2 Write the agent-config block (idempotent)
 
-Append goal-driven instructions to every AI agent config the project
-uses. Common locations:
+Goal-driven owns a delimited block in every AI agent config file the
+project uses. The markers make the block re-runnable: on update, replace
+between the markers; on first run, append the block.
+
+**Marker convention:**
+
+```
+<!-- skill:goal-driven -->
+...content...
+<!-- /skill:goal-driven -->
+```
+
+**Where to write.** Common config locations — write only to those that
+already exist (don't create new agent configs for tools the project
+doesn't use):
 
 - `CLAUDE.md` — Claude Code
 - `.cursorrules` — Cursor
 - `AGENTS.md` or `codex.md` — Codex / OpenAI agents
 - `.github/copilot-instructions.md` — GitHub Copilot
 - `.windsurfrules` — Windsurf
-- Any other agent instruction file the project uses
 
-Minimal paste-ready snippet (trim or expand to match the project's tone):
+**Algorithm for each file.** If the file contains
+`<!-- skill:goal-driven -->`, replace everything between markers
+(inclusive of markers) with the new block. Otherwise, append the new
+block at the end (preceded by a blank line).
+
+**Block content** — base, plus a conditional Interactions section
+populated from Phase 1.2 detection:
 
 ```markdown
+<!-- skill:goal-driven -->
 ## Goal-driven planning
 
 When working on this initiative, follow the goal-driven protocol:
@@ -212,10 +280,29 @@ When working on this initiative, follow the goal-driven protocol:
   silently rewrite the path past a STOP.
 - Never edit `GOAL.md` without an explicit, confirmed change request
   from the human, echoed back line by line.
+
+### Interactions
+<!-- Only emit lines whose sibling was detected in Phase 1.2.
+     If no siblings detected, omit this whole subsection. -->
+
+- **with design-driven** (detected: `design/DESIGN.md` present) —
+  goal-driven owns *why* and *how-far*; design-driven owns
+  *what-shape*. A goal pivot that crosses module boundaries also
+  triggers a `design/decisions/NNN-*.md` proposal. A design proposal
+  that would violate a GOAL invariant triggers a Type A STOP first.
+  Cross-reference by ID, not content (record entry: "adopted
+  decision 003"; decision: "blocks STOP from 2026-05-02 if rejected").
+- **with evidence-driven** (detected: evidence-driven block in this
+  file) — every criterion ✓/✗ in record entries cites a falsifiable
+  observation. STOP signals that depend on build observations are
+  credible only when those observations carry evidence-driven trails.
+<!-- /skill:goal-driven -->
 ```
 
-Check which config files already exist; don't create files for tools the
-project doesn't use.
+**Show the block in chat before writing.** Especially in update mode —
+the human should see whether siblings were detected correctly. If a
+sibling is installed but wasn't detected (e.g., because it lives in an
+unusual path), the human can flag it before the write.
 
 A SessionStart hook can enforce the protocol mechanically — emit a
 reminder to read GOAL.md and surface open STOPs at every session start.
@@ -223,7 +310,27 @@ This is opt-in and rarely necessary; the skill description usually
 carries enough weight on its own. If the human asks for it, the harness
 or hookify skill can generate the config.
 
-### 4.3 First record entry
+### 4.3 Suggest sibling refresh
+
+After writing goal-driven's block, scan each detected sibling's block
+in the same agent-config files. If a sibling block exists but lacks any
+mention of goal-driven (or refers to it in a stale way), nudge — don't
+edit the sibling's block:
+
+> I refreshed `<!-- skill:goal-driven -->` to mention design-driven /
+> evidence-driven. Their own blocks may be out of date for the reverse
+> direction — re-running `/design-driven init` and `/evidence-driven
+> init` will refresh them with the latest cross-references. Want me to
+> do that now, or leave for later?
+
+If the human says yes, dispatch to those skills' init commands. If no
+or "later", that's fine — the cross-references are useful but not
+load-bearing.
+
+**Do not edit sibling blocks directly.** Each skill owns its block;
+goal-driven only writes between its own markers.
+
+### 4.4 First record entry (first-run only)
 
 Add a "kickoff" entry to the record. Format:
 
@@ -235,9 +342,10 @@ Add a "kickoff" entry to the record. Format:
 - Judgment: no change. Next session begins real work.
 ```
 
-This anchors the record so the next session has something to read.
+This anchors the record so the next session has something to read. In
+update mode, skip — record already has entries.
 
-### 4.4 Propose initial stories (opt-in)
+### 4.5 Propose initial stories (opt-in, first-run only)
 
 Look at the GOAL.md just written and ask: are there choices in here
 that future-you (or a future agent) would want context on? Typical
@@ -270,13 +378,21 @@ Don't push.
 
 See `references/templates.md` for the story file template.
 
-### 4.5 Commit
+### 4.6 Commit
 
-Commit `goals/`, agent config updates, and any hook configs together as
-the goal-driven setup. One commit, clear message: "goal-driven: set
-GOAL.md and record scaffolding".
+Commit `goals/`, agent config updates, and any hook configs together.
+One commit, clear message:
 
-### 4.6 Tell the human what's next
+- First-run: `goal-driven: set GOAL.md and record scaffolding`
+- Update: `goal-driven: refresh CLAUDE.md block (siblings: <list>)`
+
+If update mode produced no actual changes (block already current,
+plumbing already in place), skip the commit — empty commits add noise.
+Just report: "Re-run produced no changes; setup is already current."
+
+### 4.7 Tell the human what's next
+
+First-run:
 
 - The compass is set. From now on, every work session ends with a record
   entry the agent will draft and ask them to confirm.
@@ -284,6 +400,12 @@ GOAL.md and record scaffolding".
   and ask before continuing.
 - They don't need to remember any of this — the agent's protocol carries
   it. Their job is to approve, redirect, and decide at STOPs.
+
+Update:
+
+- Summarize what changed (e.g., "added evidence-driven cross-reference
+  to the goal-driven block").
+- Mention any sibling refreshes still pending (per Phase 4.3).
 
 ## Avoid these failure modes
 
