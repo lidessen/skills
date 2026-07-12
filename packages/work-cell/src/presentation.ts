@@ -14,6 +14,9 @@ export function renderRunSummary(record: CellRunRecord, recordPath?: string): st
     }
   }
 
+  const estimateAudit = tokenEstimateAudit(record);
+  if (estimateAudit) lines.push(estimateAudit);
+
   if (record.executionObservation.workEstimateId || record.executionObservation.executionProfileId) {
     const parts = [
       record.executionObservation.workEstimateId ? `Work estimate: ${record.executionObservation.workEstimateId}` : undefined,
@@ -32,8 +35,7 @@ export function renderRunSummary(record: CellRunRecord, recordPath?: string): st
     lines.push(`Terminal: ${record.verification.terminal.passed ? "satisfied" : "missing"} (${record.verification.terminal.required.join(", ")})`);
   }
 
-  if (record.status === "budget_exceeded") lines.push(budgetDiagnostic(record));
-  else if (record.error) lines.push(`Error: ${record.error}`);
+  if (record.error) lines.push(`Error: ${record.error}`);
   if (recordPath) lines.push(`Record: ${recordPath}`);
   return lines.join("\n");
 }
@@ -44,11 +46,28 @@ function expressionLine(record: CellRunRecord): string {
   return `Expression: ${record.geneExpression.lead}${supports.length ? ` + ${supports.join(", ")}` : ""}`;
 }
 
-function budgetDiagnostic(record: CellRunRecord): string {
+function tokenEstimateAudit(record: CellRunRecord): string | undefined {
+  const estimated = record.input.budget.estimatedTokens;
+  if (estimated === undefined) return undefined;
   const reads = record.trace.filter((event) => event.type === "tool.read_file");
   const characters = reads.reduce((total, event) => total + characterCount(event.data), 0);
-  const budget = record.input.budget.maxTokens;
-  return `Budget: observed ${format(record.usage.totalTokens)} of ${format(budget)} tokens after ${reads.length} reads (${format(characters)} chars returned). Narrow --scope or raise --max-tokens deliberately.`;
+  const delta = record.usage.totalTokens - estimated;
+  const relativeDelta = delta / estimated;
+  const sign = delta > 0 ? "+" : "";
+  const phase = record.usageByPhase;
+  const parts = [
+    `Token estimate: ${format(estimated)}; actual ${format(record.usage.totalTokens)}; variance ${sign}${format(delta)} (${sign}${formatPercent(relativeDelta)}).`,
+    `Inputs ${format(record.usage.inputTokens)}, outputs ${format(record.usage.outputTokens)}; expression ${format(phase.expression.totalTokens)}, execution ${format(phase.execution.totalTokens)}; ${reads.length} reads (${format(characters)} chars returned).`,
+  ];
+  const tolerance = record.input.budget.estimatedTokensTolerance;
+  if (tolerance === undefined) {
+    parts.push("Estimate review: no tolerance declared; compare this variance before reusing the estimate.");
+  } else if (Math.abs(relativeDelta) > tolerance) {
+    parts.push(`Estimate review: required — outside declared ±${formatPercent(tolerance)} tolerance; inspect scope, context/read volume, phase split, and execution profile before revising the estimate.`);
+  } else {
+    parts.push(`Estimate review: within declared ±${formatPercent(tolerance)} tolerance.`);
+  }
+  return parts.join(" ");
 }
 
 function characterCount(value: unknown): number {
@@ -59,4 +78,8 @@ function characterCount(value: unknown): number {
 
 function format(value: number): string {
   return new Intl.NumberFormat("en-US").format(value);
+}
+
+function formatPercent(value: number): string {
+  return new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 1 }).format(value);
 }

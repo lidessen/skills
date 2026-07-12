@@ -11,7 +11,7 @@ import {
   type OutputVerification,
 } from "./contracts";
 import type { CellDriver } from "./driver";
-import { CellBudgetExceededError, CellExecutionError, traceEvent } from "./driver";
+import { CellExecutionError, traceEvent } from "./driver";
 import { expressGenome, loadGenome } from "./genome";
 import { Workspace } from "./workspace";
 import { compileOutputSchema } from "./output-schema";
@@ -59,7 +59,6 @@ export async function runCell(
       const context = {
         workspace,
         signal,
-        maxTokens: input.budget.tokenControl === "hard" ? input.budget.maxTokens : Number.MAX_SAFE_INTEGER,
         emit(type: string, data: unknown) {
           trace.push(traceEvent(type, data));
         },
@@ -82,12 +81,7 @@ export async function runCell(
           interpretationPaths: loadedInterpretations,
         }),
       );
-      driverResult = await driver.run(input, expressed, {
-        ...context,
-        maxTokens: input.budget.tokenControl === "hard"
-          ? Math.max(1, input.budget.maxTokens - selectionResult.usage.totalTokens)
-          : Number.MAX_SAFE_INTEGER,
-      });
+      driverResult = await driver.run(input, expressed, context);
       const terminalTools = input.terminalTools ?? [];
       const terminalSatisfied = terminalTools.length === 0 || terminalTools.some(
         (terminal) => driverResult!.terminalToolsCalled.includes(terminal.name),
@@ -127,11 +121,7 @@ export async function runCell(
       }
     } catch (caught) {
       error = caught instanceof Error ? caught.message : String(caught);
-      if (caught instanceof CellBudgetExceededError) {
-        status = "budget_exceeded";
-        failureUsage = caught.usage ?? emptyUsage();
-      }
-      else if (caught instanceof CellExecutionError) {
+      if (caught instanceof CellExecutionError) {
         failureUsage = caught.usage;
       }
       else if (signal.aborted) status = "cancelled";
@@ -178,6 +168,10 @@ export async function runCell(
     },
     workspaceDiff: workspace.diff(before, after),
     usage,
+    usageByPhase: {
+      expression: selectionResult?.usage ?? emptyUsage(),
+      execution: driverResult?.usage ?? failureUsage,
+    },
     executionObservation,
     ...(estimate ? { estimatedCostUsd: estimate.value, estimateBasis: estimate.basis } : {}),
     trace,

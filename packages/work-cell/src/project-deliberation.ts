@@ -20,7 +20,7 @@ export const ProjectDeliberationRequestSchema = z.object({
   budget: z.object({
     envelope: BudgetEnvelopeSchema,
     source: z.string().min(1),
-    memberMaxTokens: z.number().int().positive(),
+    memberEstimatedTokens: z.number().int().positive(),
     plannedTotalTokens: z.number().int().positive().optional(),
     maxRecoveryAttempts: z.literal(1).optional(),
   }),
@@ -114,7 +114,7 @@ export async function prepareProjectDeliberation(unparsed: unknown): Promise<Pre
         ],
         budget: {
           maxSteps: 10,
-          maxTokens: request.budget.memberMaxTokens,
+          estimatedTokens: request.budget.memberEstimatedTokens,
           maxDurationMs: 180_000,
           maxCommandOutputBytes: 24_000,
         },
@@ -173,8 +173,8 @@ function assertSeats(request: ProjectDeliberationRequest, pids: string[]): void 
   }
   const roles = request.seats.map((seat) => slug(seat.role));
   if (new Set(roles).size !== roles.length) throw new Error("deliberation seat roles must yield unique member IDs");
-  if (request.seats.length * request.budget.memberMaxTokens > request.budget.envelope.maxTotalTokens) {
-    throw new Error("deliberation seat caps exceed the allocation envelope");
+  if (request.seats.length * request.budget.memberEstimatedTokens > request.budget.envelope.maxTotalTokens) {
+    throw new Error("deliberation seat token estimates exceed the allocation envelope");
   }
 }
 

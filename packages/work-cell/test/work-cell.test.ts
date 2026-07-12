@@ -2,14 +2,14 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { CellInput, CellUsage, GeneExpression } from "../src/contracts";
+import { CellInputSchema, type CellInput, type CellUsage, type GeneExpression } from "../src/contracts";
 import type {
   CellDriver,
   DriverContext,
   DriverResult,
   GeneSelectionResult,
 } from "../src/driver";
-import { CellBudgetExceededError, CellExecutionError } from "../src/driver";
+import { CellExecutionError } from "../src/driver";
 import type { ExpressedGenome, Genome } from "../src/genome";
 import { runCell } from "../src/run-cell";
 import { Workspace } from "../src/workspace";
@@ -124,15 +124,30 @@ describe("Work Cell core", () => {
     );
   });
 
-  test("records a hard token-budget failure from any driver adapter", async () => {
+  test("retains a token estimate for post-run audit without interrupting the cell", async () => {
     const root = await fixture();
-    const driver = new ScriptedDriver(geneExpression("P04", []));
-    driver.selectionError = new CellBudgetExceededError(101, 100);
+    const base = input(root);
+    base.budget.estimatedTokens = 50;
+    const driver = new ScriptedDriver(geneExpression("P04", []), {
+      selection: usage(30, 10),
+      run: usage(40, 20),
+    });
 
-    const record = await runCell(input(root), driver);
+    const record = await runCell(base, driver);
 
-    expect(record.status).toBe("budget_exceeded");
-    expect(record.error).toContain("token budget exceeded");
+    expect(record.status).toBe("passed");
+    expect(record.usage.totalTokens).toBe(100);
+    expect(record.usageByPhase).toEqual({ expression: usage(30, 10), execution: usage(40, 20) });
+  });
+
+  test("rejects the retired maxTokens field instead of silently dropping it", async () => {
+    const root = await fixture();
+    const base = input(root);
+
+    expect(() => CellInputSchema.parse({
+      ...base,
+      budget: { ...base.budget, maxTokens: 10_000 },
+    })).toThrow("maxTokens");
   });
 
   test("retains observed usage when a driver fails after starting execution", async () => {
@@ -336,7 +351,7 @@ function input(root: string): CellInput {
     acceptance: ["Return an evidence-backed result"],
     budget: {
       maxSteps: 8,
-      maxTokens: 10_000,
+      estimatedTokens: 10_000,
       maxDurationMs: 10_000,
       maxCommandOutputBytes: 4_000,
     },

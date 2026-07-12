@@ -38,7 +38,7 @@
   ],
   "budget": {
     "maxSteps": 6,
-    "maxTokens": 30000,
+    "estimatedTokens": 30000,
     "maxDurationMs": 180000,
     "maxCommandOutputBytes": 16000
   }

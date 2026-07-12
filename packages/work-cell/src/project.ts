@@ -51,7 +51,6 @@ export async function lowerProjectProbe(unparsed: unknown): Promise<CellInput> {
   ]);
   const budget = {
     maxSteps: 16,
-    maxTokens: 250_000,
     maxDurationMs: 300_000,
     maxCommandOutputBytes: 64_000,
     ...request.budget,

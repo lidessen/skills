@@ -153,7 +153,8 @@ function parseProbeArguments(args: string[]) {
   const acceptance: string[] = [];
   const scopes: string[] = [];
   let id: string | undefined;
-  let maxTokens: number | undefined;
+  let estimatedTokens: number | undefined;
+  let estimatedTokensTolerance: number | undefined;
   let maxSteps: number | undefined;
   let maxDurationMs: number | undefined;
   for (let index = 1; index < args.length; index += 1) {
@@ -163,7 +164,8 @@ function parseProbeArguments(args: string[]) {
     if (flag === "--accept") acceptance.push(value);
     else if (flag === "--scope") scopes.push(value);
     else if (flag === "--id") id = value;
-    else if (flag === "--max-tokens") maxTokens = positiveInteger(flag, value);
+    else if (flag === "--estimated-tokens") estimatedTokens = positiveInteger(flag, value);
+    else if (flag === "--estimated-tokens-tolerance") estimatedTokensTolerance = nonnegativeNumber(flag, value);
     else if (flag === "--max-steps") maxSteps = positiveInteger(flag, value);
     else if (flag === "--timeout-ms") maxDurationMs = positiveInteger(flag, value);
     else throw new Error(`unknown probe option: ${flag}`);
@@ -175,10 +177,11 @@ function parseProbeArguments(args: string[]) {
     acceptance,
     ...(scopes.length ? { scopes } : {}),
     ...(id ? { id } : {}),
-    ...(maxTokens || maxSteps || maxDurationMs
+    ...(estimatedTokens || estimatedTokensTolerance !== undefined || maxSteps || maxDurationMs
       ? {
           budget: {
-            ...(maxTokens ? { maxTokens } : {}),
+            ...(estimatedTokens ? { estimatedTokens } : {}),
+            ...(estimatedTokensTolerance === undefined ? {} : { estimatedTokensTolerance }),
             ...(maxSteps ? { maxSteps } : {}),
             ...(maxDurationMs ? { maxDurationMs } : {}),
           },
@@ -197,7 +200,7 @@ function parseDeliberationProbeArguments(args: string[]) {
   const sources: string[] = [];
   let id: string | undefined;
   let budgetTokens: number | undefined;
-  let memberTokens: number | undefined;
+  let memberEstimatedTokens: number | undefined;
   let budgetSource: string | undefined;
   let maxSourceChars: number | undefined;
   let plannedTotalTokens: number | undefined;
@@ -222,7 +225,7 @@ function parseDeliberationProbeArguments(args: string[]) {
     else if (flag === "--source") sources.push(value);
     else if (flag === "--id") id = value;
     else if (flag === "--budget-tokens") budgetTokens = positiveInteger(flag, value);
-    else if (flag === "--member-tokens") memberTokens = positiveInteger(flag, value);
+    else if (flag === "--member-estimated-tokens") memberEstimatedTokens = positiveInteger(flag, value);
     else if (flag === "--budget-source") budgetSource = value;
     else if (flag === "--max-source-chars") maxSourceChars = positiveInteger(flag, value);
     else if (flag === "--planned-tokens") plannedTotalTokens = positiveInteger(flag, value);
@@ -233,8 +236,8 @@ function parseDeliberationProbeArguments(args: string[]) {
   if (options.length < 2) throw new Error("deliberate-probe requires at least two --option entries");
   if (seats.length < 3) throw new Error("deliberate-probe requires three to five --seat entries");
   if (sources.length === 0) throw new Error("deliberate-probe requires at least one --source path");
-  if (!budgetTokens || !memberTokens || !budgetSource) {
-    throw new Error("deliberate-probe requires --budget-tokens, --member-tokens, and --budget-source from an explicit human authorization");
+  if (!budgetTokens || !memberEstimatedTokens || !budgetSource) {
+    throw new Error("deliberate-probe requires --budget-tokens, --member-estimated-tokens, and --budget-source from an explicit human authorization");
   }
   return {
     execute,
@@ -248,7 +251,7 @@ function parseDeliberationProbeArguments(args: string[]) {
       budget: {
         envelope: { id: `deliberation-${id ?? "probe"}-allocation`, version: "budget-envelope.v1" as const, maxTotalTokens: budgetTokens, onExhaustion: "partial" as const },
         source: budgetSource,
-        memberMaxTokens: memberTokens,
+        memberEstimatedTokens,
         ...(plannedTotalTokens ? { plannedTotalTokens } : {}),
         ...(maxRecoveryAttempts ? { maxRecoveryAttempts } : {}),
       },
@@ -275,6 +278,12 @@ function positiveInteger(flag: string, value: string): number {
   return parsed;
 }
 
+function nonnegativeNumber(flag: string, value: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`${flag} must be a non-negative number`);
+  return parsed;
+}
+
 function requiredPath(args: string[], command: string): string {
   const path = args[0];
   if (!path) throw new Error(`${command} requires a JSON file path`);
@@ -287,8 +296,8 @@ function usage(): never {
     "  bun src/cli.ts run <cell.json>",
     "  bun src/cli.ts experiment <experiment.json>",
     "  bun src/cli.ts deliberate <deliberation.json>",
-    "  bun src/cli.ts deliberate-probe <question> --option A=<summary> --option B=<summary> --seat P04=<role> --seat P11=<role> --seat P15=<role> --source <path> --budget-tokens <n> --member-tokens <n> --budget-source <approval> [--execute]",
-    "  bun src/cli.ts probe <intent> --accept <condition> [--scope <path> ...] [--max-tokens <n>]",
+    "  bun src/cli.ts deliberate-probe <question> --option A=<summary> --option B=<summary> --seat P04=<role> --seat P11=<role> --seat P15=<role> --source <path> --budget-tokens <n> --member-estimated-tokens <n> --budget-source <approval> [--execute]",
+    "  bun src/cli.ts probe <intent> --accept <condition> [--scope <path> ...] [--estimated-tokens <n>] [--estimated-tokens-tolerance <ratio>]",
     "  bun src/cli.ts review [record.json]",
   ].join("\n"));
   process.exit(2);

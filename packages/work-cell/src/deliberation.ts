@@ -66,7 +66,7 @@ export interface DeliberationMemberSkipped {
   role: string;
   status: "not_run_budget_envelope";
   attempt: number;
-  declaredMaxTokens: number;
+  declaredEstimatedTokens: number;
   remainingAllocationTokens: number;
 }
 
@@ -93,11 +93,11 @@ export interface DeliberationSummary {
     envelopeId: string;
     authorizedSource: string;
     maxAllocatedTokens: number;
-    declaredMemberTokens: number;
-    startedMemberTokens: number;
+    declaredEstimatedTokens: number;
+    startedEstimatedTokens: number;
     observedTokens: number;
     remainingAllocationTokens: number;
-    overrunTokens: number;
+    allocationOverrunTokens: number;
     plannedTotalTokens?: number;
     overPlanTokens?: number;
   };
@@ -130,26 +130,22 @@ export async function runDeliberation(
   let observedTokens = 0;
 
   const runMember = async (member: DeliberationManifest["members"][number], attempt: number): Promise<void> => {
+    const estimatedTokens = tokenEstimate(member.input);
     const remainingAllocationTokens = manifest.budget.envelope.maxTotalTokens - observedTokens;
-    if (remainingAllocationTokens <= 0) {
+    if (remainingAllocationTokens < estimatedTokens) {
       members.push({
         memberId: member.id,
         role: member.role,
         status: "not_run_budget_envelope",
         attempt,
-        declaredMaxTokens: member.input.budget.maxTokens,
+        declaredEstimatedTokens: estimatedTokens,
         remainingAllocationTokens,
       });
       return;
     }
-    const attemptMaxTokens = attempt === 1
-      ? member.input.budget.maxTokens
-      : Math.min(member.input.budget.maxTokens, remainingAllocationTokens);
-    if (attemptMaxTokens < 1) return;
     const input = CellInputSchema.parse({
       ...member.input,
       id: attempt === 1 ? member.input.id : `${member.input.id}-recovery-${attempt}`,
-      budget: { ...member.input.budget, maxTokens: attemptMaxTokens },
       outputSchema: DeliberationPositionOutputSchema,
       intent: `${member.input.intent}\n\n${renderDocket(manifest)}`,
       dna: {
@@ -259,12 +255,12 @@ export function summarizeDeliberation(
       envelopeId: budget.envelope.id,
       authorizedSource: budget.source,
       maxAllocatedTokens: budget.envelope.maxTotalTokens,
-      declaredMemberTokens: members.reduce(
-        (total, member) => total + (member.status === "run" ? member.record.input.budget.maxTokens : member.declaredMaxTokens),
+      declaredEstimatedTokens: members.reduce(
+        (total, member) => total + (member.status === "run" ? tokenEstimate(member.record.input) : member.declaredEstimatedTokens),
         0,
       ),
-      startedMemberTokens: members.reduce(
-        (total, member) => total + (member.status === "run" ? member.record.input.budget.maxTokens : 0),
+      startedEstimatedTokens: members.reduce(
+        (total, member) => total + (member.status === "run" ? tokenEstimate(member.record.input) : 0),
         0,
       ),
       observedTokens: members.reduce(
@@ -278,7 +274,7 @@ export function summarizeDeliberation(
           0,
         ),
       ),
-      overrunTokens: Math.max(
+      allocationOverrunTokens: Math.max(
         0,
         members.reduce((total, member) => total + (member.status === "run" ? member.record.usage.totalTokens : 0), 0) -
           budget.envelope.maxTotalTokens,
@@ -306,9 +302,9 @@ async function assertDeliberationBoundary(manifest: DeliberationManifest): Promi
   if (memberIds.size !== manifest.members.length) throw new Error("deliberation member IDs must be unique");
   const optionIds = new Set(manifest.options.map((option) => option.id));
   if (optionIds.size !== manifest.options.length) throw new Error("deliberation option IDs must be unique");
-  const declaredMemberTokens = manifest.members.reduce((total, member) => total + member.input.budget.maxTokens, 0);
-  if (declaredMemberTokens > manifest.budget.envelope.maxTotalTokens) {
-    throw new Error("declared member token caps exceed the deliberation allocation envelope");
+  const declaredEstimatedTokens = manifest.members.reduce((total, member) => total + tokenEstimate(member.input), 0);
+  if (declaredEstimatedTokens > manifest.budget.envelope.maxTotalTokens) {
+    throw new Error("declared member token estimates exceed the deliberation allocation envelope");
   }
 
   const first = manifest.members[0];
@@ -329,6 +325,12 @@ async function assertDeliberationBoundary(manifest: DeliberationManifest): Promi
       throw new Error("deliberation members must use the same Sequence source");
     }
   }
+}
+
+function tokenEstimate(input: CellInput): number {
+  const estimated = input.budget.estimatedTokens;
+  if (estimated === undefined) throw new Error(`deliberation member ${input.id} requires budget.estimatedTokens`);
+  return estimated;
 }
 
 function positionFromRecord(record: CellRunRecord): DeliberationPosition | undefined {

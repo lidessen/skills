@@ -55,7 +55,7 @@ test("recovers a natural finish without a terminal tool when provider metadata i
       description: "Signal review completion.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
     }],
-    budget: { maxSteps: 4, maxTokens: 1_000, maxDurationMs: 10_000, maxCommandOutputBytes: 4_000 },
+    budget: { maxSteps: 4, estimatedTokens: 1_000, maxDurationMs: 10_000, maxCommandOutputBytes: 4_000 },
   }, driver);
 
   expect(record.status).toBe("passed");

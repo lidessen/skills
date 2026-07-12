@@ -54,6 +54,14 @@ The first slice intentionally does not predict cost or claim P50/P80/P95
 accuracy. A later read-only calibration projection must be built from retained,
 comparable observations; see [decision 014](../../design/decisions/014-work-estimation-and-calibrated-budgeting.md).
 
+`budget.estimatedTokens` is a post-run estimate, not a token stop condition.
+When present, the final summary compares it with actual total, input/output,
+expression/execution use, and read volume. A caller may declare
+`estimatedTokensTolerance` as a relative absolute-error tolerance (for example,
+`0.5` means ±50%); only then can the summary label a variance as requiring
+review. No tolerance is silently invented. Provider context limits, step limits,
+duration, and workspace limits remain separate execution boundaries.
+
 ## Project interaction
 
 For a Sequence-bearing project, start with a read-only probe rather than a full
@@ -120,7 +128,7 @@ alternative; that schema is not a terminal-tool payload.
 
 In a real manifest, `sequenceCoverage` must account for **every** P-ID in the
 shared Sequence exactly once, `members` must contain three to five entries, and
-the sum of member token caps must not exceed the human-authorized allocation
+the sum of member token estimates must not exceed the human-authorized allocation
 envelope. This is an allocation boundary, not a cost forecast or an authority
 to increase the envelope.
 The emitted record retains the raw member records; its tally and dissent list
@@ -133,7 +141,7 @@ actual observed use before starting every next member; if the remaining
 allocation cannot fund that member's declared cap, it retains a
 `not_run_budget_envelope` member instead of starting another model call. A
 single provider call can still report more than its cap after the fact, so the
-record exposes any `overrunTokens`; it never retries or expands the envelope.
+record exposes any `allocationOverrunTokens`; it never retries or expands the envelope.
 
 ### Project-facing docket
 
@@ -155,7 +163,7 @@ bun src/cli.ts deliberate-probe "Which bounded line proceeds?" \
   --seat P11="authority boundary" \
   --seat P15="unchanged alternative" \
   --source design/decision.md \
-  --budget-tokens 60000 --member-tokens 20000 \
+  --budget-tokens 60000 --member-estimated-tokens 20000 \
   --budget-source "Principal Decision Brief: A"
 
 # Only after inspecting the prepared docket and confirming the existing
@@ -199,7 +207,7 @@ bun src/cli.ts deliberate path/to/deliberation.json
 # Prepare a compact project-facing deliberation packet; add --execute only after inspection.
 bun src/cli.ts deliberate-probe "Question" --option A="..." --option B="..." \
   --seat P04="..." --seat P11="..." --seat P15="..." --source design/decision.md \
-  --budget-tokens 60000 --member-tokens 20000 --budget-source "Principal approval"
+  --budget-tokens 60000 --member-estimated-tokens 20000 --budget-source "Principal approval"
 ```
 
 Live commands require `DEEPSEEK_API_KEY`. Generated evidence is written beneath
