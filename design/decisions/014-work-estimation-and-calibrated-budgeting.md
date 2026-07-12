@@ -3,6 +3,12 @@
 **Status:** accepted for implementation
 **Date:** 2026-07-10
 
+**Implementation correction, 2026-07-12:** ordinary Cell token values are
+estimates for post-run audit, not hard stop conditions. The runtime retains the
+estimate, actual and phase usage, and caller-declared error tolerance so a large
+variance becomes a review signal. A human-approved multi-member allocation
+envelope remains a separate deliberation gate; it is not a per-Cell forecast.
+
 ## Context
 
 The current Work Cell can enforce a per-cell token, step, duration, and command
@@ -64,7 +70,8 @@ Granularity is selected by the decision, not globally:
 | Long direction | capability/work-family comparison | order-of-magnitude work envelope; no executable cap |
 | Medium capability | dependency and discovery branch | P80 scenario envelope and replan signal |
 | Short mission | necessary work nodes and acceptance | approved discovery allocation, execution envelope, continuation gate |
-| Work Cell / tree | exact declared input and capability boundary | enforced hard cap and partial-result return |
+| Work Cell | exact declared input and capability boundary | context/step/duration boundary plus post-run token-estimate audit |
+| Deliberation tree | human-approved multi-member allocation | allocation gate and partial-result return; never a per-Cell forecast |
 
 The policy declares structural, forecast, decision, control, and calibration
 tolerances. If the uncertainty interval cannot distinguish alternatives, budget
@@ -85,10 +92,12 @@ facts or approved commitments.
 
 ### 4. Budget Envelope — human-approved control
 
-An envelope is separate from a forecast. It names the hard cap(s), allowed
-discovery allocation, branch allocation, parent-tree total, stop/partial
-behavior, and the authority that may release further funds. Crossing an envelope
-returns evidence and a continuation decision; it never silently expands a limit.
+An envelope is separate from a forecast. For an explicitly human-approved
+multi-member deliberation, it names the allocation, branch allocation,
+parent-tree total, stop/partial behavior, and the authority that may release
+further funds. It is not a generic per-Cell token cap: a single provider call
+may exceed its estimate and must return its evidence for audit rather than be
+silently discarded or expanded.
 
 ### 5. Execution Observation and Calibration Projection
 
@@ -104,7 +113,7 @@ bias, width, data sufficiency, and drift. It is a projection, not a fact source.
 |---|---|---|
 | Repeated agent judgment of necessary work and tolerance | `work-estimation` Skill | Strategy/ad hoc prompt alone would conflate work with price and omit a repeatable gate. |
 | Cross-session plan/approval | Work Estimate plus Budget Card in its owning Strategy Case or decision artifact | A global estimate registry would duplicate authority. |
-| Hard caps, actual observation, tree-total enforcement | Work Cell runtime | A document cannot prevent aggregate overspend. |
+| Token-estimate audit, actual observation, and deliberation allocation gate | Work Cell runtime | A document cannot retain comparable runtime evidence or prevent an unapproved next member. |
 | Scenario and calibration access | Rebuildable read-only projection | A dashboard must not acquire work or approval authority. |
 | Strategy comparison | `strategic-advisory` consumes cards | It must not invent conversion rates or commit resources. |
 

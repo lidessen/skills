@@ -43,7 +43,7 @@ test("runs independent deliberation members and preserves a dissenting position"
     kind: "projection",
     authority: "none",
     voteCounts: { support: 2, oppose: 1, reserve: 0, discover: 0 },
-    budget: { maxAllocatedTokens: 30_000, declaredMemberTokens: 30_000, observedTokens: 90 },
+    budget: { maxAllocatedTokens: 30_000, declaredEstimatedTokens: 30_000, observedTokens: 90 },
   });
   expect(record.summary.dissent).toEqual([
     expect.objectContaining({ memberId: "preservation", stance: "oppose" }),
@@ -71,13 +71,13 @@ test("rejects a deliberation member that has write or command authority", async 
   );
 });
 
-test("rejects a docket whose member caps exceed its declared allocation envelope", async () => {
+  test("rejects a docket whose member estimates exceed its declared allocation envelope", async () => {
   const root = await fixture();
   const manifest = docket(root);
   manifest.budget.envelope.maxTotalTokens = 29_999;
 
   await expect(runDeliberation(manifest, () => new DeliberationDriver(position("support", "Unused")))).rejects.toThrow(
-    "exceed the deliberation allocation envelope",
+    "estimates exceed the deliberation allocation envelope",
   );
 });
 
@@ -99,7 +99,7 @@ test("retains both repeated direct-manifest invocations instead of overwriting t
 test("stops later members when observed usage leaves no complete allocation", async () => {
   const root = await fixture();
   const manifest = docket(root);
-  for (const member of manifest.members) member.input.budget.maxTokens = 20;
+  for (const member of manifest.members) member.input.budget.estimatedTokens = 20;
   manifest.budget.envelope.maxTotalTokens = 60;
   let created = 0;
 
@@ -109,12 +109,12 @@ test("stops later members when observed usage leaves no complete allocation", as
   expect(record.members[2]).toMatchObject({
     memberId: "preservation",
     status: "not_run_budget_envelope",
-    declaredMaxTokens: 20,
+    declaredEstimatedTokens: 20,
     remainingAllocationTokens: 0,
   });
   expect(record.summary).toMatchObject({
     unsettledMembers: ["preservation"],
-    budget: { startedMemberTokens: 40, observedTokens: 60, remainingAllocationTokens: 0, overrunTokens: 0 },
+    budget: { startedEstimatedTokens: 40, observedTokens: 60, remainingAllocationTokens: 0, allocationOverrunTokens: 0 },
   });
 });
 
@@ -123,7 +123,7 @@ test("uses the shared remaining envelope to recover only an unsettled seat", asy
   const manifest = docket(root);
   manifest.budget.envelope.maxTotalTokens = 256_000;
   manifest.budget.recovery = { maxAttemptsPerMember: 2 };
-  for (const member of manifest.members) member.input.budget.maxTokens = 48_000;
+  for (const member of manifest.members) member.input.budget.estimatedTokens = 48_000;
   let created = 0;
 
   const record = await runDeliberation(manifest, () => new RecoveryDriver(created++ === 0));
@@ -222,7 +222,7 @@ function input(root: string, id: string): CellInput {
     dna: { baseInstructions: "Ground the position in the fixture.", capabilities: ["read"] },
     capabilitiesRequired: ["read"],
     acceptance: ["Return an independent evidence-backed position"],
-    budget: { maxSteps: 8, maxTokens: 10_000, maxDurationMs: 10_000, maxCommandOutputBytes: 4_000 },
+    budget: { maxSteps: 8, estimatedTokens: 10_000, maxDurationMs: 10_000, maxCommandOutputBytes: 4_000 },
   };
 }
 

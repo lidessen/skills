@@ -78,7 +78,7 @@ describe("Project interaction", () => {
       budget: {
         envelope: { id: "priority-allocation", version: "budget-envelope.v1", maxTotalTokens: 30_000, onExhaustion: "partial" },
         source: "test human approval",
-        memberMaxTokens: 10_000,
+        memberEstimatedTokens: 10_000,
       },
       maxSourceChars: 500,
       maxPacketChars: 1_000,
@@ -88,7 +88,7 @@ describe("Project interaction", () => {
     expect(prepared.manifest.members).toHaveLength(3);
     expect(prepared.manifest.members.every((member) => member.input.workspace.readPaths.join(",") === "docket,principles")).toBe(true);
     expect(prepared.manifest.members.every((member) => member.input.workspace.root !== root)).toBe(true);
-    expect(prepared.manifest.members.map((member) => member.input.budget.maxTokens)).toEqual([10_000, 10_000, 10_000]);
+    expect(prepared.manifest.members.map((member) => member.input.budget.estimatedTokens)).toEqual([10_000, 10_000, 10_000]);
     const evidence = await readFile(prepared.evidencePath, "utf8");
     expect(evidence).toContain("Excerpt: first 500");
     expect(evidence).toContain("Evidence boundary: this packet contains bounded excerpts");
@@ -109,7 +109,7 @@ describe("Project interaction", () => {
       budget: {
         envelope: { id: "priority-allocation", version: "budget-envelope.v1", maxTotalTokens: 30_000, onExhaustion: "partial" },
         source: "test human approval",
-        memberMaxTokens: 10_000,
+        memberEstimatedTokens: 10_000,
       },
     });
     expect(second.directory).not.toBe(prepared.directory);
@@ -134,7 +134,7 @@ describe("Workspace exclusions and summaries", () => {
         excludePaths: ["node_modules", ".work-cell"],
         allowedCommands: [],
       },
-      { maxSteps: 4, maxTokens: 1_000, maxDurationMs: 1_000, maxCommandOutputBytes: 1_000 },
+      { maxSteps: 4, maxDurationMs: 1_000, maxCommandOutputBytes: 1_000 },
     );
 
     const files = await workspace.listFiles(".");
@@ -152,19 +152,20 @@ describe("Workspace exclusions and summaries", () => {
         excludePaths: ["node_modules", ".work-cell"],
         allowedCommands: ["true"],
       },
-      { maxSteps: 4, maxTokens: 1_000, maxDurationMs: 1_000, maxCommandOutputBytes: 1_000 },
+      { maxSteps: 4, maxDurationMs: 1_000, maxCommandOutputBytes: 1_000 },
     );
     expect((await commandWorkspace.snapshot()).has("src/visible.ts")).toBe(true);
   });
 
-  test("renders a final output and a budget diagnosis", async () => {
-    const summary = renderRunSummary(recordFixture("/project", "budget_exceeded"));
+  test("renders a final output and a token-estimate audit", async () => {
+    const summary = renderRunSummary(recordFixture("/project"));
 
     expect(summary).toContain("Expression: P16 + P15");
     expect(summary).toContain("Rationale: The form prevents action");
     expect(summary).toContain("Decision P15: Keep the change small");
     expect(summary).toContain("Output: {\"recommendation\":\"Inspect the interaction gap\"}");
-    expect(summary).toContain("Budget: observed 251,000 of 250,000 tokens after 1 reads");
+    expect(summary).toContain("Token estimate: 250,000; actual 251,000; variance +1,000 (+0.4%)");
+    expect(summary).toContain("Estimate review: required — outside declared ±0.2% tolerance");
   });
 });
 
@@ -181,7 +182,7 @@ async function projectFixture(): Promise<string> {
 
 function recordFixture(root: string, status: CellRunRecord["status"] = "passed"): CellRunRecord {
   return {
-    version: "work-cell.run.v1",
+    version: "work-cell.run.v2",
     runId: "run-1",
     cellId: "probe-interaction",
     driver: { adapter: "test", provider: "test", model: "test" },
@@ -203,7 +204,13 @@ function recordFixture(root: string, status: CellRunRecord["status"] = "passed")
       dna: { baseInstructions: "Read only", capabilities: ["read repository files", "analyze project evidence"] },
       capabilitiesRequired: ["read repository files", "analyze project evidence"],
       acceptance: ["Return evidence"],
-      budget: { maxSteps: 16, maxTokens: 250_000, maxDurationMs: 300_000, maxCommandOutputBytes: 64_000 },
+      budget: {
+        maxSteps: 16,
+        estimatedTokens: 250_000,
+        estimatedTokensTolerance: 0.002,
+        maxDurationMs: 300_000,
+        maxCommandOutputBytes: 64_000,
+      },
     },
     geneExpression: {
       lead: "P16",
@@ -221,11 +228,14 @@ function recordFixture(root: string, status: CellRunRecord["status"] = "passed")
     verification: { passed: false, terminal: { passed: true, required: [], called: [] } },
     workspaceDiff: { added: [], changed: [], removed: [] },
     usage: { inputTokens: 250_000, outputTokens: 1_000, totalTokens: 251_000, cachedInputTokens: 200_000 },
+    usageByPhase: {
+      expression: { inputTokens: 5_000, outputTokens: 100, totalTokens: 5_100, cachedInputTokens: 0 },
+      execution: { inputTokens: 245_000, outputTokens: 900, totalTokens: 245_900, cachedInputTokens: 200_000 },
+    },
     executionObservation: {},
     trace: [
       { at: "2026-07-10T10:00:20.000Z", type: "tool.read_file", data: { characters: 120 } },
     ],
     rawSteps: [],
-    ...(status === "budget_exceeded" ? { error: "token budget exceeded" } : {}),
   };
 }

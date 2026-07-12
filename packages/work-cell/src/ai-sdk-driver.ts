@@ -9,7 +9,6 @@ import {
   type GeneExpression,
 } from "./contracts";
 import {
-  CellBudgetExceededError,
   CellExecutionError,
   type CellDriver,
   type DriverContext,
@@ -105,13 +104,6 @@ export class AiSdkDeepSeekDriver implements CellDriver {
 
     if (!selection) throw new Error("gene expression protocol failed: express_genes was not accepted");
     const expressionUsage = normalizeUsage(expressionResult.totalUsage, expressionResult.providerMetadata);
-    if (input.budget.tokenControl === "hard" && expressionUsage.totalTokens > input.budget.maxTokens) {
-      throw new CellBudgetExceededError(
-        expressionUsage.totalTokens,
-        input.budget.maxTokens,
-        expressionUsage,
-      );
-    }
 
     return {
       expression: selection,
@@ -165,15 +157,13 @@ export class AiSdkDeepSeekDriver implements CellDriver {
       temperature: 0,
       providerOptions: deepSeekNonThinking,
     });
-    const budgetAbort = new AbortController();
-    const executionSignal = AbortSignal.any([context.signal, budgetAbort.signal]);
     let observedUsage: CellUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0, cachedInputTokens: 0 };
     let executionResult;
     let closureResult: { text: string; totalUsage: unknown; providerMetadata: unknown; steps: unknown[] } | undefined;
     try {
       executionResult = await executionAgent.generate({
         prompt: renderTaskPrompt(input),
-        abortSignal: executionSignal,
+        abortSignal: context.signal,
         timeout: { totalMs: input.budget.maxDurationMs },
         onStepFinish: ({ usage, finishReason, toolCalls, toolResults }) => {
           observedUsage = addUsage(observedUsage, normalizeUsage(usage, undefined));
@@ -184,13 +174,9 @@ export class AiSdkDeepSeekDriver implements CellDriver {
             toolCalls: sanitize(toolCalls),
             toolResults: sanitize(toolResults),
           });
-          if (input.budget.tokenControl === "hard" && observedUsage.totalTokens > context.maxTokens) budgetAbort.abort();
         },
       });
     } catch (error) {
-      if (budgetAbort.signal.aborted) {
-        throw new CellBudgetExceededError(observedUsage.totalTokens, context.maxTokens, observedUsage);
-      }
       if (terminalSatisfied() && !outputSchema) {
         executionResult = terminalOnlyResult(terminalNames, observedUsage, "execution");
       } else {
@@ -228,7 +214,7 @@ export class AiSdkDeepSeekDriver implements CellDriver {
       try {
         closureResult = await closureAgent.generate({
           prompt: `${renderTaskPrompt(input)}\n\nPrevious unfinished response:\n${executionResult.text}`,
-          abortSignal: executionSignal,
+          abortSignal: context.signal,
           timeout: { totalMs: input.budget.maxDurationMs },
           onStepFinish: ({ usage, finishReason, toolCalls, toolResults }) => {
             closureUsage = addUsage(closureUsage, normalizeUsage(usage, undefined));
@@ -259,10 +245,6 @@ export class AiSdkDeepSeekDriver implements CellDriver {
       normalizeUsage(executionResult.totalUsage, executionResult.providerMetadata),
       closureResult ? normalizeUsage(closureResult.totalUsage, closureResult.providerMetadata) : { inputTokens: 0, outputTokens: 0, totalTokens: 0, cachedInputTokens: 0 },
     );
-    if (input.budget.tokenControl === "hard" && usage.totalTokens > context.maxTokens) {
-      throw new CellBudgetExceededError(usage.totalTokens, context.maxTokens, usage);
-    }
-
     return {
       terminalToolsCalled: [...terminalToolsCalled],
       finalText: closureResult ? `${executionResult.text}\n\n${closureResult.text}` : executionResult.text,

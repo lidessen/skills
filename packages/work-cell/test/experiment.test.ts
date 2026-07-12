@@ -42,7 +42,7 @@ test("experiment keeps variants blind and attributes a treatment-only decision",
       acceptance: ["Keep boundaries"],
       budget: {
         maxSteps: 4,
-        maxTokens: 1_000,
+        estimatedTokens: 1_000,
         maxDurationMs: 5_000,
         maxCommandOutputBytes: 2_000,
       },
@@ -63,7 +63,7 @@ test("experiment keeps variants blind and attributes a treatment-only decision",
   expect(judge.sawTreatmentMetadata).toBe(false);
   const treatment = record.runs.find((run) => run.variantId === "treatment");
   expect(treatment?.record.workspaceDiff.changed).toContain("SKILL.md");
-  expect(await readFile(join(treatment!.directory, "record.json"), "utf8")).toContain("work-cell.run.v1");
+  expect(await readFile(join(treatment!.directory, "record.json"), "utf8")).toContain("work-cell.run.v2");
 });
 
 test("experiment skips its judge when either Work Cell is unsettled", async () => {
@@ -85,7 +85,7 @@ test("experiment skips its judge when either Work Cell is unsettled", async () =
       acceptance: ["Keep boundaries"],
       budget: {
         maxSteps: 4,
-        maxTokens: 1_000,
+        estimatedTokens: 1_000,
         maxDurationMs: 5_000,
         maxCommandOutputBytes: 2_000,
       },
