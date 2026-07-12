@@ -6,13 +6,15 @@ import {
   type CellRunRecord,
   type CellTerminalStatus,
   type CellUsage,
-  type CheckStep,
-  type CheckResult,
+  type ArtifactRecord,
+  type ArtifactVerification,
+  type OutputVerification,
 } from "./contracts";
 import type { CellDriver } from "./driver";
-import { CellBudgetExceededError, traceEvent } from "./driver";
+import { CellBudgetExceededError, CellExecutionError, traceEvent } from "./driver";
 import { expressGenome, loadGenome } from "./genome";
 import { Workspace } from "./workspace";
+import { compileOutputSchema } from "./output-schema";
 
 export async function runCell(
   unparsedInput: unknown,
@@ -20,6 +22,10 @@ export async function runCell(
   externalSignal?: AbortSignal,
 ): Promise<CellRunRecord> {
   const input = CellInputSchema.parse(unparsedInput);
+  if (input.terminalTools?.length && input.budget.maxSteps < 2) {
+    throw new Error("terminal tools require at least two steps: one terminal action and one final output");
+  }
+  const outputSchema = input.outputSchema ? compileOutputSchema(input.outputSchema) : undefined;
   const runId = randomUUID();
   const startedAt = new Date();
   const trace = [traceEvent("cell.started", { runId, cellId: input.id })];
@@ -38,7 +44,11 @@ export async function runCell(
   let geneExpression: CellRunRecord["geneExpression"];
   let loadedInterpretations: string[] = [];
   let failureUsage = emptyUsage();
-  let verification = { passed: false, results: [] as CheckResult[] };
+  let verification = { passed: false, terminal: { passed: false, required: [] as string[], called: [] as string[] } };
+  let outputVerification: OutputVerification | undefined;
+  let artifactVerification: ArtifactVerification | undefined;
+  let artifacts: ArtifactRecord[] = [];
+  let after: Awaited<ReturnType<Workspace["snapshot"]>> | undefined;
 
   if (missingCapabilities.length > 0) {
     status = "capability_mismatch";
@@ -78,12 +88,42 @@ export async function runCell(
           ? Math.max(1, input.budget.maxTokens - selectionResult.usage.totalTokens)
           : Number.MAX_SAFE_INTEGER,
       });
-      if (!driverResult.submission) {
+      const terminalTools = input.terminalTools ?? [];
+      const terminalSatisfied = terminalTools.length === 0 || terminalTools.some(
+        (terminal) => driverResult!.terminalToolsCalled.includes(terminal.name),
+      );
+      after = await workspace.snapshot();
+      const diff = workspace.diff(before, after);
+      if (outputSchema) {
+        outputVerification = driverResult.output === undefined
+          ? { passed: false, errors: ["driver completed without the declared structured output"] }
+          : outputSchema.validate(driverResult.output);
+      }
+      const artifactResult = await verifyArtifacts(input, workspace, diff);
+      artifacts = artifactResult.artifacts;
+      artifactVerification = artifactResult.verification;
+      verification = {
+        passed: terminalSatisfied
+          && (outputVerification?.passed ?? true)
+          && artifactVerification.passed,
+        terminal: {
+          passed: terminalSatisfied,
+          required: terminalTools.map((terminal) => terminal.name),
+          called: driverResult.terminalToolsCalled,
+        },
+      };
+
+      if (!terminalSatisfied) {
         status = "protocol_error";
-        error = "driver completed without submit_result";
+        error = `driver completed without one required terminal tool: ${terminalTools.map((terminal) => terminal.name).join(", ")}`;
+      } else if (outputVerification && !outputVerification.passed) {
+        status = driverResult.output === undefined ? "protocol_error" : "verification_failed";
+        error = outputVerification.errors.join("; ");
+      } else if (!artifactVerification.passed) {
+        status = "verification_failed";
+        error = artifactVerification.errors.join("; ");
       } else {
-        verification = await executeCheckPlan(driverResult.submission.checkPlan.steps, workspace, signal);
-        status = settleStatus(driverResult.submission.outcome, verification.passed);
+        status = "passed";
       }
     } catch (caught) {
       error = caught instanceof Error ? caught.message : String(caught);
@@ -91,13 +131,16 @@ export async function runCell(
         status = "budget_exceeded";
         failureUsage = caught.usage ?? emptyUsage();
       }
+      else if (caught instanceof CellExecutionError) {
+        failureUsage = caught.usage;
+      }
       else if (signal.aborted) status = "cancelled";
       else status = "failed";
       trace.push(traceEvent("cell.error", { status, error }));
     }
   }
 
-  const after = await workspace.snapshot();
+  after ??= await workspace.snapshot();
   const finishedAt = new Date();
   const usage = addUsage(
     selectionResult?.usage ?? emptyUsage(),
@@ -117,8 +160,6 @@ export async function runCell(
     version: WORK_CELL_RECORD_VERSION,
     runId,
     cellId: input.id,
-    ...(input.lineage.parentRunId ? { parentRunId: input.lineage.parentRunId } : {}),
-    depth: input.lineage.depth,
     driver: driver.descriptor,
     startedAt: startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),
@@ -127,8 +168,14 @@ export async function runCell(
     input,
     ...(geneExpression ? { geneExpression } : {}),
     loadedInterpretations,
-    ...(driverResult?.submission ? { submission: driverResult.submission } : {}),
-    verification,
+    finalText: driverResult?.finalText ?? "",
+    ...(driverResult?.output === undefined ? {} : { output: driverResult.output }),
+    artifacts,
+    verification: {
+      ...verification,
+      ...(outputVerification ? { output: outputVerification } : {}),
+      ...(artifactVerification ? { artifacts: artifactVerification } : {}),
+    },
     workspaceDiff: workspace.diff(before, after),
     usage,
     executionObservation,
@@ -142,50 +189,29 @@ export async function runCell(
   };
 }
 
-async function executeCheckPlan(
-  steps: CheckStep[],
+async function verifyArtifacts(
+  input: CellInput,
   workspace: Workspace,
-  signal: AbortSignal,
-): Promise<{ passed: boolean; results: CheckResult[] }> {
-  const results: CheckResult[] = [];
-  for (const step of steps) {
+  diff: CellRunRecord["workspaceDiff"],
+): Promise<{ artifacts: ArtifactRecord[]; verification: ArtifactVerification }> {
+  if (!input.artifacts?.length) return { artifacts: [], verification: { passed: true, errors: [] } };
+
+  const changed = new Set([...diff.added, ...diff.changed]);
+  const artifacts: ArtifactRecord[] = [];
+  const errors: string[] = [];
+  for (const requirement of input.artifacts) {
     try {
-      const result = await workspace.runCommand(step.argv, step.cwd, step.timeoutMs, signal);
-      results.push({
-        id: step.id,
-        argv: step.argv,
-        exitCode: result.exitCode,
-        expectedExit: step.expectExit,
-        passed: result.exitCode === step.expectExit,
-        stdout: result.stdout,
-        stderr: result.stderr,
-        durationMs: result.durationMs,
-      });
-    } catch (error) {
-      results.push({
-        id: step.id,
-        argv: step.argv,
-        exitCode: -1,
-        expectedExit: step.expectExit,
-        passed: false,
-        stdout: "",
-        stderr: error instanceof Error ? error.message : String(error),
-        durationMs: 0,
-      });
+      const artifact = await workspace.describeArtifact(requirement.path);
+      if (!changed.has(artifact.path)) {
+        errors.push(`artifact was not created or changed by this run: ${artifact.path}`);
+        continue;
+      }
+      artifacts.push(artifact);
+    } catch (caught) {
+      errors.push(caught instanceof Error ? caught.message : String(caught));
     }
   }
-  return { passed: results.every((result) => result.passed), results };
-}
-
-function settleStatus(
-  outcome: NonNullable<CellRunRecord["submission"]>["outcome"],
-  checksPassed: boolean,
-): CellTerminalStatus {
-  if (!checksPassed) return "verification_failed";
-  if (outcome === "completed") return "passed";
-  if (outcome === "split") return "split";
-  if (outcome === "partial") return "partial";
-  return "failed";
+  return { artifacts, verification: { passed: errors.length === 0, errors } };
 }
 
 function emptyUsage(): CellUsage {

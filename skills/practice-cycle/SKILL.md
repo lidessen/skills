@@ -54,6 +54,17 @@ If the work is genuinely one-step and no result needs to revise a later
 judgment, do the work under normal disciplined development. Do not create a
 cycle, plan, or feedback artifact.
 
+### Principal intervention
+
+When a Principal message changes the active target, hard boundary, concept
+relation, authority, or acceptance condition, treat the former reading as
+invalid before another mutation. State the rejected assumption, new invariant,
+affected surfaces, and smallest disconfirming next probe. When an installed
+runtime binding offers a reconciliation receipt, record those same fields there;
+the binding is optional evidence and never changes this skill's judgment or
+human authority. Do not create a receipt for an ordinary execute, continue, or
+formatting request that leaves the active decision unchanged.
+
 ## Core method
 
 1. **Orient in the actual object.** Read the current state, prior result, and

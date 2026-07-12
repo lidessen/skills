@@ -2,17 +2,16 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { CellInput, CellSubmission, CellUsage, GeneExpression } from "../src/contracts";
+import type { CellInput, CellUsage, GeneExpression } from "../src/contracts";
 import type {
   CellDriver,
   DriverContext,
   DriverResult,
   GeneSelectionResult,
 } from "../src/driver";
-import { CellBudgetExceededError } from "../src/driver";
+import { CellBudgetExceededError, CellExecutionError } from "../src/driver";
 import type { ExpressedGenome, Genome } from "../src/genome";
 import { runCell } from "../src/run-cell";
-import { runCellTree } from "../src/run-tree";
 import { Workspace } from "../src/workspace";
 
 const temporaryRoots: string[] = [];
@@ -25,7 +24,7 @@ describe("Work Cell core", () => {
   test("expresses a task-specific P-ID team and loads only selected interpretations", async () => {
     const root = await fixture();
     const expression = geneExpression("P04", ["P15"]);
-    const driver = new ScriptedDriver(expression, completedSubmission());
+    const driver = new ScriptedDriver(expression);
 
     const record = await runCell(input(root), driver);
 
@@ -42,7 +41,7 @@ describe("Work Cell core", () => {
 
   test("rejects an expression that selects a P-ID outside the Sequence", async () => {
     const root = await fixture();
-    const driver = new ScriptedDriver(geneExpression("P99", []), completedSubmission());
+    const driver = new ScriptedDriver(geneExpression("P99", []));
 
     const record = await runCell(input(root), driver);
 
@@ -51,54 +50,83 @@ describe("Work Cell core", () => {
     expect(record.loadedInterpretations).toEqual([]);
   });
 
-  test("does not promote a completed submission when its check plan fails", async () => {
+  test("settles an independent output and artifact after a caller-defined terminal tool", async () => {
     const root = await fixture();
-    const submission = completedSubmission();
-    submission.checkPlan.steps[0] = {
-      id: "false-check",
-      argv: ["false"],
-      cwd: ".",
-      expectExit: 0,
-      timeoutMs: 1_000,
-    };
     const base = input(root);
-    base.workspace.allowedCommands.push("false");
+    base.outputSchema = {
+      type: "object",
+      properties: { status: { type: "string" } },
+      required: ["status"],
+      additionalProperties: false,
+    };
+    base.artifacts = [{ path: "output/report.md", instructions: "Write the bounded report." }];
+    base.terminalTools = [{
+      name: "finish_report",
+      description: "Signal that the report and structured output are complete.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    }];
 
-    const record = await runCell(base, new ScriptedDriver(geneExpression("P13", []), submission));
+    const record = await runCell(base, new ContractDriver(geneExpression("P04", []), true));
 
-    expect(record.status).toBe("verification_failed");
-    expect(record.verification.passed).toBe(false);
-    expect(record.verification.results[0]?.exitCode).not.toBe(0);
+    expect(record.status).toBe("passed");
+    expect(record.output).toEqual({ status: "ready" });
+    expect(record.artifacts).toEqual([expect.objectContaining({ path: "output/report.md", bytes: expect.any(Number) })]);
+    expect(record.verification).toMatchObject({ output: { passed: true }, artifacts: { passed: true } });
   });
 
-  test("retains a valid split as a terminal differentiated outcome", async () => {
+  test("does not accept an unchanged declared artifact", async () => {
     const root = await fixture();
-    const submission: CellSubmission = {
-      outcome: "split",
-      artifact: { summary: "Split by independent evidence surface", files: [] },
-      evidence: [{ claim: "Task exceeds one cell", source: "TASK.md:1" }],
-      checkPlan: { steps: [] },
-      children: [
-        {
-          id: "inspect-a",
-          intent: "Inspect A",
-          scope: ["a/"],
-          capabilitiesRequired: ["read"],
-          acceptance: ["Return cited findings"],
-        },
-      ],
-      blockers: [],
+    const base = input(root);
+    base.artifacts = [{ path: "output/report.md", instructions: "Write the bounded report." }];
+
+    const record = await runCell(base, new ContractDriver(geneExpression("P04", []), false));
+
+    expect(record.status).toBe("verification_failed");
+    expect(record.verification.artifacts).toMatchObject({ passed: false });
+  });
+
+  test("records output and artifact verification even when its terminal condition is unmet", async () => {
+    const root = await fixture();
+    const base = input(root);
+    base.outputSchema = {
+      type: "object",
+      properties: { status: { type: "string" } },
+      required: ["status"],
+      additionalProperties: false,
     };
+    base.artifacts = [{ path: "output/report.md", instructions: "Write the bounded report." }];
+    base.terminalTools = [{
+      name: "finish_report",
+      description: "Signal that the report and structured output are complete.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    }];
 
-    const record = await runCell(input(root), new ScriptedDriver(geneExpression("P04", []), submission));
+    const record = await runCell(base, new ContractDriver(geneExpression("P04", []), true, false));
 
-    expect(record.status).toBe("split");
-    expect(record.submission?.children).toHaveLength(1);
+    expect(record.status).toBe("protocol_error");
+    expect(record.output).toEqual({ status: "ready" });
+    expect(record.artifacts).toHaveLength(1);
+    expect(record.verification).toMatchObject({ output: { passed: true }, artifacts: { passed: true } });
+  });
+
+  test("rejects a terminal contract that leaves no final-output step", async () => {
+    const root = await fixture();
+    const base = input(root);
+    base.budget.maxSteps = 1;
+    base.terminalTools = [{
+      name: "finish_report",
+      description: "Signal completion.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    }];
+
+    await expect(runCell(base, new ScriptedDriver(geneExpression("P04", [])))).rejects.toThrow(
+      "terminal tools require at least two steps",
+    );
   });
 
   test("records a hard token-budget failure from any driver adapter", async () => {
     const root = await fixture();
-    const driver = new ScriptedDriver(geneExpression("P04", []), completedSubmission());
+    const driver = new ScriptedDriver(geneExpression("P04", []));
     driver.selectionError = new CellBudgetExceededError(101, 100);
 
     const record = await runCell(input(root), driver);
@@ -107,11 +135,23 @@ describe("Work Cell core", () => {
     expect(record.error).toContain("token budget exceeded");
   });
 
+  test("retains observed usage when a driver fails after starting execution", async () => {
+    const root = await fixture();
+    const driver = new ScriptedDriver(geneExpression("P04", []));
+    driver.runError = new CellExecutionError("provider ended without a final output", usage(100, 40));
+
+    const record = await runCell(input(root), driver);
+
+    expect(record.status).toBe("failed");
+    expect(record.error).toContain("provider ended without a final output");
+    expect(record.usage).toEqual({ inputTokens: 120, outputTokens: 50, totalTokens: 170, cachedInputTokens: 0 });
+  });
+
   test("cancels a cell when its duration budget expires", async () => {
     const root = await fixture();
     const base = input(root);
     base.budget.maxDurationMs = 20;
-    const driver = new ScriptedDriver(geneExpression("P04", []), completedSubmission());
+    const driver = new ScriptedDriver(geneExpression("P04", []));
     driver.selectionDelayMs = 200;
 
     const record = await runCell(base, driver);
@@ -142,7 +182,7 @@ describe("Work Cell core", () => {
       priceRevision: "fixture-price-v1",
     };
 
-    const record = await runCell(base, new ScriptedDriver(geneExpression("P04", []), completedSubmission()));
+    const record = await runCell(base, new ScriptedDriver(geneExpression("P04", [])));
 
     expect(record.executionObservation).toEqual({
       workEstimateId: "estimate-1",
@@ -188,151 +228,6 @@ describe("Workspace containment", () => {
   });
 });
 
-describe("Differentiation tree", () => {
-  test("materializes split children as fresh bounded cells", async () => {
-    const root = await fixture();
-    await mkdir(join(root, "a"), { recursive: true });
-    const split: CellSubmission = {
-      outcome: "split",
-      artifact: { summary: "Split", files: [] },
-      evidence: [{ claim: "Independent scope", source: "TASK.md:1" }],
-      checkPlan: { steps: [] },
-      children: [
-        {
-          id: "child-a",
-          intent: "Inspect A",
-          scope: ["a"],
-          capabilitiesRequired: ["read"],
-          acceptance: ["Return evidence"],
-        },
-      ],
-      blockers: [],
-    };
-    const rootInput = input(root);
-    rootInput.workspace.writePaths = ["."];
-    let calls = 0;
-
-    const tree = await runCellTree(rootInput, {
-      limits: { maxDepth: 1, maxCells: 3 },
-      createDriver: () =>
-        new ScriptedDriver(
-          geneExpression(calls++ === 0 ? "P04" : "P13", []),
-          calls === 1 ? split : completedSubmission(),
-        ),
-    });
-
-    expect(tree.records).toHaveLength(2);
-    expect(tree.records[1]?.parentRunId).toBe(tree.records[0]?.runId);
-    expect(tree.records[1]?.depth).toBe(1);
-    expect(tree.unresolvedChildren).toEqual([]);
-  });
-
-  test("retains unresolved child evidence when a split exceeds depth", async () => {
-    const root = await fixture();
-    const split: CellSubmission = {
-      outcome: "split",
-      artifact: { summary: "Split", files: [] },
-      evidence: [],
-      checkPlan: { steps: [] },
-      children: [
-        {
-          id: "child",
-          intent: "Child",
-          scope: ["output"],
-          capabilitiesRequired: [],
-          acceptance: ["Done"],
-        },
-      ],
-      blockers: [],
-    };
-    const tree = await runCellTree(input(root), {
-      limits: { maxDepth: 0, maxCells: 2 },
-      createDriver: () => new ScriptedDriver(geneExpression("P04", []), split),
-    });
-
-    expect(tree.records).toHaveLength(1);
-    expect(tree.unresolvedChildren[0]?.reason).toBe("max_depth");
-  });
-
-  test("debits a parent token envelope before each child and settles the tree as partial", async () => {
-    const root = await fixture();
-    await mkdir(join(root, "a"), { recursive: true });
-    await mkdir(join(root, "b"), { recursive: true });
-    const split: CellSubmission = {
-      outcome: "split",
-      artifact: { summary: "Split", files: [] },
-      evidence: [{ claim: "Independent scopes", source: "TASK.md:1" }],
-      checkPlan: { steps: [] },
-      children: [
-        { id: "child-a", intent: "Inspect A", scope: ["a"], capabilitiesRequired: ["read"], acceptance: ["Return A"] },
-        { id: "child-b", intent: "Inspect B", scope: ["b"], capabilitiesRequired: ["read"], acceptance: ["Return B"] },
-      ],
-      blockers: [],
-    };
-    const rootInput = input(root);
-    rootInput.workspace.writePaths = ["."];
-    rootInput.budget.maxTokens = 100;
-    rootInput.budget.tokenControl = "hard";
-    rootInput.budgetEnvelope = {
-      id: "tree-budget",
-      version: "budget-envelope.v1",
-      maxTotalTokens: 20,
-      onExhaustion: "partial",
-    };
-    let calls = 0;
-
-    const tree = await runCellTree(rootInput, {
-      limits: { maxDepth: 1, maxCells: 4 },
-      createDriver: () => {
-        calls += 1;
-        return new ScriptedDriver(
-          geneExpression("P04", []),
-          calls === 1 ? split : completedSubmission(),
-          { selection: usage(3, 2), run: usage(3, 2) },
-        );
-      },
-    });
-
-    expect(tree.records).toHaveLength(2);
-    expect(tree.records[0]?.input.budget.maxTokens).toBe(20);
-    expect(tree.records[1]?.input.budget.maxTokens).toBe(10);
-    expect(tree.status).toBe("partial");
-    expect(tree.budget).toMatchObject({ consumedTokens: 20, remainingTokens: 0, overrunTokens: 0, status: "partial" });
-    expect(tree.budget?.allocations).toHaveLength(2);
-    expect(tree.unresolvedChildren).toEqual([
-      expect.objectContaining({ child: expect.objectContaining({ id: "child-b" }), reason: "budget_envelope" }),
-    ]);
-  });
-
-  test("retains an exhausted root envelope as partial evidence for direct callers", async () => {
-    const root = await fixture();
-    const rootInput = input(root);
-    rootInput.budgetEnvelope = {
-      id: "exhausted-root-budget",
-      version: "budget-envelope.v1",
-      maxTotalTokens: 0,
-      onExhaustion: "partial",
-    };
-    let driverCalls = 0;
-
-    const tree = await runCellTree(rootInput, {
-      limits: { maxDepth: 1, maxCells: 2 },
-      createDriver: () => {
-        driverCalls += 1;
-        return new ScriptedDriver(geneExpression("P04", []), completedSubmission());
-      },
-    });
-
-    expect(driverCalls).toBe(0);
-    expect(tree.records).toEqual([]);
-    expect(tree.status).toBe("partial");
-    expect(tree.budget).toMatchObject({ status: "partial", remainingTokens: 0 });
-    expect(tree.unresolvedChildren).toEqual([
-      expect.objectContaining({ child: expect.objectContaining({ id: rootInput.id }), reason: "budget_envelope" }),
-    ]);
-  });
-});
-
 class ScriptedDriver implements CellDriver {
   readonly descriptor = {
     adapter: "scripted-test",
@@ -340,11 +235,11 @@ class ScriptedDriver implements CellDriver {
     model: "fixture",
   };
   selectionError?: Error;
+  runError?: Error;
   selectionDelayMs = 0;
 
   constructor(
     private readonly expression: GeneExpression,
-    private readonly submission: CellSubmission,
     private readonly usages: { selection: CellUsage; run: CellUsage } = {
       selection: usage(20, 10),
       run: usage(30, 15),
@@ -383,11 +278,37 @@ class ScriptedDriver implements CellDriver {
     _context: DriverContext,
   ): Promise<DriverResult> {
     expect(expressed.expression).toEqual(this.expression);
+    if (this.runError) throw this.runError;
     return {
-      submission: this.submission,
-      finalText: "submitted",
+      terminalToolsCalled: [],
+      finalText: "completed",
       usage: this.usages.run,
-      rawSteps: [{ submitted: true }],
+      rawSteps: [],
+    };
+  }
+}
+
+class ContractDriver implements CellDriver {
+  readonly descriptor = { adapter: "scripted-contract", provider: "deterministic", model: "fixture" };
+
+  constructor(
+    private readonly expression: GeneExpression,
+    private readonly writeArtifact: boolean,
+    private readonly signalTerminal = true,
+  ) {}
+
+  async selectGenes(): Promise<GeneSelectionResult> {
+    return { expression: this.expression, usage: usage(1, 1), rawSteps: [] };
+  }
+
+  async run(input: CellInput, _expressed: ExpressedGenome, context: DriverContext): Promise<DriverResult> {
+    if (this.writeArtifact) await context.workspace.writeText("output/report.md", "# Report\n");
+    return {
+      terminalToolsCalled: this.signalTerminal ? input.terminalTools?.map((terminal) => terminal.name) ?? [] : [],
+      finalText: "completed through caller-defined terminal tool",
+      output: input.outputSchema ? { status: "ready" } : undefined,
+      usage: usage(1, 1),
+      rawSteps: [],
     };
   }
 }
@@ -419,28 +340,6 @@ function input(root: string): CellInput {
       maxDurationMs: 10_000,
       maxCommandOutputBytes: 4_000,
     },
-    lineage: { depth: 0 },
-  };
-}
-
-function completedSubmission(): CellSubmission {
-  return {
-    outcome: "completed",
-    artifact: { summary: "Completed", files: [] },
-    evidence: [{ claim: "Fixture inspected", source: "TASK.md:1" }],
-    checkPlan: {
-      steps: [
-        {
-          id: "true-check",
-          argv: ["true"],
-          cwd: ".",
-          expectExit: 0,
-          timeoutMs: 1_000,
-        },
-      ],
-    },
-    children: [],
-    blockers: [],
   };
 }
 

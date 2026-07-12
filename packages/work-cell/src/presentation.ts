@@ -1,7 +1,6 @@
-import type { CellRunRecord, CellSubmission, TraceEvent } from "./contracts";
+import type { CellRunRecord } from "./contracts";
 
 export function renderRunSummary(record: CellRunRecord, recordPath?: string): string {
-  const submission = record.submission ?? provisionalSubmission(record.trace);
   const lines = [
     `Work Cell ${record.status}`,
     `Cell: ${record.cellId}`,
@@ -24,18 +23,13 @@ export function renderRunSummary(record: CellRunRecord, recordPath?: string): st
     lines.push(parts.join(" · "));
   }
 
-  if (submission) {
-    lines.push(`${record.submission ? "Artifact" : "Provisional submission"}: ${submission.artifact.summary}`);
-    for (const evidence of submission.evidence.slice(0, 5)) {
-      lines.push(`Evidence: ${evidence.claim} (${evidence.source})`);
-    }
+  if (record.output !== undefined) lines.push(`Output: ${JSON.stringify(record.output)}`);
+  for (const artifact of record.artifacts) {
+    lines.push(`Artifact file: ${artifact.path} (${format(artifact.bytes)} bytes, sha256 ${artifact.sha256.slice(0, 12)})`);
   }
 
-  if (record.verification.results.length > 0) {
-    const passed = record.verification.results.filter((result) => result.passed).length;
-    lines.push(`Checks: ${passed}/${record.verification.results.length} passed`);
-  } else if (record.submission) {
-    lines.push("Checks: none declared");
+  if (record.verification.terminal.required.length > 0) {
+    lines.push(`Terminal: ${record.verification.terminal.passed ? "satisfied" : "missing"} (${record.verification.terminal.required.join(", ")})`);
   }
 
   if (record.status === "budget_exceeded") lines.push(budgetDiagnostic(record));
@@ -48,11 +42,6 @@ function expressionLine(record: CellRunRecord): string {
   if (!record.geneExpression) return "Expression: unavailable";
   const supports = record.geneExpression.supports;
   return `Expression: ${record.geneExpression.lead}${supports.length ? ` + ${supports.join(", ")}` : ""}`;
-}
-
-function provisionalSubmission(trace: TraceEvent[]): CellSubmission | undefined {
-  const event = [...trace].reverse().find((item) => item.type === "cell.submitted");
-  return event?.data && typeof event.data === "object" ? (event.data as CellSubmission) : undefined;
 }
 
 function budgetDiagnostic(record: CellRunRecord): string {

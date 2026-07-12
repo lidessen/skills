@@ -6,13 +6,41 @@ skill, or candidate principle changes real agent behavior.
 One cell is ephemeral. It receives an intent, isolated workspace, capability
 surface, acceptance conditions, budget, and the host Principle Sequence. It
 first expresses one lead P-ID and up to three supports, loads only those
-interpretations, then executes with bounded file and command tools. It must
-finish with a structured artifact, evidence, check plan, and either completion,
-partial work, failure, or child-cell specifications.
+interpretations, then executes with bounded file and command tools. A caller
+may independently declare terminal tools, a structured final output schema, and
+required output artifacts. The runtime records the final output and verifies
+declared artifacts without making any of those conditions part of another's
+tool schema.
 
 The package does not depend on an external agent engine. AI SDK is the first
 driver adapter; `deepseek-v4-flash` is the default model. The core contract can
 support another adapter without changing run records or experiment semantics.
+
+## Completion contracts
+
+Use only the conditions the task actually needs. They are orthogonal:
+
+```json
+{
+  "terminalTools": [{
+    "name": "finish_report",
+    "description": "Signal that the report is complete.",
+    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+  }],
+  "outputSchema": {
+    "type": "object",
+    "properties": { "recommendation": { "type": "string" } },
+    "required": ["recommendation"],
+    "additionalProperties": false
+  },
+  "artifacts": [{ "path": "output/report.md", "instructions": "Write the report." }]
+}
+```
+
+`terminalTools` dynamically become callable tools and require one declared tool
+to be called. `outputSchema` validates the final logical result. `artifacts`
+require a regular file in write scope that this run added or changed; the record
+retains its SHA-256 and byte size. None implies the schema or payload of another.
 
 ## Work and budget boundary
 
@@ -21,14 +49,6 @@ estimate names necessary state transitions and discovery branches without
 claiming tokens, dollars, or person-days; the profile identifies the executor
 and price revision that produced an observation. A completed record retains
 those links beside actual usage, duration, verification, and price-derived cost.
-
-For a differentiation tree, an optional root **Budget Envelope** controls the
-aggregate declared token allocation. Before each Cell starts, the tree clamps
-that Cell's token cap to the envelope's remaining amount. When no allocation
-remains, later children are retained as unresolved evidence with
-`budget_envelope`, and the tree settles as `partial`; it never silently expands
-the envelope. This is an execution control, not a conversion forecast or a
-spending approval.
 
 The first slice intentionally does not predict cost or claim P50/P80/P95
 accuracy. A later read-only calibration projection must be built from retained,
@@ -71,10 +91,10 @@ another's results. Every member is forced to be read-only and command-free.
 
 The manifest carries full `CellInput` objects whose `workspace.root` values are
 absolute paths. The CLI adds the docket and member-role instructions to the
-Cell's ordinary prompt surface. The generic Cell contract carries only an
-optional `{ schema, value }` structured result; this adapter asks members to
-use its own position schema with `support`, `oppose`, `reserve`, or `discover`,
-plus a decision delta, strongest counterargument, and unchanged alternative.
+Cell's ordinary prompt surface. The deliberation adapter supplies its own
+`outputSchema` for a position with `support`, `oppose`, `reserve`, or
+`discover`, plus a decision delta, strongest counterargument, and unchanged
+alternative; that schema is not a terminal-tool payload.
 
 ```json
 {
@@ -152,7 +172,7 @@ scope. See [decision 022](../../design/decisions/022-project-first-deliberation-
 Work Cell is a general runtime. Prompts, selected skills, tools, and adapter
 schemas differentiate it for a concrete practice. A proposal-specific role,
 vote, workflow, or doctrine belongs in an adapter such as `deliberation.ts`,
-not in `CellInput`, `CellSubmission`, the driver, or `runCell`.
+not in `CellInput`, the driver, or `runCell`.
 
 Only a capability demonstrated by at least two independent adapters may be
 considered for the core contract, and only if it names an execution invariant
@@ -190,8 +210,7 @@ traces and workspace diffs. Promote a reviewed result deliberately into
 ## Independence boundary
 
 - No external task board, scheduler, memory, daemon, or agent process.
-- No cell-to-cell messaging. A parent may return child specifications; the
-  local tree runner materializes fresh cells within hard depth and count limits.
+- No cell-to-cell messaging, child-cell expansion, or implicit task tree.
 - `deliberate` runs three to five read-only, command-free member Cells from one
   docket. Each member must state a structured position; the CLI preserves raw
   member records and emits a non-authoritative vote-and-dissent projection. It

@@ -27,7 +27,7 @@ export const DiscoveryBranchSchema = z.object({
 export const WorkEstimateSchema = z.object({
   id: z.string().min(1),
   version: z.literal("work-estimate.v1"),
-  decisionHorizon: z.enum(["direction", "capability", "mission", "cell-tree"]),
+  decisionHorizon: z.enum(["direction", "capability", "mission"]),
   targetState: z.string().min(1),
   sources: z.array(z.string().min(1)).min(1),
   nodes: z.array(WorkNodeSchema).min(1),
@@ -42,7 +42,7 @@ export const ExecutionProfileSchema = z.object({
   model: z.string().min(1),
   contextPolicy: z.string().min(1).optional(),
   toolSurface: z.string().min(1).optional(),
-  parallelism: z.enum(["serial", "tree"]).default("serial"),
+  parallelism: z.literal("serial").default("serial"),
   priceRevision: z.string().min(1).optional(),
 });
 
@@ -125,67 +125,24 @@ export const TreatmentSchema = z.object({
   instructions: z.string().min(1),
 });
 
-export const CheckStepSchema = z.object({
-  id: z.string().min(1),
-  argv: z.array(z.string()).min(1),
-  cwd: z.string().default("."),
-  expectExit: z.number().int().default(0),
-  timeoutMs: z.number().int().positive().default(60_000),
+// A serializable JSON Schema is the portable boundary for a cell's final
+// structured output. It intentionally does not belong to a tool input schema.
+export const OutputSchemaSchema = z.record(z.string(), z.unknown()).superRefine((value, context) => {
+  if (value.type !== "object") {
+    context.addIssue({ code: "custom", message: "outputSchema must describe an object at its root" });
+  }
 });
 
-export const CheckPlanSchema = z.object({
-  steps: z.array(CheckStepSchema).default([]),
+export const ArtifactRequirementSchema = z.object({
+  path: z.string().min(1),
+  instructions: z.string().min(1),
 });
 
-export const EvidenceSchema = z.object({
-  claim: z.string().min(1),
-  source: z.string().min(1),
+export const TerminalToolSchema = z.object({
+  name: z.string().regex(/^[a-z][a-z0-9_]*$/, "terminal tool names use lowercase snake_case"),
+  description: z.string().min(1),
+  inputSchema: OutputSchemaSchema,
 });
-
-export const StructuredResultSchema = z.object({
-  schema: z.string().min(1),
-  value: z.unknown(),
-});
-
-export const ChildCellSpecSchema = z.object({
-  id: z.string().min(1),
-  intent: z.string().min(1),
-  scope: z.array(z.string().min(1)).min(1),
-  capabilitiesRequired: z.array(z.string().min(1)).default([]),
-  acceptance: z.array(z.string().min(1)).min(1),
-  terminalTools: z.array(z.string().min(1)).min(1).optional(),
-  budget: BudgetSchema.partial().optional(),
-});
-
-export const CellSubmissionSchema = z
-  .object({
-    outcome: z.enum(["completed", "partial", "split", "failed"]),
-    artifact: z.object({
-      summary: z.string().min(1),
-      files: z.array(z.string().min(1)).default([]),
-    }),
-    evidence: z.array(EvidenceSchema).default([]),
-    checkPlan: CheckPlanSchema.default({ steps: [] }),
-    children: z.array(ChildCellSpecSchema).default([]),
-    blockers: z.array(z.string().min(1)).default([]),
-    result: StructuredResultSchema.optional(),
-  })
-  .superRefine((value, context) => {
-    if (value.outcome === "split" && value.children.length === 0) {
-      context.addIssue({
-        code: "custom",
-        path: ["children"],
-        message: "split submissions require at least one child",
-      });
-    }
-    if (value.outcome !== "split" && value.children.length > 0) {
-      context.addIssue({
-        code: "custom",
-        path: ["children"],
-        message: "only split submissions may declare children",
-      });
-    }
-  });
 
 export const CellInputSchema = z.object({
   id: z.string().min(1),
@@ -195,7 +152,9 @@ export const CellInputSchema = z.object({
   dna: DnaSchema,
   capabilitiesRequired: z.array(z.string().min(1)).default([]),
   acceptance: z.array(z.string().min(1)).min(1),
-  terminalTools: z.array(z.string().min(1)).min(1).optional(),
+  terminalTools: z.array(TerminalToolSchema).min(1).optional(),
+  outputSchema: OutputSchemaSchema.optional(),
+  artifacts: z.array(ArtifactRequirementSchema).min(1).optional(),
   budget: BudgetSchema.default({
     maxSteps: 20,
     maxTokens: 100_000,
@@ -206,12 +165,6 @@ export const CellInputSchema = z.object({
   executionProfile: ExecutionProfileSchema.optional(),
   budgetEnvelope: BudgetEnvelopeSchema.optional(),
   treatment: TreatmentSchema.optional(),
-  lineage: z
-    .object({
-      parentRunId: z.string().optional(),
-      depth: z.number().int().nonnegative().default(0),
-    })
-    .default({ depth: 0 }),
 });
 
 export const UsageSchema = z.object({
@@ -221,21 +174,16 @@ export const UsageSchema = z.object({
   cachedInputTokens: z.number().nonnegative().default(0),
 });
 
-export const CheckResultSchema = z.object({
-  id: z.string(),
-  argv: z.array(z.string()),
-  exitCode: z.number(),
-  expectedExit: z.number(),
-  passed: z.boolean(),
-  stdout: z.string(),
-  stderr: z.string(),
-  durationMs: z.number().nonnegative(),
-});
-
 export const WorkspaceDiffSchema = z.object({
   added: z.array(z.string()),
   changed: z.array(z.string()),
   removed: z.array(z.string()),
+});
+
+export const ArtifactRecordSchema = z.object({
+  path: z.string().min(1),
+  bytes: z.number().int().nonnegative(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
 });
 
 export type Budget = z.infer<typeof BudgetSchema>;
@@ -245,18 +193,15 @@ export type BudgetEnvelope = z.infer<typeof BudgetEnvelopeSchema>;
 export type WorkspacePolicy = z.infer<typeof WorkspacePolicySchema>;
 export type CellInput = z.infer<typeof CellInputSchema>;
 export type GeneExpression = z.infer<typeof GeneExpressionSchema>;
-export type CellSubmission = z.infer<typeof CellSubmissionSchema>;
-export type StructuredResult = z.infer<typeof StructuredResultSchema>;
-export type ChildCellSpec = z.infer<typeof ChildCellSpecSchema>;
-export type CheckStep = z.infer<typeof CheckStepSchema>;
-export type CheckResult = z.infer<typeof CheckResultSchema>;
+export type OutputSchema = z.infer<typeof OutputSchemaSchema>;
+export type ArtifactRequirement = z.infer<typeof ArtifactRequirementSchema>;
+export type ArtifactRecord = z.infer<typeof ArtifactRecordSchema>;
+export type TerminalTool = z.infer<typeof TerminalToolSchema>;
 export type CellUsage = z.infer<typeof UsageSchema>;
 export type WorkspaceDiff = z.infer<typeof WorkspaceDiffSchema>;
 
 export type CellTerminalStatus =
   | "passed"
-  | "split"
-  | "partial"
   | "failed"
   | "verification_failed"
   | "protocol_error"
@@ -274,8 +219,6 @@ export interface CellRunRecord {
   version: typeof WORK_CELL_RECORD_VERSION;
   runId: string;
   cellId: string;
-  parentRunId?: string;
-  depth: number;
   driver: DriverDescriptor;
   startedAt: string;
   finishedAt: string;
@@ -284,10 +227,14 @@ export interface CellRunRecord {
   input: CellInput;
   geneExpression?: GeneExpression;
   loadedInterpretations: string[];
-  submission?: CellSubmission;
+  finalText: string;
+  output?: unknown;
+  artifacts: ArtifactRecord[];
   verification: {
     passed: boolean;
-    results: CheckResult[];
+    terminal: TerminalVerification;
+    output?: OutputVerification;
+    artifacts?: ArtifactVerification;
   };
   workspaceDiff: WorkspaceDiff;
   usage: CellUsage;
@@ -301,6 +248,22 @@ export interface CellRunRecord {
   trace: TraceEvent[];
   rawSteps: unknown[];
   error?: string;
+}
+
+export interface OutputVerification {
+  passed: boolean;
+  errors: string[];
+}
+
+export interface TerminalVerification {
+  passed: boolean;
+  required: string[];
+  called: string[];
+}
+
+export interface ArtifactVerification {
+  passed: boolean;
+  errors: string[];
 }
 
 export interface DriverDescriptor {

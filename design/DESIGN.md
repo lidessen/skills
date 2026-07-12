@@ -62,15 +62,14 @@ principles/SEQUENCE.md ──► interpretations ──► selected P-ID express
   host source may govern its own task; an optional remote refresh is temporary
   and cannot mutate the packaged projection.
 - **Work Cell runtime** — Owns one ephemeral practice unit and its evidence: a
-  task-specific Sequence expression, isolated workspace tools, structured
-  completion or differentiation, mechanical checks, trace/cost capture, and
-  blinded baseline/treatment comparison. It can link executor-independent Work
-  Estimates to executor/profile-specific observations and enforce a root token
-  envelope across a sequential differentiation tree, returning `partial`
-  evidence rather than silently expanding the limit. It is not a skill and has
-  no semantic or adoption authority. Its project interaction shell discovers a host
-  Sequence and lowers explicit human intent and acceptance into a read-only
-  probe; it is a convenience projection, not a second runtime contract.
+  task-specific Sequence expression, isolated workspace tools, caller-declared
+  terminal tools, independently validated structured output and artifacts,
+  trace/cost capture, and blinded baseline/treatment comparison. It can link
+  executor-independent Work Estimates to executor/profile-specific observations.
+  It is not a skill and has no semantic or adoption authority. Its project
+  interaction shell discovers a host Sequence and lowers explicit human intent
+  and acceptance into a read-only probe; it is a convenience projection, not a
+  second runtime contract.
   For an approved material-decision pilot, its bounded `deliberate` CLI may run
   three to five independent read-only members from one docket and retain their
   structured positions. Its tally and dissent list are a projection, never a
@@ -112,7 +111,7 @@ Sequence + selected interpretations + optional candidate treatment
                               ▼
                      ephemeral Work Cell
                               │
-              artifact + evidence + checks + trace
+       terminal evidence + output + artifacts + trace
                               │
                               ▼
              blinded comparison / accepted evaluation

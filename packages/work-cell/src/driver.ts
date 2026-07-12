@@ -1,7 +1,6 @@
 import type {
   CellInput,
   GeneExpression,
-  CellSubmission,
   CellUsage,
   DriverDescriptor,
   TraceEvent,
@@ -17,8 +16,10 @@ export interface DriverContext {
 }
 
 export interface DriverResult {
-  submission?: CellSubmission;
+  /** Actual terminal tools invoked by the adapter, retained separately from output. */
+  terminalToolsCalled: string[];
   finalText: string;
+  output?: unknown;
   usage: CellUsage;
   rawSteps: unknown[];
   providerMetadata?: unknown;
@@ -45,6 +46,14 @@ export class CellBudgetExceededError extends Error {
   ) {
     super(`token budget exceeded: observed ${observed}, limit ${limit}`);
     this.name = "CellBudgetExceededError";
+  }
+}
+
+/** A driver failure that still carries observed provider usage for audit. */
+export class CellExecutionError extends Error {
+  constructor(message: string, readonly usage: CellUsage) {
+    super(message);
+    this.name = "CellExecutionError";
   }
 }
 

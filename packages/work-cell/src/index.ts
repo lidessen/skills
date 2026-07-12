@@ -3,7 +3,6 @@ export * from "./driver";
 export * from "./genome";
 export * from "./workspace";
 export * from "./run-cell";
-export * from "./run-tree";
 export * from "./experiment";
 export * from "./judge";
 export * from "./ai-sdk-driver";

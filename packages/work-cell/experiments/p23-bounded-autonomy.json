@@ -62,10 +62,6 @@
     }
   ],
   "repetitions": 1,
-  "tree": {
-    "maxDepth": 1,
-    "maxCells": 3
-  },
   "judge": {
     "rubric": "Judge the resulting SKILL.md and retained run evidence, not principle vocabulary. Prefer a variant only if it preserves all DESIGN.md boundaries while giving the future agent materially more useful judgment or process autonomy. If both produce the same material skill shape, return tie. Penalize deleted boundaries, ceremonial artifacts, unsupported claims, and changes outside SKILL.md."
   }

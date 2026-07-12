@@ -16,10 +16,10 @@ import type {
   ComparisonJudgeResult,
   JudgeCandidate,
 } from "./judge";
-import { runCellTree, type CellTreeResult } from "./run-tree";
+import { runCell } from "./run-cell";
 
 const WorkspaceTemplateSchema = WorkspacePolicySchema.omit({ root: true });
-const CellTemplateSchema = CellInputSchema.omit({ workspace: true, treatment: true, lineage: true }).extend({
+const CellTemplateSchema = CellInputSchema.omit({ workspace: true, treatment: true }).extend({
   workspace: WorkspaceTemplateSchema,
 });
 
@@ -42,7 +42,6 @@ export const ExperimentSpecSchema = z.object({
     )
     .length(2),
   repetitions: z.number().int().positive().max(10).default(1),
-  tree: z.object({ maxDepth: z.number().int().nonnegative(), maxCells: z.number().int().positive() }),
   judge: z.object({ rubric: z.string().min(1) }),
 });
 
@@ -53,7 +52,7 @@ export type Attribution = "supported" | "overlap" | "failed" | "inconclusive";
 export interface VariantRun {
   variantId: string;
   repetition: number;
-  tree: CellTreeResult;
+  record: CellRunRecord;
   diffs: Record<string, string>;
   directory: string;
 }
@@ -110,28 +109,13 @@ export async function runExperiment(
         id: `${spec.task.id}-${variant.id}-r${repetition + 1}`,
         workspace: { ...spec.task.workspace, root: workspaceRoot },
         ...(variant.treatment ? { treatment: variant.treatment } : {}),
-        lineage: { depth: 0 },
       });
-      const tree = await runCellTree(input, {
-        limits: spec.tree,
-        createDriver,
-        createChildWorkspace: async (parent, child, ordinal) => {
-          const childRoot = join(directory, "children", `${safe(child.id)}-${ordinal}`);
-          await mkdir(dirname(childRoot), { recursive: true });
-          await cp(parent.input.workspace.root, childRoot, { recursive: true, force: true });
-          return childRoot;
-        },
-      }, signal);
+      const record = await runCell(input, createDriver(), signal);
       const diffs: Record<string, string> = {};
-      for (const record of tree.records) {
-        const cellsDir = join(directory, "cells");
-        await mkdir(cellsDir, { recursive: true });
-        await writeJson(join(cellsDir, `${record.runId}.json`), record);
-        diffs[record.runId] = await unifiedDiff(fixtureSnapshot, record.input.workspace.root);
-        await writeFile(join(cellsDir, `${record.runId}.diff`), diffs[record.runId] ?? "", "utf8");
-      }
-      await writeJson(join(directory, "tree.json"), tree);
-      runs.push({ variantId: variant.id, repetition, tree, diffs, directory });
+      await writeJson(join(directory, "record.json"), record);
+      diffs[record.runId] = await unifiedDiff(fixtureSnapshot, record.input.workspace.root);
+      await writeFile(join(directory, "record.diff"), diffs[record.runId] ?? "", "utf8");
+      runs.push({ variantId: variant.id, repetition, record, diffs, directory });
     }
   }
 
@@ -142,7 +126,7 @@ export async function runExperiment(
     const swapped = randomInt(2) === 1;
     const aRun = swapped ? pair[1] : pair[0];
     const bRun = swapped ? pair[0] : pair[1];
-    const result = validForJudgement(aRun.tree) && validForJudgement(bRun.tree)
+    const result = validForJudgement(aRun.record) && validForJudgement(bRun.record)
       ? await judge.judge({
           intent: spec.task.intent,
           acceptance: spec.task.acceptance,
@@ -171,12 +155,8 @@ export async function runExperiment(
   return record;
 }
 
-function validForJudgement(tree: CellTreeResult): boolean {
-  return (
-    tree.records.length > 0 &&
-    tree.unresolvedChildren.length === 0 &&
-    tree.records.every((record) => record.status === "passed" || record.status === "split")
-  );
+function validForJudgement(record: CellRunRecord): boolean {
+  return record.status === "passed";
 }
 
 function invalidComparisonResult(a: VariantRun, b: VariantRun): ComparisonJudgeResult {
@@ -184,10 +164,10 @@ function invalidComparisonResult(a: VariantRun, b: VariantRun): ComparisonJudgeR
     judgement: {
       preferred: "inconclusive",
       acceptance: [],
-      findings: ["Comparison was not judged because one or both variants lacked a fully settled cell tree."],
+      findings: ["Comparison was not judged because one or both variants lacked a settled Work Cell record."],
       evidence: [
-        `A statuses: ${a.tree.records.map((record) => record.status).join(", ") || "none"}`,
-        `B statuses: ${b.tree.records.map((record) => record.status).join(", ") || "none"}`,
+        `A status: ${a.record.status}`,
+        `B status: ${b.record.status}`,
       ],
     },
     usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, cachedInputTokens: 0 },
@@ -208,19 +188,19 @@ async function copyFixture(spec: ExperimentSpec, baseDir: string, destination: s
 }
 
 function judgeCandidate(label: "A" | "B", run: VariantRun): JudgeCandidate {
-  return { label, records: run.tree.records.map(blindEvidence), diffs: run.diffs };
+  return { label, records: [blindEvidence(run.record)], diffs: run.diffs };
 }
 
 function blindEvidence(record: CellRunRecord): BlindRunEvidence {
   return {
     runId: record.runId,
     cellId: record.cellId,
-    ...(record.parentRunId ? { parentRunId: record.parentRunId } : {}),
-    depth: record.depth,
     status: record.status,
     ...(record.geneExpression ? { geneExpression: record.geneExpression } : {}),
     loadedInterpretations: record.loadedInterpretations,
-    ...(record.submission ? { submission: record.submission } : {}),
+    finalText: record.finalText,
+    ...(record.output === undefined ? {} : { output: record.output }),
+    artifacts: record.artifacts,
     verification: record.verification,
     workspaceDiff: record.workspaceDiff,
     usage: record.usage,

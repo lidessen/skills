@@ -52,7 +52,6 @@ test("experiment keeps variants blind and attributes a treatment-only decision",
       { id: "treatment", treatment: { id: "candidate", instructions: "Protect process space" } },
     ],
     repetitions: 1,
-    tree: { maxDepth: 0, maxCells: 1 },
     judge: { rubric: "Prefer the artifact that protects bounded autonomy" },
   });
   const judge = new DiffJudge();
@@ -63,11 +62,11 @@ test("experiment keeps variants blind and attributes a treatment-only decision",
   expect(record.comparisons[0]?.attribution).toBe("supported");
   expect(judge.sawTreatmentMetadata).toBe(false);
   const treatment = record.runs.find((run) => run.variantId === "treatment");
-  expect(treatment?.tree.records[0]?.workspaceDiff.changed).toContain("SKILL.md");
-  expect(await readFile(join(treatment!.directory, "tree.json"), "utf8")).toContain("work-cell.run.v1");
+  expect(treatment?.record.workspaceDiff.changed).toContain("SKILL.md");
+  expect(await readFile(join(treatment!.directory, "record.json"), "utf8")).toContain("work-cell.run.v1");
 });
 
-test("experiment skips its judge when either cell tree is unsettled", async () => {
+test("experiment skips its judge when either Work Cell is unsettled", async () => {
   const root = await fixture();
   const spec = ExperimentSpecSchema.parse({
     id: "invalid-pair",
@@ -96,7 +95,6 @@ test("experiment skips its judge when either cell tree is unsettled", async () =
       { id: "treatment", treatment: { id: "candidate", instructions: "Hypothesis" } },
     ],
     repetitions: 1,
-    tree: { maxDepth: 0, maxCells: 1 },
     judge: { rubric: "Do not run" },
   });
   const judge = new CountingJudge();
@@ -134,15 +132,8 @@ class VariantDriver implements CellDriver {
       : "# Skill\n\nFollow the required process.\n";
     await context.workspace.writeText("SKILL.md", content);
     return {
-      submission: {
-        outcome: "completed",
-        artifact: { summary: "Rewritten", files: ["SKILL.md"] },
-        evidence: [{ claim: "Skill changed", source: "SKILL.md:1" }],
-        checkPlan: { steps: [] },
-        children: [],
-        blockers: [],
-      },
       finalText: "done",
+      terminalToolsCalled: [],
       usage: usage(),
       rawSteps: [],
     };

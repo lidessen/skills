@@ -42,9 +42,9 @@ specific method.
 independent practice and evaluation unit. A cell expresses a task-specific lead
 P-ID and up to three supports from the Sequence, loads only those
 interpretations, runs one bounded agent task in an isolated workspace, and
-retains its artifact, evidence, check plan, trajectory, usage, cost, and
-workspace diff. The local experiment runner can materialize bounded child cells
-and compare blinded baseline/treatment variants. It is infrastructure, not an
+retains declared output artifacts, structured output, terminal evidence, usage,
+cost, and workspace diff. The local experiment runner compares blinded
+baseline/treatment variants. It is infrastructure, not an
 invocable methodology skill, and it does not modify the Sequence.
 
 For daily repository analysis, its read-only `probe` interaction discovers the

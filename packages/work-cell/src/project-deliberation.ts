@@ -100,10 +100,14 @@ export async function prepareProjectDeliberation(unparsed: unknown): Promise<Pre
             "Do not list or search other project paths.",
             "Return a source-bound position, its strongest counterargument, and the unchanged alternative. You do not own consensus, acceptance, budget expansion, or merge authority.",
           ].join(" "),
-          capabilities: ["read compact docket evidence", "analyze selected Sequence interpretation", "submit independent position"],
+          capabilities: ["read compact docket evidence", "analyze selected Sequence interpretation", "return independent position"],
         },
         capabilitiesRequired: ["read compact docket evidence", "analyze selected Sequence interpretation"],
-        terminalTools: ["submit_result"],
+        terminalTools: [{
+          name: "finish_position",
+          description: "Signal that the independent deliberation position is complete.",
+          inputSchema: { type: "object", properties: {}, additionalProperties: false },
+        }],
         acceptance: [
           "Read docket/evidence.md and return a position grounded in its source snippets.",
           "Return the structured deliberation position without requesting wider repository access.",
@@ -114,7 +118,6 @@ export async function prepareProjectDeliberation(unparsed: unknown): Promise<Pre
           maxDurationMs: 180_000,
           maxCommandOutputBytes: 24_000,
         },
-        lineage: { depth: 0 },
       },
     })),
   });

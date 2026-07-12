@@ -1,21 +1,16 @@
 import { createDeepSeek, type DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
-import { ToolLoopAgent, hasToolCall, stepCountIs, tool } from "ai";
+import { Output, ToolLoopAgent, hasToolCall, stepCountIs, tool } from "ai";
 import { z } from "zod";
 import {
-  CellSubmissionSchema,
-  CheckStepSchema,
-  ChildCellSpecSchema,
-  EvidenceSchema,
   GeneExpressionSchema,
   type CellInput,
-  type CellSubmission,
   type CellUsage,
   type DriverDescriptor,
   type GeneExpression,
-  StructuredResultSchema,
 } from "./contracts";
 import {
   CellBudgetExceededError,
+  CellExecutionError,
   type CellDriver,
   type DriverContext,
   type DriverResult,
@@ -23,6 +18,7 @@ import {
 } from "./driver";
 // AI SDK and provider types remain confined to this adapter.
 import { renderGenomeForSelection, type ExpressedGenome, type Genome } from "./genome";
+import { compileOutputSchema } from "./output-schema";
 
 export interface AiSdkDriverOptions {
   apiKey?: string;
@@ -35,27 +31,6 @@ const deepSeekNonThinking = {
     thinking: { type: "disabled" },
   } satisfies DeepSeekLanguageModelOptions,
 };
-
-const SubmissionToolSchema = z.object({
-  outcome: z.enum(["completed", "partial", "split", "failed"]),
-  artifactSummary: z.string().min(1),
-  artifactFiles: z.array(z.string().min(1)).default([]),
-  evidence: z.array(EvidenceSchema).default([]),
-  checkSteps: z.array(CheckStepSchema).default([]),
-  children: z.array(ChildCellSpecSchema).default([]),
-  blockers: z.array(z.string().min(1)).default([]),
-  result: StructuredResultSchema.optional(),
-});
-
-export function submissionToolSchema(canRunCommands: boolean) {
-  const capabilityBoundSchema = canRunCommands ? SubmissionToolSchema : SubmissionToolSchema.extend({
-    checkSteps: z
-      .array(CheckStepSchema)
-      .length(0, "checkSteps must be empty when this cell has no command authority")
-      .default([]),
-  });
-  return capabilityBoundSchema;
-}
 
 export class AiSdkDeepSeekDriver implements CellDriver {
   readonly descriptor: DriverDescriptor;
@@ -151,15 +126,41 @@ export class AiSdkDeepSeekDriver implements CellDriver {
     expressed: ExpressedGenome,
     context: DriverContext,
   ): Promise<DriverResult> {
-    let submission: CellSubmission | undefined;
-    const tools = this.createExecutionTools(input, context, (value) => {
-      submission = CellSubmissionSchema.parse(value);
-    });
+    const terminalToolsCalled = new Set<string>();
+    const outputSchema = input.outputSchema ? compileOutputSchema(input.outputSchema) : undefined;
+    const tools = this.createExecutionTools(input, context, (name) => terminalToolsCalled.add(name));
+    const terminalNames = input.terminalTools?.map((terminal) => terminal.name) ?? [];
+    const terminalSatisfied = () => terminalNames.some((name) => terminalToolsCalled.has(name));
     const executionAgent = new ToolLoopAgent({
       model: this.model,
       instructions: renderExecutionInstructions(input, expressed),
       tools,
-      stopWhen: [hasToolCall("submit_result"), stepCountIs(input.budget.maxSteps)],
+      stopWhen: stepCountIs(input.budget.maxSteps),
+      ...(outputSchema ? { output: Output.object({ schema: outputSchema.forAiSdk() }) } : {}),
+      ...(input.terminalTools?.length
+        ? {
+            prepareStep: ({ stepNumber }) => {
+              if (terminalSatisfied()) {
+                return finalOutputStep(input, expressed);
+              }
+              // Reserve the final model turn for the report after a terminal
+              // tool call. Otherwise a tool-only final step makes AI SDK reject
+              // the run as having no output, even though the terminal contract
+              // was actually satisfied.
+              if (stepNumber >= input.budget.maxSteps - 2) {
+                return {
+                  // Terminal tools are dynamically registered from the caller's
+                  // contract, so their names are not visible to AI SDK's static
+                  // tool-set inference.
+                  activeTools: terminalNames as never[],
+                  toolChoice: "required",
+                  system: `${renderExecutionInstructions(input, expressed)}\n\nYou have reached the final action step. Invoke exactly one declared terminal tool now; do not continue analysis.`,
+                };
+              }
+              return undefined;
+            },
+          }
+        : {}),
       maxOutputTokens: 16_000,
       temperature: 0,
       providerOptions: deepSeekNonThinking,
@@ -190,16 +191,28 @@ export class AiSdkDeepSeekDriver implements CellDriver {
       if (budgetAbort.signal.aborted) {
         throw new CellBudgetExceededError(observedUsage.totalTokens, context.maxTokens, observedUsage);
       }
-      throw error;
+      throw new CellExecutionError(
+        error instanceof Error ? error.message : String(error),
+        observedUsage,
+      );
     }
-    if (!submission && input.terminalTools?.includes("submit_result")) {
+    if (input.terminalTools?.length && !terminalSatisfied()) {
       context.emit("terminal.contract.recovery", { requiredTools: input.terminalTools, reason: "natural_finish_without_terminal_tool" });
       const closureAgent = new ToolLoopAgent({
         model: this.model,
-        instructions: "The previous work ended without satisfying its terminal-tool contract. Do not continue analysis. You must now call submit_result exactly once using the review/work evidence already produced.",
-        tools: { submit_result: tools.submit_result },
-        toolChoice: { type: "tool", toolName: "submit_result" },
-        stopWhen: hasToolCall("submit_result"),
+        instructions: `The previous work ended without satisfying its terminal-tool contract. Do not continue analysis. You must now invoke exactly one of: ${terminalNames.join(", ")}, then return a concise final report.`,
+        tools,
+        stopWhen: stepCountIs(2),
+        prepareStep: ({ stepNumber }) => {
+          if (terminalSatisfied()) return finalOutputStep(input, expressed);
+          if (stepNumber === 0) {
+            return {
+              activeTools: terminalNames as Array<keyof typeof tools>,
+              toolChoice: "required",
+            };
+          }
+          return undefined;
+        },
         maxOutputTokens: 4_000,
         temperature: 0,
         providerOptions: deepSeekNonThinking,
@@ -219,8 +232,9 @@ export class AiSdkDeepSeekDriver implements CellDriver {
     }
 
     return {
-      ...(submission ? { submission } : {}),
+      terminalToolsCalled: [...terminalToolsCalled],
       finalText: closureResult ? `${executionResult.text}\n\n${closureResult.text}` : executionResult.text,
+      ...(executionResult.output === undefined ? {} : { output: executionResult.output }),
       usage,
       rawSteps: sanitize([...executionResult.steps, ...(closureResult?.steps ?? [])]) as unknown[],
       providerMetadata: sanitize(executionResult.providerMetadata),
@@ -230,7 +244,7 @@ export class AiSdkDeepSeekDriver implements CellDriver {
   private createExecutionTools(
     input: CellInput,
     context: DriverContext,
-    acceptSubmission: (value: unknown) => void,
+    markTerminalTool: (name: string) => void,
   ) {
     const tools = {
       list_files: tool({
@@ -256,24 +270,6 @@ export class AiSdkDeepSeekDriver implements CellDriver {
           const content = await context.workspace.readText(path, startLine, endLine);
           context.emit("tool.read_file", { path, startLine, endLine, characters: content.length });
           return { path, content };
-        },
-      }),
-      submit_result: tool({
-        description: "Submit the cell's terminal outcome, artifact, evidence, checks, and optional child specifications.",
-        inputSchema: submissionToolSchema(context.workspace.canRunCommands),
-        execute: async (value) => {
-          const submission = CellSubmissionSchema.parse({
-            outcome: value.outcome,
-            artifact: { summary: value.artifactSummary, files: value.artifactFiles },
-            evidence: value.evidence,
-            checkPlan: { steps: value.checkSteps },
-            children: value.children,
-            blockers: value.blockers,
-            result: value.result,
-          });
-          acceptSubmission(submission);
-          context.emit("cell.submitted", submission);
-          return { accepted: true, outcome: submission.outcome };
         },
       }),
       ...(context.workspace.canWrite
@@ -307,24 +303,57 @@ export class AiSdkDeepSeekDriver implements CellDriver {
           }
         : {}),
     };
-    return tools;
+    return {
+      ...tools,
+      ...Object.fromEntries((input.terminalTools ?? []).map((terminal) => [terminal.name, tool({
+        description: terminal.description,
+        inputSchema: z.fromJSONSchema(terminal.inputSchema),
+        execute: async (value) => {
+          markTerminalTool(terminal.name);
+          context.emit("terminal.tool.called", { name: terminal.name, input: value });
+          return { accepted: true };
+        },
+      })])),
+    };
   }
+}
+
+function finalOutputStep(
+  input: CellInput,
+  expressed: ExpressedGenome,
+) {
+  return {
+    activeTools: [],
+    toolChoice: "none" as const,
+    system: `${renderExecutionInstructions(input, expressed)}\n\nA declared terminal tool has been called. Do not take further actions. Return the final ${input.outputSchema ? "structured output" : "concise report"} now.`,
+  };
 }
 
 function renderExecutionInstructions(input: CellInput, expressed: ExpressedGenome): string {
   const treatment = input.treatment
     ? `\n\n## Separately labelled treatment\nTreatment ${input.treatment.id} is an experimental hypothesis outside the expressed P-ID team. Apply it only where it changes the task decision and retain evidence that could disconfirm it.\n${input.treatment.instructions}`
     : "";
+  const terminalInstruction = input.terminalTools?.length
+    ? `Finish by invoking exactly one declared terminal tool: ${input.terminalTools.map((terminal) => terminal.name).join(", ")}.`
+    : "A terminal tool is not required. Leave a concise final response after completing the work.";
+  const outputInstruction = input.outputSchema
+    ? `Return a final structured output that conforms exactly to this JSON Schema. This is independent of every tool input:\n${JSON.stringify(input.outputSchema)}`
+    : undefined;
+  const artifactInstruction = input.artifacts?.length
+    ? `Create each declared artifact in the workspace write scope. Their paths and instructions are binding:\n${input.artifacts.map((artifact) => `- ${artifact.path}: ${artifact.instructions}`).join("\n")}`
+    : undefined;
   return [
     "You are one ephemeral Work Cell. Work only inside the granted tools and workspace.",
     "You own investigation order and local tool choice. You do not own durable acceptance.",
-    "If the task exceeds your scope or capability, submit outcome split with bounded child specifications. Do not invoke another agent yourself.",
-    "Finish exactly once with submit_result. Include traceable evidence and a mechanical check plan. Empty checks are allowed only when no mechanical check can test the artifact.",
+    "If the task exceeds your scope or capability, state the bounded blocker in the final response. Do not invoke another agent yourself.",
+    terminalInstruction,
+    outputInstruction,
+    artifactInstruction,
     input.dna.baseInstructions,
     `## Expressed genes\nLead: ${expressed.expression.lead}\nSupports: ${expressed.expression.supports.join(", ") || "none"}\nPrincipal contradiction: ${expressed.expression.principalContradiction}`,
     `## Selected interpretations\n${expressed.context}`,
     treatment,
-  ].join("\n\n");
+  ].filter((section): section is string => Boolean(section)).join("\n\n");
 }
 
 function renderTaskPrompt(input: CellInput): string {

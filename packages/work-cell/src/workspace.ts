@@ -10,6 +10,12 @@ export interface CommandResult {
   durationMs: number;
 }
 
+export interface WorkspaceArtifact {
+  path: string;
+  bytes: number;
+  sha256: string;
+}
+
 type Snapshot = Map<string, string>;
 
 export class Workspace {
@@ -74,6 +80,19 @@ export class Workspace {
     const absolute = await this.resolveWritable(path);
     await mkdir(dirname(absolute), { recursive: true });
     await writeFile(absolute, content, "utf8");
+  }
+
+  /** Read a declared output only when it is a regular file inside write scope. */
+  async describeArtifact(path: string): Promise<WorkspaceArtifact> {
+    const absolute = await this.resolveWritable(path);
+    const info = await lstat(absolute);
+    if (!info.isFile()) throw new Error(`artifact is not a regular file: ${path}`);
+    const content = await readFile(absolute);
+    return {
+      path: this.toRelative(absolute),
+      bytes: content.byteLength,
+      sha256: createHash("sha256").update(content).digest("hex"),
+    };
   }
 
   async runCommand(

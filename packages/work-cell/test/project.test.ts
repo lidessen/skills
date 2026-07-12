@@ -11,7 +11,6 @@ import {
 } from "../src/project";
 import { renderRunSummary } from "../src/presentation";
 import { Workspace } from "../src/workspace";
-import { submissionToolSchema } from "../src/ai-sdk-driver";
 import { prepareProjectDeliberation } from "../src/project-deliberation";
 
 const temporaryRoots: string[] = [];
@@ -48,6 +47,7 @@ describe("Project interaction", () => {
       sequencePath: "principles/SEQUENCE.md",
       interpretationsDir: "principles/interpretations",
     });
+    expect(input.terminalTools).toEqual([expect.objectContaining({ name: "finish_probe" })]);
   });
 
   test("persists records below the project and finds the latest one", async () => {
@@ -117,46 +117,6 @@ describe("Project interaction", () => {
 });
 
 describe("Workspace exclusions and summaries", () => {
-  test("makes check steps structurally unavailable without command authority", () => {
-    const base = {
-      outcome: "completed",
-      artifactSummary: "Finished",
-      artifactFiles: [],
-      evidence: [],
-      children: [],
-      blockers: [],
-    };
-
-    expect(() => submissionToolSchema(false).parse({
-      ...base,
-      checkSteps: [{ id: "unauthorized", argv: ["true"] }],
-    })).toThrow("checkSteps must be empty");
-    expect(submissionToolSchema(false).parse({ ...base, checkSteps: [] }).checkSteps).toEqual([]);
-    expect(submissionToolSchema(true).parse({
-      ...base,
-      checkSteps: [{ id: "allowed-shape", argv: ["true"] }],
-    }).checkSteps).toHaveLength(1);
-  });
-
-  test("accepts a caller-defined structured result without importing a domain into the Cell contract", () => {
-    const base = {
-      outcome: "completed",
-      artifactSummary: "Independent position",
-      artifactFiles: [],
-      evidence: [],
-      checkSteps: [],
-      children: [],
-      blockers: [],
-    };
-
-    expect(submissionToolSchema(false).parse({
-      ...base,
-      result: {
-        schema: "example.audit.v1",
-        value: { status: "needs-more-evidence" },
-      },
-    }).result).toEqual({ schema: "example.audit.v1", value: { status: "needs-more-evidence" } });
-  });
 
   test("excludes generated paths from listing, direct reads, and read-only snapshots", async () => {
     const root = await projectFixture();
@@ -197,13 +157,13 @@ describe("Workspace exclusions and summaries", () => {
     expect((await commandWorkspace.snapshot()).has("src/visible.ts")).toBe(true);
   });
 
-  test("renders a provisional terminal submission and a budget diagnosis", async () => {
+  test("renders a final output and a budget diagnosis", async () => {
     const summary = renderRunSummary(recordFixture("/project", "budget_exceeded"));
 
     expect(summary).toContain("Expression: P16 + P15");
     expect(summary).toContain("Rationale: The form prevents action");
     expect(summary).toContain("Decision P15: Keep the change small");
-    expect(summary).toContain("Provisional submission: Found the interaction gap");
+    expect(summary).toContain("Output: {\"recommendation\":\"Inspect the interaction gap\"}");
     expect(summary).toContain("Budget: observed 251,000 of 250,000 tokens after 1 reads");
   });
 });
@@ -224,7 +184,6 @@ function recordFixture(root: string, status: CellRunRecord["status"] = "passed")
     version: "work-cell.run.v1",
     runId: "run-1",
     cellId: "probe-interaction",
-    depth: 0,
     driver: { adapter: "test", provider: "test", model: "test" },
     startedAt: "2026-07-10T10:00:00.000Z",
     finishedAt: "2026-07-10T10:01:00.000Z",
@@ -245,7 +204,6 @@ function recordFixture(root: string, status: CellRunRecord["status"] = "passed")
       capabilitiesRequired: ["read repository files", "analyze project evidence"],
       acceptance: ["Return evidence"],
       budget: { maxSteps: 16, maxTokens: 250_000, maxDurationMs: 300_000, maxCommandOutputBytes: 64_000 },
-      lineage: { depth: 0 },
     },
     geneExpression: {
       lead: "P16",
@@ -257,24 +215,15 @@ function recordFixture(root: string, status: CellRunRecord["status"] = "passed")
       ],
     },
     loadedInterpretations: ["principles/interpretations/P16.md", "principles/interpretations/P15.md"],
-    verification: { passed: false, results: [] },
+    finalText: "Found the interaction gap",
+    output: { recommendation: "Inspect the interaction gap" },
+    artifacts: [],
+    verification: { passed: false, terminal: { passed: true, required: [], called: [] } },
     workspaceDiff: { added: [], changed: [], removed: [] },
     usage: { inputTokens: 250_000, outputTokens: 1_000, totalTokens: 251_000, cachedInputTokens: 200_000 },
     executionObservation: {},
     trace: [
       { at: "2026-07-10T10:00:20.000Z", type: "tool.read_file", data: { characters: 120 } },
-      {
-        at: "2026-07-10T10:00:50.000Z",
-        type: "cell.submitted",
-        data: {
-          outcome: "completed",
-          artifact: { summary: "Found the interaction gap", files: [] },
-          evidence: [{ claim: "CLI is contract-first", source: "src/cli.ts:1" }],
-          checkPlan: { steps: [] },
-          children: [],
-          blockers: [],
-        },
-      },
     ],
     rawSteps: [],
     ...(status === "budget_exceeded" ? { error: "token budget exceeded" } : {}),

@@ -76,15 +76,17 @@ export async function lowerProjectProbe(unparsed: unknown): Promise<CellInput> {
         "This is a read-only project probe.",
         "Ground every material claim in readable project files and return traceable evidence.",
         "Do not request or imply write authority, command authority, candidate adoption, or semantic acceptance.",
-        "When no command is allowed, submit an empty check plan rather than naming unavailable checks.",
       ].join(" "),
-      capabilities: ["read repository files", "analyze project evidence", "submit evidence-backed findings"],
+      capabilities: ["read repository files", "analyze project evidence", "return evidence-backed findings"],
     },
     capabilitiesRequired: ["read repository files", "analyze project evidence"],
-    terminalTools: ["submit_result"],
+    terminalTools: [{
+      name: "finish_probe",
+      description: "Signal that the evidence-backed project probe is complete.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    }],
     acceptance: request.acceptance,
     budget,
-    lineage: { depth: 0 },
   });
 }
 

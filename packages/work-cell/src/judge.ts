@@ -34,12 +34,12 @@ export interface JudgeCandidate {
 export interface BlindRunEvidence {
   runId: string;
   cellId: string;
-  parentRunId?: string;
-  depth: number;
   status: string;
   geneExpression?: unknown;
   loadedInterpretations: string[];
-  submission?: unknown;
+  finalText: string;
+  output?: unknown;
+  artifacts: unknown[];
   verification: unknown;
   workspaceDiff: unknown;
   usage: CellUsage;

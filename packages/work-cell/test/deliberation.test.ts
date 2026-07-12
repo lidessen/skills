@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { CellInput, CellUsage, GeneExpression } from "../src/contracts";
 import {
-  DELIBERATION_POSITION_SCHEMA,
   DELIBERATION_VERSION,
   persistDeliberationRecord,
   runDeliberation,
@@ -147,16 +146,9 @@ class DeliberationDriver implements CellDriver {
   async run(input: CellInput, _expressed: ExpressedGenome, _context: DriverContext): Promise<DriverResult> {
     expect(input.intent).toContain("formal operating organization");
     return {
-      submission: {
-        outcome: "completed",
-        artifact: { summary: "Independent deliberation position", files: [] },
-        evidence: [{ claim: "Fixture Sequence inspected", source: "principles/SEQUENCE.md" }],
-        checkPlan: { steps: [] },
-        children: [],
-        blockers: [],
-        result: { schema: DELIBERATION_POSITION_SCHEMA, value: this.position },
-      },
       finalText: "position submitted",
+      output: this.position,
+      terminalToolsCalled: [],
       usage: usage(),
       rawSteps: [],
     };
@@ -231,7 +223,6 @@ function input(root: string, id: string): CellInput {
     capabilitiesRequired: ["read"],
     acceptance: ["Return an independent evidence-backed position"],
     budget: { maxSteps: 8, maxTokens: 10_000, maxDurationMs: 10_000, maxCommandOutputBytes: 4_000 },
-    lineage: { depth: 0 },
   };
 }
 

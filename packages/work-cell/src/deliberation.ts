@@ -12,7 +12,6 @@ import type { CellDriver } from "./driver";
 import { runCell } from "./run-cell";
 
 export const DELIBERATION_VERSION = "work-cell.deliberation.v1" as const;
-export const DELIBERATION_POSITION_SCHEMA = "work-cell.deliberation-position.v1" as const;
 
 export const DeliberationPositionSchema = z.object({
   stance: z.enum(["support", "oppose", "reserve", "discover"]),
@@ -20,6 +19,7 @@ export const DeliberationPositionSchema = z.object({
   strongestCounterargument: z.string().min(1),
   unchangedAlternative: z.string().min(1),
 });
+const DeliberationPositionOutputSchema = z.toJSONSchema(DeliberationPositionSchema);
 
 export type DeliberationPosition = z.infer<typeof DeliberationPositionSchema>;
 
@@ -150,6 +150,7 @@ export async function runDeliberation(
       ...member.input,
       id: attempt === 1 ? member.input.id : `${member.input.id}-recovery-${attempt}`,
       budget: { ...member.input.budget, maxTokens: attemptMaxTokens },
+      outputSchema: DeliberationPositionOutputSchema,
       intent: `${member.input.intent}\n\n${renderDocket(manifest)}`,
       dna: {
         ...member.input.dna,
@@ -331,9 +332,7 @@ async function assertDeliberationBoundary(manifest: DeliberationManifest): Promi
 }
 
 function positionFromRecord(record: CellRunRecord): DeliberationPosition | undefined {
-  const result = record.submission?.result;
-  if (!result || result.schema !== DELIBERATION_POSITION_SCHEMA) return undefined;
-  return DeliberationPositionSchema.safeParse(result.value).data;
+  return DeliberationPositionSchema.safeParse(record.output).data;
 }
 
 function hasValidPosition(members: DeliberationMemberRecord[], memberId: string): boolean {
@@ -359,7 +358,7 @@ function renderMemberInstructions(
     "## Independent deliberation member",
     `You are member ${member.id} in docket ${manifest.id}, serving as ${member.role}.`,
     "You do not know other members' conclusions and must not infer a consensus, accept the proposal, allocate resources, or authorize a merge.",
-    `When submitting, set result.schema to ${DELIBERATION_POSITION_SCHEMA} and result.value to an object with stance (support, oppose, reserve, or discover), decisionDelta, strongestCounterargument, and unchangedAlternative.`,
+    "Return a position with stance (support, oppose, reserve, or discover), decisionDelta, strongestCounterargument, and unchangedAlternative.",
   ].join("\n");
 }
 

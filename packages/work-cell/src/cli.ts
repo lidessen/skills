@@ -50,7 +50,7 @@ async function main(args: string[]): Promise<void> {
           runs: record.runs.map((run) => ({
             variant: run.variantId,
             repetition: run.repetition,
-            statuses: run.tree.records.map((cell) => cell.status),
+            status: run.record.status,
             directory: run.directory,
           })),
           comparisons: record.comparisons.map((comparison) => ({
