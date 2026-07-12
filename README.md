@@ -1,14 +1,16 @@
 # Skills
 
-> The current methods repository for a project that makes productive AI a
-> common, open, replaceable capability.
+> Reusable agent methods and an experimental evaluation runtime for
+> inspectable, replaceable AI-assisted production work.
 
-This repository contains [agent skills](https://agentskills.io) and an
-experimental Work Cell for AI-assisted development. It is one working surface,
-not the whole project, a model provider, or an opaque AI platform. Its semantic
-root is the one-line [Principle Sequence](principles/SEQUENCE.md); each P-ID has
-a living, source-bound [interpretation](principles/interpretations/) and each
-skill is a context-specific expression of selected entries.
+This is a methods repository for practitioners and contributors who need to
+build or assess AI-assisted production work. It contains
+[agent skills](https://agentskills.io) and an experimental Work Cell. It is one
+working surface, not the whole project, a model provider, or an opaque AI
+platform. Its semantic root is the one-line
+[Principle Sequence](principles/SEQUENCE.md); each P-ID has a living,
+source-bound [interpretation](principles/interpretations/) and each skill is a
+context-specific expression of selected entries.
 
 Its [founding mandate](design/FOUNDING-MANDATE.md) is to make productive AI a
 widely accessible, open, replaceable common capability: enable ordinary people
@@ -17,10 +19,14 @@ with concrete evidence rather than dependence on opaque platform claims. Its
 ethical boundary is liberation rather than extraction: human and AI capability
 must not be organized as an unaccountable source of exploitation.
 
-Start from the [founding mandate](design/FOUNDING-MANDATE.md) to understand why
-the project exists, the [operating protocol](design/operations/OPERATING-PROTOCOL.md)
-to see how human-authorized work proceeds, or the active skills below to use a
-specific method.
+Choose the route that matches the decision in front of you:
+
+- **Use or adapt a method:** start with the active skills below.
+- **Inspect or evaluate one bounded agent task:** see the
+  [experimental Work Cell](packages/work-cell/README.md).
+- **Assess the project's purpose, authority, and operating boundary:** read the
+  [founding mandate](design/FOUNDING-MANDATE.md) and
+  [operating protocol](design/operations/OPERATING-PROTOCOL.md).
 
 ## Active Skills
 
