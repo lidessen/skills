@@ -52,6 +52,11 @@ or requiring a reader to reconstruct the navigation?
 The bounded AI review recorded in the [README route study](../studies/2026-07-12-readme-route-review.md)
 supports this revision but does not replace this human review.
 
+The [Simplified Chinese README](../../../README.zh-CN.md) is an audience
+projection of the same sources and routes. It must not become a separate
+mandate, skill catalog, or naming decision; update it whenever this public
+entry's factual routes materially change.
+
 ## Reopening observation
 
 Reopen the case if a new practitioner cannot choose a route without reading the

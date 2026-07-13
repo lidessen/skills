@@ -1,5 +1,7 @@
 # Skills
 
+[简体中文](README.zh-CN.md)
+
 > Reusable agent methods and an experimental evaluation runtime for
 > inspectable, replaceable AI-assisted production work.
 
