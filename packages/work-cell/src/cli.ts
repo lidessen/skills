@@ -10,6 +10,7 @@ import { latestProjectRun, lowerProjectProbe, persistProjectRun } from "./projec
 import { prepareProjectDeliberation } from "./project-deliberation";
 import { renderRunSummary } from "./presentation";
 import { runCell } from "./run-cell";
+import { persistSwarmRecord, runSwarm } from "./swarm";
 
 await main(process.argv.slice(2)).catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : String(error));
@@ -32,6 +33,31 @@ async function main(args: string[]): Promise<void> {
     const output = `${absolutePath.replace(/\.json$/, "")}.run.json`;
     await writeFile(output, `${JSON.stringify(record, null, 2)}\n`, "utf8");
     console.log(JSON.stringify({ output, runId: record.runId, status: record.status, usage: record.usage }, null, 2));
+    return;
+  }
+
+  if (command === "swarm") {
+    const path = requiredPath(rest, "swarm");
+    const absolutePath = resolve(path);
+    const raw = JSON.parse(await readFile(absolutePath, "utf8"));
+    if (Array.isArray(raw.cells)) {
+      for (const cell of raw.cells) {
+        if (cell?.workspace?.root && !isAbsolute(cell.workspace.root)) {
+          cell.workspace.root = resolve(dirname(absolutePath), cell.workspace.root);
+        }
+      }
+    }
+    const record = await runSwarm(raw, () => new AiSdkDeepSeekDriver());
+    const persisted = await persistSwarmRecord(absolutePath, record);
+    console.log(JSON.stringify({
+      output: persisted.indexPath,
+      directory: persisted.directory,
+      runId: record.runId,
+      swarmId: record.swarmId,
+      concurrency: record.concurrency,
+      cells: record.outcomes.length,
+      summary: persisted.index.summary,
+    }, null, 2));
     return;
   }
 
@@ -294,6 +320,7 @@ function usage(): never {
   console.error([
     "Usage:",
     "  bun src/cli.ts run <cell.json>",
+    "  bun src/cli.ts swarm <swarm.json>",
     "  bun src/cli.ts experiment <experiment.json>",
     "  bun src/cli.ts deliberate <deliberation.json>",
     "  bun src/cli.ts deliberate-probe <question> --option A=<summary> --option B=<summary> --seat P04=<role> --seat P11=<role> --seat P15=<role> --source <path> --budget-tokens <n> --member-estimated-tokens <n> --budget-source <approval> [--execute]",

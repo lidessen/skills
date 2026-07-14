@@ -282,3 +282,74 @@ export interface DriverDescriptor {
     revision?: string;
   };
 }
+
+export const CellRunRecordSchema = z.object({
+  version: z.literal(WORK_CELL_RECORD_VERSION),
+  runId: z.string().min(1),
+  cellId: z.string().min(1),
+  driver: z.object({
+    adapter: z.string().min(1),
+    provider: z.string().min(1),
+    model: z.string().min(1),
+    pricing: z.object({
+      inputPerMillionUsd: z.number().nonnegative(),
+      cachedInputPerMillionUsd: z.number().nonnegative().optional(),
+      outputPerMillionUsd: z.number().nonnegative(),
+      source: z.string().min(1),
+      revision: z.string().min(1).optional(),
+    }).strict().optional(),
+  }).strict(),
+  startedAt: z.string().min(1),
+  finishedAt: z.string().min(1),
+  durationMs: z.number().nonnegative(),
+  status: z.enum([
+    "passed",
+    "failed",
+    "verification_failed",
+    "protocol_error",
+    "capability_mismatch",
+    "cancelled",
+  ]),
+  input: CellInputSchema,
+  geneExpression: GeneExpressionSchema.optional(),
+  loadedInterpretations: z.array(z.string()),
+  finalText: z.string(),
+  output: z.unknown().optional(),
+  artifacts: z.array(ArtifactRecordSchema),
+  verification: z.object({
+    passed: z.boolean(),
+    terminal: z.object({
+      passed: z.boolean(),
+      required: z.array(z.string()),
+      called: z.array(z.string()),
+    }).strict(),
+    output: z.object({
+      passed: z.boolean(),
+      errors: z.array(z.string()),
+    }).strict().optional(),
+    artifacts: z.object({
+      passed: z.boolean(),
+      errors: z.array(z.string()),
+    }).strict().optional(),
+  }).strict(),
+  workspaceDiff: WorkspaceDiffSchema,
+  usage: UsageSchema,
+  usageByPhase: z.object({
+    expression: UsageSchema,
+    execution: UsageSchema,
+  }).strict(),
+  executionObservation: z.object({
+    workEstimateId: z.string().min(1).optional(),
+    executionProfileId: z.string().min(1).optional(),
+    priceRevision: z.string().min(1).optional(),
+  }).strict(),
+  estimatedCostUsd: z.number().nonnegative().optional(),
+  estimateBasis: z.string().min(1).optional(),
+  trace: z.array(z.object({
+    at: z.string().min(1),
+    type: z.string().min(1),
+    data: z.unknown(),
+  }).strict()),
+  rawSteps: z.array(z.unknown()),
+  error: z.string().min(1).optional(),
+}).strict();

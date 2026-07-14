@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { LanguageModelV3GenerateResult } from "@ai-sdk/provider";
 import { MockLanguageModelV3 } from "ai/test";
+import { AiSdkActivationFieldDriver } from "../src/ai-sdk-activation-field";
+import { AiSdkCandidateFieldDriver } from "../src/ai-sdk-candidate-field";
 import { AiSdkDeepSeekDriver } from "../src/ai-sdk-driver";
+import type { SeedMaterialRetriever } from "../src/candidate-field";
 import { runCell } from "../src/run-cell";
 
 const roots: string[] = [];
@@ -63,6 +66,117 @@ test("recovers a natural finish without a terminal tool when provider metadata i
   expect(record.trace.some((event) => event.type === "terminal.contract.recovery")).toBe(true);
   expect(record.finalText).toContain("Terminal contract satisfied during recovery");
   expect(calls).toBe(4);
+});
+
+test("activation adapter retries one malformed structured impulse and retains its usage", async () => {
+  let calls = 0;
+  const model = new MockLanguageModelV3({
+    doGenerate: async () => {
+      calls += 1;
+      if (calls === 1) return response([{ type: "text", text: "not-json" }], "stop");
+      if (calls === 2) return response([{ type: "text", text: JSON.stringify({
+        impulse: "shared current",
+        relation: "capacity moves through a common channel",
+        predictedConsequence: "a later coalition can connect flow with repair",
+        disconfirmingObservation: "the relation disappears outside the channel metaphor",
+      }) }], "stop");
+      throw new Error(`unexpected mock call ${calls}`);
+    },
+  });
+  const driver = new AiSdkActivationFieldDriver({ apiKey: "not-used", model: "mock-activation-recovery" });
+  Object.defineProperty(driver, "model", { value: model });
+
+  const result = await driver.activate({
+    stimulus: "Find one local relation.",
+    snapshot: "Immutable evidence.",
+    receptor: { id: "flow", instructions: "Attend to flow.", principlePids: [] },
+    sample: 1,
+  });
+
+  expect(calls).toBe(2);
+  expect(result.value.impulse).toBe("shared current");
+  expect(result.usage.totalTokens).toBe(4);
+  expect(result.raw).toMatchObject({ recovery: { error: expect.stringContaining("No object generated") } });
+});
+
+test("candidate adapter recovers one malformed artifact without losing observed usage", async () => {
+  let calls = 0;
+  const model = new MockLanguageModelV3({
+    doGenerate: async () => {
+      calls += 1;
+      if (calls === 1) return response([{ type: "text", text: "an explained paragraph rather than an artifact" }], "stop");
+      if (calls === 2) return response([{ type: "text", text: JSON.stringify({ content: "风从没有门的地方经过，留下一个尚未分类的动作。" }) }], "stop");
+      throw new Error(`unexpected mock call ${calls}`);
+    },
+  });
+  const driver = new AiSdkCandidateFieldDriver({ apiKey: "not-used", model: "mock-candidate-recovery" });
+  Object.defineProperty(driver, "model", { value: model });
+
+  const result = await driver.emit({
+    stimulus: "Find one project name.",
+    operator: { id: "sound", instructions: "Begin with sound.", count: 1 },
+    sample: 1,
+    nodes: [{ id: "a-0001", layer: 0, content: "spark at a common well", predictedConsequence: "a shared source", rootActivationIds: ["a-0001"] }],
+    seeds: [{ id: "seed-1", title: "庄子" }],
+    activation: { titleIds: ["seed-1"], basis: "memory", resonance: "记得其中有关空隙与游刃的意象，但不声称精确引文。", evidence: [] },
+    inhibitions: ["literal forge imagery"],
+  });
+
+  expect(calls).toBe(2);
+  expect(result.value).toEqual({ content: "风从没有门的地方经过，留下一个尚未分类的动作。" });
+  expect(result.usage.totalTokens).toBe(4);
+});
+
+test("candidate adapter grounds a selected title in injected runtime evidence", async () => {
+  let calls = 0;
+  const model = new MockLanguageModelV3({
+    doGenerate: async () => {
+      calls += 1;
+      if (calls === 1) return response([{ type: "text", text: JSON.stringify({
+        titleIds: ["seed-1"],
+        resonance: "a fallible remembered relation",
+      }) }], "stop");
+      if (calls === 2) return response([{ type: "text", text: JSON.stringify({
+        resonance: "the retrieved passage turns a fixed boundary into a traversable interval",
+      }) }], "stop");
+      throw new Error(`unexpected mock call ${calls}`);
+    },
+  });
+  const seedRetriever: SeedMaterialRetriever = {
+    descriptor: { provider: "test-retriever" },
+    async retrieve(request) {
+      return {
+        titleId: request.entry.id,
+        provider: "test-retriever",
+        locator: "庄子/养生主",
+        sourceUrl: "https://example.com/zhuangzi/yangshengzhu",
+        excerpt: "A retrieved source excerpt.",
+        sha256: "a".repeat(64),
+      };
+    },
+  };
+  const driver = new AiSdkCandidateFieldDriver({ apiKey: "not-used", model: "mock-retrieval", seedRetriever });
+  Object.defineProperty(driver, "model", { value: model });
+
+  const result = await driver.retrieve({
+    stimulus: "Open one association.",
+    operator: { id: "remote", instructions: "Transfer a relation.", count: 1 },
+    sample: 1,
+    nodes: [{ id: "a-0001", layer: 0, content: "a shared source", predictedConsequence: "a relation moves", rootActivationIds: ["a-0001"] }],
+    shelf: [{ id: "seed-1", title: "《庄子》" }, { id: "seed-2", title: "《史记》" }, { id: "seed-3", title: "《野草》" }, { id: "seed-4", title: "《周易》" }],
+    selectCount: 1,
+    requiredTitleIds: [],
+    randomSeed: "retrieval-test",
+  });
+
+  expect(calls).toBe(2);
+  expect(result.value).toMatchObject({
+    titleIds: ["seed-1"],
+    basis: "retrieval",
+    resonance: "the retrieved passage turns a fixed boundary into a traversable interval",
+  });
+  expect(result.value.evidence).toEqual([expect.objectContaining({ titleId: "seed-1", provider: "test-retriever" })]);
+  expect(result.usage.totalTokens).toBe(4);
 });
 
 function response(

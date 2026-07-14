@@ -7,9 +7,16 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "bun test",
     "cell": "bun src/cli.ts run",
+    "swarm": "bun src/cli.ts swarm",
     "experiment": "bun src/cli.ts experiment",
     "deliberate": "bun src/cli.ts deliberate",
     "deliberate:probe": "bun src/cli.ts deliberate-probe",
+    "activation:probe": "bun src/activation-probe.ts",
+    "activation:analyze": "bun experiments/analyze-activation-field.ts",
+    "activation:residual-readout": "bun src/residual-readout-probe.ts",
+    "activation:candidate-field": "bun src/candidate-field-probe.ts",
+    "activation:naming-expression": "bun src/naming-expression-probe.ts",
+    "activation:naming-surface-gate": "bun src/naming-surface-gate-probe.ts",
     "live:p23": "bun src/cli.ts experiment experiments/p23-bounded-autonomy.json"
   },
   "dependencies": {

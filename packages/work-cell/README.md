@@ -90,6 +90,50 @@ The first interaction deliberately does not infer acceptance, write authority,
 commands, treatments, or principle adoption. Use the exact interfaces below
 when those details must be supplied explicitly.
 
+## Work Cell Swarm
+
+A Swarm releases between one and 256 already-defined ordinary Cells under one
+bounded concurrency value. It adds execution scale, failure isolation, stable
+manifest-order records, and compact persistence; it does not add a shared mind,
+task generation, communication, synthesis, voting, or semantic acceptance.
+The input must declare `concurrency` explicitly; the runtime never turns an
+omitted resource decision into a hidden 32-way release.
+
+```json
+{
+  "version": "work-cell.swarm-input.v1",
+  "id": "bounded-read-only-audit",
+  "concurrency": 64,
+  "cells": [
+    { "...": "CellInput" }
+  ]
+}
+```
+
+Each Cell keeps its own prompt, genome, skills, tools, output contracts, budget,
+and workspace policy. The runtime creates a fresh driver for every Cell and
+retains one outcome for every manifest entry even when a sibling fails. Result
+identity follows manifest order rather than completion order.
+
+Cells may share a workspace root only when every Cell sharing it has empty
+`writePaths` and `allowedCommands`. A writable or command-capable Cell must have
+its own root in this first slice; the runtime does not infer safe disjoint write
+scopes or create Git worktrees.
+
+Each invocation creates `<manifest>.<run-id>.swarm/` beside the manifest. The
+`cells/` directory contains one full outcome per Cell, while `index.json`
+contains hashes, statuses, aggregate usage, and a post-run estimate audit. The
+index is explicitly a rebuildable projection with no acceptance authority, so
+callers can inspect or load only the results they need instead of injecting all
+child output into one context.
+
+The serialized boundaries are deliberately distinct. Input uses
+`work-cell.swarm-input.v1`, each retained outcome uses
+`work-cell.swarm-outcome.v1`, and the compact index uses
+`work-cell.swarm-index.v1`. The in-memory `SwarmRun` has no serialization
+version or stored summary; it keeps execution facts as `Date` values and derives
+the non-authoritative summary only when a caller or persistence adapter needs it.
+
 ## Bounded deliberation
 
 For a material proposal, `deliberate <manifest.json>` runs **three to five**
@@ -198,6 +242,9 @@ bun test
 # One cell input JSON
 bun src/cli.ts run path/to/cell.json
 
+# Bounded concurrent release of ordinary independent Cells
+bun src/cli.ts swarm path/to/swarm.json
+
 # Matched baseline/treatment experiment
 bun src/cli.ts experiment experiments/p23-bounded-autonomy.json
 
@@ -219,6 +266,9 @@ traces and workspace diffs. Promote a reviewed result deliberately into
 
 - No external task board, scheduler, memory, daemon, or agent process.
 - No cell-to-cell messaging, child-cell expansion, or implicit task tree.
+- `swarm` releases one to 256 already-defined ordinary Cells with bounded
+  concurrency. It preserves independent records but does not synthesize them,
+  retry work, or decide whether any result is semantically good.
 - `deliberate` runs three to five read-only, command-free member Cells from one
   docket. Each member must state a structured position; the CLI preserves raw
   member records and emits a non-authoritative vote-and-dissent projection. It
