@@ -5,21 +5,49 @@
   "candidateSeedLibrary": "seed-libraries/chinese-classics.v1.json",
   "candidateRetrievalEstimatedTokens": 360000,
   "namingExpressionProbe": {
-    "candidateCount": 6,
+    "candidateLimit": 6,
     "materialPerOperator": 2,
     "randomSeed": "project-naming-expression-2026-07-13-v2",
-    "estimatedTokens": 14000,
-    "aestheticEvidence": [
-      "Principal 提名过‘本源’，但明确说它只是从本质意象继续联想的引子，不是候选、字数要求或答案方向。",
-      "Sikong、Shilu 是 Principal 认可过的自然项目名实例；它们只证明名字可以有文化根系而不必解释任务，不构成中文、拼音、官职或双音节模板。",
-      "Deno、Vite 被提出为成功命名的研究案例；它们只证明轻巧的变形、借用或私人联想可能形成自然名字，不构成英文、短词或技术项目标准。",
-      "Principal 已拒绝仿古堆典、密集隐喻、自觉卖弄陌生感，也拒绝把‘自然’退化成通用品牌词或功能标签。"
+    "estimatedTokens": 20000,
+    "contrastiveCases": [
+      {
+        "accepted": {
+          "surface": "Sikong / 司空",
+          "observation": "Principal 认为它作为既有项目名自然、紧凑且可日常称呼；这只是一项观察，不构成中文、拼音、官职或双音节模板。"
+        },
+        "rejected": {
+          "surface": "Gongqi / 公器",
+          "observation": "Principal 明确拒绝它；表面直接承载项目的公共使命和古典制度意味，需要理念解释来支撑。"
+        },
+        "contrast": "文化根系只有在整个表面已经像一个可生活的称呼时才有帮助；直接编码使命会让解释变成承重结构。"
+      },
+      {
+        "accepted": {
+          "surface": "Shilu / 实录",
+          "observation": "Principal 认可它作为自然项目名实例；既有词的语言生活先成立，项目关系可以在使用中继续生长。"
+        },
+        "rejected": {
+          "surface": "脉阶 / 修承",
+          "observation": "实验生成的概念压缩可以逐字分析，却没有形成自然的整体词感，显得人为拼装。"
+        },
+        "contrast": "可解释的语素组合不等于自然词；整体的口耳经验先于逐字释义。"
+      },
+      {
+        "accepted": {
+          "surface": "Deno / Vite",
+          "observation": "它们是值得研究的成功案例，说明借用或变形可以轻巧自然；不构成英文、短词或技术项目标准。"
+        },
+        "rejected": {
+          "surface": "Kaili / Oikia / Veld / Ghoti",
+          "observation": "实验从正例表面模仿出任意借词、异域感或拼写趣味，没有建立与具体项目共同生长的关系。"
+        },
+        "contrast": "成功案例的价值在形成关系而非表面类型；陌生语源和聪明拼写本身不是创造力。"
+      }
     ]
   },
   "stimulus": "为这个完整项目探索一个长期项目名。Principal 已拒绝 Gongqi / 公器，不要把现有候选、中文形式、英文形式、字数、古典出处或技术词当成约束。不要从功能标签直接枚举名字；从项目的本质关系、历史动机、审美、矛盾和未来可能性形成局部意象，让后续层发现原始意象之间此前没有明说的关系。最终表达应给出少量真正有生命力的候选、形成路径和仍未解决的张力，而不是宣称已经定名。",
   "sources": [
     { "path": "design/FOUNDING-MANDATE.md", "maxChars": 10000 },
-    { "path": "design/FOUNDING-IDENTITY.md", "maxChars": 9000 },
     { "path": "README.md", "maxChars": 5000 },
     { "path": "principles/SEQUENCE.md", "maxChars": 3000 }
   ],

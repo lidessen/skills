@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { ActivationFieldRecord, FieldDriverResult } from "../src/activation-field";
+import type { ActivationFieldRecord, FieldDriverResult } from "../src/research/activation-field";
 import type { CellUsage } from "../src/contracts";
 import {
   buildResidualField,
@@ -8,7 +8,7 @@ import {
   type ResidualProjection,
   type ResidualReadoutDriver,
   type ResidualRoute,
-} from "../src/residual-readout";
+} from "../src/research/residual-readout";
 
 test("residual read heads route across layers and project only traceable proposals", async () => {
   const source = sourceRecord();

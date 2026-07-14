@@ -1,12 +1,12 @@
 import { expect, test } from "bun:test";
-import type { ActivationFieldRecord, FieldDriverResult } from "../src/activation-field";
+import type { ActivationFieldRecord, FieldDriverResult } from "../src/research/activation-field";
 import {
   runCandidateField,
   type ArchiveSelection,
   type CandidateDraft,
   type CandidateFieldDriver,
   type SeedSelection,
-} from "../src/candidate-field";
+} from "../src/research/candidate-field";
 import type { CellUsage } from "../src/contracts";
 
 test("candidate field branches at the artifact level and retains mutation and archive provenance", async () => {

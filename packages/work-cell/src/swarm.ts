@@ -142,7 +142,7 @@ export async function runSwarm(
   const outcomes = await mapConcurrent(manifest.cells, manifest.concurrency, async (input, index): Promise<SwarmCellOutcome> => {
     const cellStartedAt = new Date();
     try {
-      const record = await runCell(input, createDriver(), signal);
+      const record = await runCell(input, createDriver(), signal ? { signal } : undefined);
       return { index, cellId: input.id, kind: "settled", record };
     } catch (error) {
       return {

@@ -25,32 +25,32 @@ response; nominal node count alone is not evidence.
 
 The probe is implemented outside the Work Cell core contract:
 
-- [`activation-field.ts`](../../packages/work-cell/src/activation-field.ts)
+- [`activation-field.ts`](../../packages/work-cell/src/research/activation-field.ts)
   owns immutable broadcast, bounded concurrency, stable IDs, overlapping local
   groups, provenance validation, explicit layer widths, inherited cognitive
   shapes, layered coalitions, and the final working set.
-- [`population-shape.ts`](../../packages/work-cell/src/population-shape.ts)
+- [`population-shape.ts`](../../packages/work-cell/src/research/population-shape.ts)
   samples replayable Work Cell shapes from controlled mixture shares,
   Principle priors, continuous traits, categorical perceptual domains, and
   temperature distributions.
-- [`ai-sdk-activation-field.ts`](../../packages/work-cell/src/ai-sdk-activation-field.ts)
+- [`ai-sdk-activation-field.ts`](../../packages/work-cell/src/research/ai-sdk-activation-field.ts)
   supplies independent structured activations, local coalition calls, one
   language projection, and one structured-output recovery attempt.
-- [`activation-probe.ts`](../../packages/work-cell/src/activation-probe.ts) and
+- [`activation-probe.ts`](../../packages/work-cell/src/research/activation-probe.ts) and
   the [naming manifest](../../packages/work-cell/experiments/activation-field-naming.json)
   retain source digests, raw records, usage, estimate error, and a direct
   single-loop baseline.
 - [`analyze-activation-field.ts`](../../packages/work-cell/experiments/analyze-activation-field.ts)
   compares lexical differentiation, parent-child novelty, layer shape keys, and
   final root survival without treating those proxies as a quality judgment.
-- [`residual-readout.ts`](../../packages/work-cell/src/residual-readout.ts) and
-  [`ai-sdk-residual-readout.ts`](../../packages/work-cell/src/ai-sdk-residual-readout.ts)
+- [`residual-readout.ts`](../../packages/work-cell/src/research/residual-readout.ts) and
+  [`ai-sdk-residual-readout.ts`](../../packages/work-cell/src/research/ai-sdk-residual-readout.ts)
   reconstruct the append-only activation field, let several task-conditioned
   heads independently route over it, and require the final projection to expose
   proposal and source provenance. The mechanism remains experimental and does
   not alter the Work Cell core contract.
-- [`candidate-field.ts`](../../packages/work-cell/src/candidate-field.ts) and
-  [`ai-sdk-candidate-field.ts`](../../packages/work-cell/src/ai-sdk-candidate-field.ts)
+- [`candidate-field.ts`](../../packages/work-cell/src/research/candidate-field.ts) and
+  [`ai-sdk-candidate-field.ts`](../../packages/work-cell/src/research/ai-sdk-candidate-field.ts)
   move divergence onto naming artifacts themselves: independent emitters make
   surfaces without explanations, mutators transform cross-emitter parents, and
   blind archive niches can select but not rewrite candidates.
@@ -516,6 +516,52 @@ surfaces from consuming human review bandwidth. It does not establish aesthetic
 quality, because the gate is same-model self-evaluation and generated no good
 alternative.
 
+### Corrected expression authority and live replay
+
+The first implementation correction removed Principal examples from the naming
+generator, changed the requested candidate count into a maximum with an allowed
+empty result, stopped the expression probe from writing a human packet, and
+moved contrastive cases into the independent surface gate. Its first live replay
+used 11,931 tokens and revealed a separate source-authority defect: the project
+snapshot still included `FOUNDING-IDENTITY.md`, whose proposed decision continued
+to recommend the already rejected `Gongqi / 公器`. Both direct and projected arms
+resurrected that surface. The identity artifact now records the proposal as
+rejected, and no naming candidate, example, or rejection is included in the
+generation snapshot.
+
+The clean-source replay used 9,772 tokens. It did not repeat `Gongqi`, but both
+arms filled the six-item maximum with generic craft language while their
+rejection observations claimed that no candidate survived. This rejected the
+assumption that an optional list alone creates a coherent all-reject action.
+
+The final correction made the phase transition explicit. Twenty-four private
+associative artifacts are first projected into zero to six plain relations; the
+projection is forbidden to preserve a candidate surface, sound, spelling,
+translation, historical costume, or metaphorical object. The naming generator
+sees only those relations. Its output contract has a disposition whose
+`all-rejected` branch requires an empty list and whose `candidates` branch
+requires a non-empty list. A malformed structured result receives one bounded
+schema-repair attempt, and observed failed-attempt usage is retained.
+
+The final live expression run used 19,484 tokens against the revised 16,000-token
+estimate, including one structured recovery. It retained six source-indexed
+plain relations and produced schema-consistent private sets. Quality did not
+improve: the direct arm returned `CommonForge`, `Aperture`, `Loom`, `Tiller`,
+`Vane`, and `Splice`; the projected arm returned `Foundry`, `Anvil`, `Keystone`,
+`Loom`, `Craft`, and `Spindle`. The three-seat contrastive surface gate then used
+4,078 tokens and surfaced none of the eleven unique names. The generated human
+packet contained no explanations and stated that no candidate survived. A
+separate zero-candidate CLI probe bypassed every judge call, used zero tokens,
+and produced the same no-candidate packet.
+
+This replay supports source/case isolation, private-to-public authority
+separation, structured all-reject consistency, and human-bandwidth containment.
+It supplies new negative evidence against activation-field projection as a
+naming-quality treatment: projected relations did not beat the direct baseline
+and intensified the generic craft basin. The next estimate is calibrated to
+20,000 tokens, but no new live naming run is warranted before the formation
+method changes.
+
 ## Disposition
 
 Do not promote activation-field, residual-readout, or candidate-field
@@ -526,12 +572,12 @@ recovery, and artifact-level branching are now credible experimental
 mechanisms; superior creative quality is not yet established.
 
 Do not run another generation merely by adjusting prompt adjectives. The next
-discriminating practice must test how a generator learns from contrastive,
-human-observed aesthetic cases without copying their surface form. Preserve the
-separate all-reject gate as a bandwidth defense, but do not use it as acceptance
-authority or feed its prose back into an unbounded regeneration loop. A later
-probe should compare one case-retrieval treatment with a no-case baseline and
-fail if it imitates approved examples, repeats rejected formation patterns, or
+discriminating practice must study contrastive formation histories as processes,
+not place approved or rejected surfaces in the generator. Preserve the separate
+all-reject gate as a bandwidth defense, but do not use it as acceptance authority
+or feed its prose back into an unbounded regeneration loop. A later treatment
+must compare against the direct baseline and fail if it copies case surfaces,
+repeats rejected formation patterns, intensifies generic craft imagery, or
 cannot produce anything that survives both the surface gate and human review.
 
 Do not spend the estimated four million tokens on a new 256-node live run. The

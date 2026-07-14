@@ -3,9 +3,8 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { CellInput, CellUsage, GeneExpression } from "../src/contracts";
-import type { CellDriver, DriverContext, DriverResult, GeneSelectionResult } from "../src/driver";
-import type { ExpressedGenome, Genome } from "../src/genome";
+import type { CellInput, CellUsage } from "../src/contracts";
+import type { CellDriver, DriverContext, DriverResult } from "../src/driver";
 import {
   SWARM_INPUT_VERSION,
   SwarmIndexSchema,
@@ -170,15 +169,11 @@ test("persistence writes independent Cell evidence and a compact rebuildable Swa
 class SwarmDriver implements CellDriver {
   readonly descriptor = { adapter: "swarm-test", provider: "deterministic", model: "fixture" };
 
-  async selectGenes(_input: CellInput, _genome: Genome, _context: DriverContext): Promise<GeneSelectionResult> {
-    return { expression, usage: usage(10), rawSteps: [] };
-  }
-
-  async run(_input: CellInput, _expressed: ExpressedGenome, _context: DriverContext): Promise<DriverResult> {
+  async run(_input: CellInput, _context: DriverContext): Promise<DriverResult> {
     return {
       finalText: "cell completed",
       terminalToolsCalled: [],
-      usage: usage(5),
+      usage: usage(15),
       rawSteps: [],
     };
   }
@@ -189,9 +184,9 @@ class BarrierSwarmDriver extends SwarmDriver {
     super();
   }
 
-  override async selectGenes(input: CellInput, genome: Genome, context: DriverContext): Promise<GeneSelectionResult> {
+  override async run(input: CellInput, context: DriverContext): Promise<DriverResult> {
     await this.barrier.enter();
-    return super.selectGenes(input, genome, context);
+    return super.run(input, context);
   }
 }
 
@@ -214,13 +209,6 @@ class SelectionBarrier {
   }
 }
 
-const expression: GeneExpression = {
-  lead: "P04",
-  supports: [],
-  principalContradiction: "Retain independent Cell identity under concurrency",
-  contributions: [{ pid: "P04", decision: "Keep the execution contradiction explicit" }],
-};
-
 function swarm(root: string, ids: string[]): SwarmInput {
   return {
     version: SWARM_INPUT_VERSION,
@@ -235,8 +223,9 @@ function input(root: string, id: string): CellInput {
     id,
     intent: `Run independent Cell ${id}`,
     workspace: { root, readPaths: ["."], writePaths: [], excludePaths: [], allowedCommands: [] },
-    genome: { sequencePath: "principles/SEQUENCE.md", interpretationsDir: "principles/interpretations" },
-    dna: { baseInstructions: "Complete the bounded test Cell.", capabilities: ["read"] },
+    instructions: ["Complete the bounded test Cell."],
+    capabilities: ["read"],
+    context: [],
     capabilitiesRequired: ["read"],
     acceptance: ["The Cell retains an independent record"],
     budget: { maxSteps: 4, estimatedTokens: 15, maxDurationMs: 10_000, maxCommandOutputBytes: 4_000 },

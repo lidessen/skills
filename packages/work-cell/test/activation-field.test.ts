@@ -12,7 +12,7 @@ import {
   type FieldExpression,
   type IntegrationRequest,
   type ActivationDraft,
-} from "../src/activation-field";
+} from "../src/research/activation-field";
 
 test("activation field excludes completion order from meaning while retaining local provenance", async () => {
   const slowFirst = await runActivationField(input(), new DeterministicFieldDriver(true));

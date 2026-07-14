@@ -22,8 +22,8 @@ order changing identity or a failed Cell silently cancelling unrelated work.
 The strongest keep-as-is case is to leave concurrency inside each specialized
 adapter. That avoids a new surface, but it makes every adapter reimplement
 limits, ordering, cancellation, failure isolation, and persistence. It also
-cannot execute arbitrary Cells differentiated by their own prompt, skills,
-tools, genome, workspace, and acceptance contract.
+cannot execute arbitrary Cells differentiated by their own prepared instructions,
+context, skills, tools, workspace, and acceptance contract.
 
 ## Evidence boundary
 
@@ -134,7 +134,8 @@ invocation.
   256 complete Cells crossing one concurrency barrier with 256 fresh drivers,
   exact manifest-order retention, sibling survival after a runner error,
   workspace rejection before execution, and independently hashed record files.
-- The complete Work Cell suite passes 57 tests and 267 assertions. A four-Cell
+- The complete Work Cell suite passes 68 tests and 295 assertions after the
+  [general-core refactor](027-general-work-cell-core-and-sequence-adapter.md). A four-Cell
   live `deepseek-v4-flash` CLI smoke also passed all four Cells and persisted a
   compact index beside their independently schema-validated records. The latest
   schema-bound run observed 45,851 total

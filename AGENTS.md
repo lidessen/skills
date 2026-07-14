@@ -10,7 +10,13 @@ Skills should help agents understand *why*, not just specify *what*. A skill tha
 
 ### Hierarchical context management
 
-Agent context is finite — structure it in layers: L1 (architecture, always present), L2 (design, on activation), L3 (implementation, on demand). The higher the layer, the smaller and more stable. Keep SKILL.md under 500 lines; split details into supporting files. See the [harness skill](skills/harness/SKILL.md) for the full methodology and the [Agent Skills Specification](https://agentskills.io/specification#progressive-disclosure) for the underlying spec.
+Agent context is finite — place stable orientation before scoped action,
+task-specific methods on activation, and volatile detail on demand, then map
+those timings to the actual runtime surfaces rather than assuming universal
+L1/L2/L3 containers. Keep SKILL.md under 500 lines; split details into supporting
+files. See [context-engineering](skills/context-engineering/SKILL.md) for the
+delivery method and the [Agent Skills Specification](https://agentskills.io/specification#progressive-disclosure)
+for the underlying progressive-disclosure surface.
 
 ## Project Overview
 

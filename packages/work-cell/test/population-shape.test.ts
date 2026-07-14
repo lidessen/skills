@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { compilePhenotypePrompts, PopulationSpecSchema, samplePopulation } from "../src/population-shape";
+import { compilePhenotypePrompts, PopulationSpecSchema, samplePopulation } from "../src/research/population-shape";
 
 test("population sampler replays one seed while preserving exact mixture shares and shape differences", () => {
   const first = samplePopulation(spec("stable-seed"));

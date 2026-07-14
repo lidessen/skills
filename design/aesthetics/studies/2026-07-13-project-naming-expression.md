@@ -33,6 +33,37 @@ meaning each rejected all twelve names. This was same-model filter evidence, not
 human aesthetic acceptance, but it successfully withheld a known-bad set from
 human review.
 
+## Corrected phase-boundary probe
+
+The first correction removed Principal cases from the generator, allowed an
+empty candidate set, and made expression output private until an independent
+surface gate. A live replay exposed a second authority leak: the generator's
+project snapshot still included `FOUNDING-IDENTITY.md`, where the already
+rejected `Gongqi / 公器` remained the recommended proposal. The identity source
+has now been corrected to `rejected proposal`, and candidate history is excluded
+from the generation snapshot.
+
+A clean replay no longer copied the rejected case, but it returned six generic
+craft nouns while claiming that no candidate survived. The final correction
+therefore added two structural boundaries rather than another style adjective:
+
+1. associative artifacts are first reduced to plain project relations with
+   their distinctive sounds, words, images, and metaphors removed; and
+2. a structured disposition makes `all-rejected` incompatible with a non-empty
+   candidate list, with one bounded repair attempt after malformed model output.
+
+The resulting live run used 19,484 tokens including structured recovery. It
+produced six traceable plain relations and schema-consistent private candidate
+sets, but both sets still collapsed toward generic craft metaphors. The
+independent three-seat surface gate used 4,078 tokens and surfaced zero of eleven
+unique names. Its human packet contained no formation stories and stated that no
+candidate survived. A separate zero-candidate CLI probe bypassed all judge calls,
+used zero tokens, and produced the same no-candidate packet.
+
+This supports containment, authority separation, and the all-reject path. It
+does not support improved naming quality, nor does it show that projected field
+relations outperform the direct baseline.
+
 ## Learning retained
 
 - Divergent associative material is private working material, not a public
@@ -54,9 +85,11 @@ visual preference evidence and must not be generalized into a naming rule.
 
 ## Next disconfirming practice
 
-Test whether retrieval of a small set of human-observed positive and negative
-naming cases changes formation without copying their surfaces. Compare it with a
-no-case baseline, preserve the all-reject gate, and require human review before
-claiming improvement. The treatment fails if it imitates approved examples,
-repeats rejected formation patterns, or sends another wholly rejected set to the
-Principal.
+Do not run another activation-field naming generation merely by changing prompt
+adjectives, population size, or sampling temperature. First study contrastive
+formation histories as processes rather than candidate surfaces: what concrete
+relation, private accident, linguistic material, social use, and revision made
+one name live while a superficially similar formation failed. Any later
+formation treatment remains private, retains the all-reject gate, and must beat
+the direct baseline without copying case surfaces. It fails if every candidate
+is rejected or if field projection again increases generic craft imagery.

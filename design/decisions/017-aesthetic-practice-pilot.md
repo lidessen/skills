@@ -10,9 +10,9 @@ The project needs a durable way to direct illustration, documentation, UI, and
 public expression. It must not invent an aesthetic bureaucracy from scratch or
 turn visual polish into a false proof of openness, accessibility, or capability.
 
-The source-bound [research](../../principles/research/aesthetic-cultivation.md)
-finds no Sequence gap. It recommends absorbing proven forms before creating a
-new method or runtime. The [U.S. Web Design System design principles](https://designsystem.digital.gov/design-principles/)
+The available evidence does not establish a Sequence gap; it supports absorbing
+proven forms before creating a new method or runtime. The
+[U.S. Web Design System design principles](https://designsystem.digital.gov/design-principles/)
 provide a user-needs-first evaluative lens; its [maturity model](https://designsystem.digital.gov/maturity-model/)
 separates principles, guidance, tokens, components, and contributions. The
 [GOV.UK contribution criteria](https://design-system.service.gov.uk/community/contribution-criteria/)

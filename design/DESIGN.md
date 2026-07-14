@@ -61,22 +61,25 @@ principles/SEQUENCE.md ──► interpretations ──► selected P-ID express
   sequence-dependent skill retain a versioned, read-only lineage baseline. A
   host source may govern its own task; an optional remote refresh is temporary
   and cannot mutate the packaged projection.
-- **Work Cell runtime** — Owns one ephemeral practice unit and its evidence: a
-  task-specific Sequence expression, isolated workspace tools, caller-declared
-  terminal tools, independently validated structured output and artifacts,
-  trace/cost capture, and blinded baseline/treatment comparison. It can link
-  executor-independent Work Estimates to executor/profile-specific observations.
-  It is not a skill and has no semantic or adoption authority. Its project
-  interaction shell discovers a host Sequence and lowers explicit human intent
-  and acceptance into a read-only probe; it is a convenience projection, not a
-  second runtime contract.
-  For an approved material-decision pilot, its bounded `deliberate` CLI may run
-  three to five independent read-only members from one docket and retain their
-  structured positions. Its tally and dissent list are a projection, never a
-  vote that accepts a proposal; see [decision 020](decisions/020-bounded-work-cell-deliberation.md).
-  Its project-facing `deliberate-probe` adapter lowers a concise docket into a
-  capped evidence packet and exact manifest for human inspection before a model
-  call; see [decision 022](decisions/022-project-first-deliberation-interaction.md).
+- **Work Cell core** — Owns one generic ephemeral practice unit and its
+  evidence: prepared instructions and context, isolated workspace tools,
+  caller-declared terminal tools, independently validated structured output and
+  artifacts, and trace/usage/cost capture. It can link executor-independent Work
+  Estimates to executor/profile-specific observations. It does not require or
+  interpret a Sequence, experiment, proposal role, or vote.
+- **Work Cell adapters** — Lower domain-specific inputs into the unchanged core
+  contract. The Sequence adapter selects and retains a task-specific expression;
+  the experiment adapter owns blinded comparison; and the deliberation adapter
+  owns independent positions plus non-authoritative tally and dissent
+  projections. Project-facing probe commands are convenience projections over
+  those adapters, not a second runtime contract. See
+  [decision 027](decisions/027-general-work-cell-core-and-sequence-adapter.md),
+  [decision 020](decisions/020-bounded-work-cell-deliberation.md), and
+  [decision 022](decisions/022-project-first-deliberation-interaction.md).
+- **Work Cell research** — Holds experimental activation, candidate, latent,
+  naming, idea, and source-retrieval mechanisms under `src/research/`. These
+  implementations may produce evidence but are not exported as stable core or
+  adapter contracts.
 
 ## Data Flow
 
@@ -109,7 +112,10 @@ The downward lineage path is paired with an empirical return path:
 Sequence + selected interpretations + optional candidate treatment
                               │
                               ▼
-                     ephemeral Work Cell
+                 Sequence / experiment adapter
+                              │
+                              ▼
+                  generic ephemeral Work Cell
                               │
        terminal evidence + output + artifacts + trace
                               │
@@ -298,7 +304,7 @@ formation, select strategic content, or act as an organization runtime.
 ## Human-initiated formal operations
 
 The collection's formal operating mode begins with a human-authorized agent
-session, not a permanent controller. The agent reads the harness and only the
+session, not a permanent controller. The agent reads the project instructions and only the
 methods relevant to the concrete mandate, then forms a temporary team whose
 planning, execution, verification, integration, and correction seats remain
 separate. [`decision 015`](decisions/015-human-initiated-formal-operations.md)
@@ -309,9 +315,10 @@ checks; only a named human decides durable approval and merge.
 Schedules, GitHub Issues, comments, and other events may later be designed as
 non-authoritative intake adapters. They cannot turn into a task queue, approve
 resources, accept a result, or mutate `main` merely by triggering an agent.
-The first formalization is a finite founding campaign, so the present
-uncommitted transition is divided into reviewable baseline tranches rather than
-silently treated as a release.
+The first formalization was a finite founding campaign divided into reviewable
+baseline tranches rather than silently treated as a release. Its settled
+records remain historical evidence; later missions open their own bounded
+operational source only when multi-session return obligations require one.
 
 For a material mission that forks across sessions, a Git-tracked Mission Record
 holds only the current mainline, open branches, and their return contracts. It

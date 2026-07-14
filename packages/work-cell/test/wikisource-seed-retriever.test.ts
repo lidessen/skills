@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { WikisourceSeedRetriever } from "../src/wikisource-seed-retriever";
+import { WikisourceSeedRetriever } from "../src/research/wikisource-seed-retriever";
 
 test("runtime title retrieval preserves a source URL, locator, excerpt digest, and no catalog text", async () => {
   const calls: URL[] = [];
