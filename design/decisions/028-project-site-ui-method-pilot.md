@@ -77,9 +77,9 @@ repository as routable content.
 The first public target is [Vercel](https://vercel.com/docs/deployments), using
 its static Astro output rather than a Vercel-only runtime capability. Preview
 deployment precedes production aliasing. The public domain has the form
-`skills.<existing-primary-domain>`; the chosen parent must already be controlled
-by the Principal, fit a durable family of project surfaces, and permit migration
-by ordinary DNS. The subdomain identifies this repository surface, not the
+`skills.<existing-primary-domain>`. The Principal selected
+`skills.lidessen.dev`: it belongs to an existing public project family and can
+move by ordinary DNS. The subdomain identifies this repository surface, not the
 still-unresolved project name. Domain purchase, nameserver transfer, analytics,
 and automatic production deployment are outside this pilot unless separately
 approved.

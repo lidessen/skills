@@ -1,10 +1,10 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
-const publicSite = process.env.SITE_URL;
+const publicSite = process.env.SITE_URL ?? 'https://skills.lidessen.dev';
 
 export default defineConfig({
-  ...(publicSite ? { site: publicSite } : {}),
+  site: publicSite,
   output: 'static',
   integrations: [
     starlight({

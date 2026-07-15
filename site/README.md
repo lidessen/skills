@@ -25,9 +25,12 @@ npm run dev
 npm run build
 ```
 
-Set `SITE_URL` to the final HTTPS origin for canonical metadata and the generated
-sitemap. The projector uses `SOURCE_REF`, `VERCEL_GIT_COMMIT_SHA`, or
+The checked-in canonical origin is `https://skills.lidessen.dev`; set
+`SITE_URL` only to override it for an alternate deployment. Vercel deploys from
+the repository root so the build can read the authoritative sources outside
+this package while publishing only `site/dist`. The projector uses
+`SOURCE_REF`, `VERCEL_GIT_COMMIT_SHA`, or
 `GITHUB_SHA` when present so a deployed page links to the exact source revision;
 `SOURCE_EDIT_REF` can select an editable branch. Both fall back to the manifest's
-declared repository ref. Run commands from this directory so the content
-projector can resolve the repository root one level above it.
+declared repository ref. Run local package commands from this directory so the
+content projector can resolve the repository root one level above it.
