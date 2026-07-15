@@ -7,7 +7,7 @@
     "design/organization/sessions/2026-07-10-formal-operations-preparation.md"
   ],
   "createdAt": "2026-07-15T13:29:02Z",
-  "updatedAt": "2026-07-15T14:49:26Z",
+  "updatedAt": "2026-07-15T15:10:05Z",
   "mainline": {
     "contradiction": "Turn accumulated post-founding work into reviewable accepted or explicitly returned lines, then retire the temporary preparation formation without losing unique evidence.",
     "acceptance": [
@@ -35,7 +35,9 @@
         "chronicle/records/2026/07/obs-20260715-current-stage-independent-review-rerun.json",
         "https://github.com/lidessen/skills/pull/17"
       ],
-      "status": "open"
+      "status": "closed",
+      "disposition": "integrate",
+      "mainlineDelta": "PR #17 merged as 4df8307974146687328f1f961c9ff47d28102b83 after current-head verification and evidence-backed disposition of both AI review threads; the Work Cell, method, site, and operational stage is now present on main."
     },
     {
       "id": "public-expression-return",
@@ -74,5 +76,5 @@
       "status": "open"
     }
   ],
-  "currentFocus": "current-stage-integration"
+  "currentFocus": "mainline"
 }

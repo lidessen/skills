@@ -1,6 +1,6 @@
 # Current Stage Preparation Group Operational Review
 
-**Status:** [draft PR #17](https://github.com/lidessen/skills/pull/17) opened — awaiting remote verification and review
+**Status:** [PR #17](https://github.com/lidessen/skills/pull/17) merged — `current-stage-integration` settled
 **Content opinion:** [current-stage committee review](2026-07-15-current-stage-content-committee-review.md)
 **Reviewed target:** `d66a125d04ad8294dbfe6742ba007ab9a5f3015b`
 **Mission:** [`formal-operations-transition`](../../../operations/missions/formal-operations-transition.json), branch `current-stage-integration`
@@ -88,19 +88,17 @@ verification is visible.
 These are local and retained checks. Remote verification has not yet run on a
 PR containing the complete current head.
 
-## Operational opinion and next gate
+## Operational settlement
 
-The `current-stage-integration` branch was committed, pushed, and proposed as
-[draft PR #17](https://github.com/lidessen/skills/pull/17). It is not ready to
-merge yet. The remaining movement is:
-
-1. wait for current-head remote verification and AI review comments;
-2. disposition every material comment with evidence;
-3. present a compact merge / return / hold brief to the Principal.
+The Principal selected integration after the current head passed remote
+verification and both AI review threads received evidence-backed dispositions.
+[PR #17](https://github.com/lidessen/skills/pull/17) merged into `main` as
+`4df8307974146687328f1f961c9ff47d28102b83`. The Mission Record branch
+`current-stage-integration` therefore returns with disposition `integrate`.
 
 PR #16, the 129 staged sibling-worktree entries, preparation F4, and preparation
-F5 remain separate open return obligations. Opening the integration PR does not
-settle them or authorize merge.
+F5 remain separate open return obligations. This settlement does not close or
+implicitly decide them.
 
 ## Reopening observation
 
