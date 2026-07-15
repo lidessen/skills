@@ -86,11 +86,11 @@ and automatic production deployment are outside this pilot unless separately
 approved.
 
 On 2026-07-14, the Principal replaced that provisional route with
-`https://atthis.run`. The apex domain is already owned and DNS-managed in the
-same Vercel team, so the change keeps the original single-control-path intent
-while giving the public project a shorter address that does not depend on its
-unresolved final name. `skills.angineer.dev` remains only as a compatibility
-redirect during the transition.
+`https://skills.atthis.run`. The domain family is already owned and DNS-managed
+in the same Vercel team, so the change keeps the original single-control-path
+intent while retaining a descriptive subdomain that does not depend on the
+project's unresolved final name. `skills.angineer.dev` remains only as a
+compatibility redirect during the transition.
 
 ## Content authority and first slice
 
