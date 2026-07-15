@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-> 让生产性 AI 成为共同、开放、可替换能力的项目，当前的方法仓库。
+> 本项目致力于让生产性 AI 成为共同、开放、可替换的能力；本仓库收录其当前方法。
 
 本仓库包含用于 AI 辅助开发的 [Agent Skills](https://agentskills.io) 和实验性
 Work Cell。它只是项目的一个工作界面，而不是整个项目、模型提供商或不透明的
@@ -57,7 +57,7 @@ skill 则是在具体语境中对所选条目的表达。
 [`packages/work-cell`](packages/work-cell/README.md) 是本集合独立的实践与评估
 单元。其核心会运行一个由调用方准备的、有边界的 Agent 任务，并保留已声明的
 输出工件、结构化输出、终结证据、用量、成本和工作区差异。可选适配器会将原则
-序列表达、实验和审议降解到这一通用契约中；研究性实现则留在稳定运行时界面
+序列表达、实验和审议转换为符合这一通用契约的形式；研究性实现则留在稳定运行时界面
 之外。它是基础设施，不是可直接调用的方法论 skill，也没有规划、语义或验收权。
 
 对于携带原则序列的仓库，只读 `probe` 适配器会发现宿主序列，选择并加载任务
@@ -93,8 +93,8 @@ skill 则是在具体语境中对所选条目的表达。
 
 ## 归档
 
-再生前的方法 skills（`design-driven`、`goal-driven`、`evidence-driven`、`reframe`、
-写作 skills）、旧的 `setup-lidessen-skills` 宿主适配器、再生工作笔记、已完成
+重构前的方法 skills（`design-driven`、`goal-driven`、`evidence-driven`、`reframe`、
+写作 skills）、旧的 `setup-lidessen-skills` 宿主适配器、重构工作笔记、已完成
 蓝图、文章和幻灯片都保存在 [`archive/`](archive/README.md)。它们是保留的证据，
 而不是安装目标。仓库不再维护根目录的 `blueprints/` 任务编排工作流。此仓库的
 `CLAUDE.md` / `AGENTS.md` 中 L1 指引已内联；若该投影发生改变，请编辑
