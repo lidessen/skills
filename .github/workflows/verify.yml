@@ -26,6 +26,10 @@ jobs:
         run: python3 scripts/validate-observation-chronicle.py
       - name: Test Observation Chronicle validator
         run: python3 scripts/test-observation-chronicle.py
+      - name: Test mission continuity
+        run: python3 scripts/test-mission-record.py
+      - name: Test skill installation safety
+        run: python3 scripts/test-probe-skill-installation.py
       - name: Install Work Cell dependencies
         working-directory: packages/work-cell
         run: bun install --frozen-lockfile
