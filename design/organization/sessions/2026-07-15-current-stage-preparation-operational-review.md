@@ -57,6 +57,21 @@ improvement may separate active findings from retractions and validate
 recommendation/partition agreement, but it is not a hidden precondition for
 this PR because the current verifier performed that work explicitly.
 
+## PR #17 AI review disposition
+
+Gemini Code Assist submitted two unresolved inline threads on the first draft
+head:
+
+| Thread | Verification | Disposition |
+|---|---|---|
+| [Site dependency versions do not exist](https://github.com/lidessen/skills/pull/17#discussion_r3588326250) | npm registry resolves Astro `7.0.9`, Starlight `0.41.3`, and TypeScript `6.0.3`; the lockfile names their registry tarballs; local build and current-head `verify` pass. | **Rejected as stale model knowledge.** Do not downgrade working, locked dependencies to the reviewer's remembered 4.x/0.22.x/5.x examples. |
+| [`mapConcurrent` is duplicated](https://github.com/lidessen/skills/pull/17#discussion_r3588326260) | `activation-field.ts`, `candidate-field.ts`, and `residual-readout.ts` contained structurally equivalent local implementations while `concurrency.ts` already owned ordered bounded mapping. | **Accepted.** All three modules now import the shared implementation; typecheck, 13 focused tests, and all 69 Work Cell tests / 300 assertions pass. |
+
+These dispositions answer claims with runtime and repository evidence rather
+than accepting or rejecting them by reviewer severity. Thread replies and
+resolution occur only after the correction commit is pushed and its current-head
+verification is visible.
+
 ## Current deterministic evidence
 
 - Sequence snapshot dry-run passed for all packaged snapshots.

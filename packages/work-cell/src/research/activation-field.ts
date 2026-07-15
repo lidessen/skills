@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { CellUsage } from "../contracts";
+import { mapConcurrent } from "../concurrency";
 
 export const ACTIVATION_FIELD_VERSION = "work-cell.activation-field.v1" as const;
 
@@ -556,25 +557,6 @@ export function overlappingGroups<T extends { id: string }>(nodes: T[], groupSiz
     add(Array.from({ length: Math.min(groupSize, sorted.length) }, (_, index) => sorted[(start + index) % sorted.length]!));
   }
   return groups;
-}
-
-async function mapConcurrent<T, R>(
-  values: T[],
-  concurrency: number,
-  operation: (value: T, index: number) => Promise<R>,
-): Promise<R[]> {
-  const results = new Array<R>(values.length);
-  let cursor = 0;
-  const workers = Array.from({ length: Math.min(concurrency, values.length) }, async () => {
-    while (true) {
-      const index = cursor;
-      cursor += 1;
-      if (index >= values.length) return;
-      results[index] = await operation(values[index]!, index);
-    }
-  });
-  await Promise.all(workers);
-  return results;
 }
 
 function assertParents(parentIds: string[], group: FieldNode[], coalitionId: string): void {

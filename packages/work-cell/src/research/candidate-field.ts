@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ActivationFieldRecord, FieldDriverResult } from "./activation-field";
 import { ActivationFieldDriverError } from "./activation-field";
 import type { CellUsage } from "../contracts";
+import { mapConcurrent } from "../concurrency";
 import { buildResidualField, type ResidualNode } from "./residual-readout";
 
 const OperatorSchema = z.object({
@@ -611,25 +612,6 @@ function groupBy<T, K>(values: T[], key: (value: T) => K): Map<K, T[]> {
     else groups.set(id, [value]);
   }
   return groups;
-}
-
-async function mapConcurrent<T, R>(
-  values: T[],
-  concurrency: number,
-  operation: (value: T, index: number) => Promise<R>,
-): Promise<R[]> {
-  const results = new Array<R>(values.length);
-  let cursor = 0;
-  const workers = Array.from({ length: Math.min(concurrency, values.length) }, async () => {
-    while (true) {
-      const index = cursor;
-      cursor += 1;
-      if (index >= values.length) return;
-      results[index] = await operation(values[index]!, index);
-    }
-  });
-  await Promise.all(workers);
-  return results;
 }
 
 function usageFromError(error: unknown): { usage: CellUsage; raw?: unknown } {

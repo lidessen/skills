@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { CellUsage } from "../contracts";
+import { mapConcurrent } from "../concurrency";
 import type { ActivationFieldRecord, CognitiveShape, FieldDriverResult } from "./activation-field";
 
 export const ResidualReadoutSpecSchema = z.object({
@@ -285,21 +286,6 @@ function assertUniqueSubset<T>(ids: string[], allowed: Map<string, T>, owner: st
   if (new Set(ids).size !== ids.length) throw new Error(`${owner} ${phase} repeats a source ID`);
   const invalid = ids.filter((id) => !allowed.has(id));
   if (invalid.length) throw new Error(`${owner} ${phase} references unavailable sources: ${invalid.join(", ")}`);
-}
-
-async function mapConcurrent<T, R>(values: T[], concurrency: number, operation: (value: T) => Promise<R>): Promise<R[]> {
-  const results = new Array<R>(values.length);
-  let cursor = 0;
-  const workers = Array.from({ length: Math.min(concurrency, values.length) }, async () => {
-    while (true) {
-      const index = cursor;
-      cursor += 1;
-      if (index >= values.length) return;
-      results[index] = await operation(values[index]!);
-    }
-  });
-  await Promise.all(workers);
-  return results;
 }
 
 function countBy<T>(values: T[], key: (value: T) => string): Record<string, number> {
