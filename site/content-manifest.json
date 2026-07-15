@@ -1,0 +1,45 @@
+{
+  "repository": {
+    "url": "https://github.com/lidessen/skills",
+    "ref": "main"
+  },
+  "pages": [
+    {
+      "kind": "local",
+      "source": "site/content/docs-index.md",
+      "output": "docs/index.md"
+    },
+    {
+      "kind": "source",
+      "source": "principles/SEQUENCE.md",
+      "output": "docs/principles/sequence.md",
+      "route": "/docs/principles/sequence/",
+      "title": "原则序列",
+      "description": "项目唯一的核心语义根：每行一个稳定、未解释的原则。"
+    },
+    {
+      "kind": "source",
+      "source": "skills/context-engineering/SKILL.md",
+      "output": "docs/skills/context-engineering.md",
+      "route": "/docs/skills/context-engineering/",
+      "title": "Context Engineering",
+      "description": "让决策所需的项目信息在真实运行时抵达 agent。"
+    }
+  ],
+  "catalog": {
+    "output": "docs/skills/index.md",
+    "skills": [
+      "skills/principle-cultivation/SKILL.md",
+      "skills/context-engineering/SKILL.md",
+      "skills/skill-engineering/SKILL.md",
+      "skills/disciplined-development/SKILL.md",
+      "skills/practice-cycle/SKILL.md",
+      "skills/form-guidance/SKILL.md",
+      "skills/naming-and-articulation/SKILL.md",
+      "skills/work-estimation/SKILL.md",
+      "skills/strategic-advisory/SKILL.md",
+      "skills/artifact-organization/SKILL.md",
+      "skills/structural-refactoring/SKILL.md"
+    ]
+  }
+}

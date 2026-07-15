@@ -1,0 +1,16 @@
+---
+const { head } = Astro.locals.starlightRoute;
+const headWithoutPlaceholderFavicon = head.filter(
+  (entry) =>
+    !(
+      entry.tag === 'link' &&
+      entry.attrs &&
+      'rel' in entry.attrs &&
+      entry.attrs.rel === 'shortcut icon'
+    ),
+);
+---
+
+{headWithoutPlaceholderFavicon.map(({ tag: Tag, attrs, content }) => (
+  <Tag {...attrs} set:html={content} />
+))}

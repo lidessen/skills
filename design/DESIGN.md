@@ -347,6 +347,19 @@ seed, cases, studies, directions, and attributed references live in
 practice, not a static brand manual, a propaganda authority, or a replacement
 for human review and actual user context.
 
+## Public site projection
+
+The [project site UI-method pilot](decisions/028-project-site-ui-method-pilot.md)
+uses a real public home page and documentation shell as the first interface
+practice. Its static implementation lives under [`site/`](../site/). A declared
+manifest projects repository sources into public routes during the build; the
+generated pages, navigation, and catalog cannot acquire source authority.
+
+Vercel is the first hosting target, not a runtime dependency. The public
+`skills.<primary-domain>` subdomain names this repository surface rather than
+the unresolved whole-project identity. Human review retains aesthetic and
+production-alias acceptance.
+
 ## Non-goals
 
 - A comprehensive philosophy textbook or quotation archive.

@@ -1,0 +1,58 @@
+:root {
+  --sl-font: 'Avenir Next', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  --sl-font-system-mono: ui-monospace, 'SFMono-Regular', monospace;
+  --sl-color-accent-low: #ead1c6;
+  --sl-color-accent: #9a352c;
+  --sl-color-accent-high: #4a1713;
+  --sl-color-white: #20221f;
+  --sl-color-gray-1: #363934;
+  --sl-color-gray-2: #52554f;
+  --sl-color-gray-3: #777970;
+  --sl-color-gray-4: #aaa396;
+  --sl-color-gray-5: #d7cdbb;
+  --sl-color-gray-6: #e9e1d2;
+  --sl-color-black: #f5efe3;
+}
+
+:root[data-theme='dark'] {
+  --sl-color-accent-low: #421d1a;
+  --sl-color-accent: #e08b78;
+  --sl-color-accent-high: #f6d8cc;
+  --sl-color-white: #f4edde;
+  --sl-color-gray-1: #ded7c9;
+  --sl-color-gray-2: #c7c0b3;
+  --sl-color-gray-3: #9e988e;
+  --sl-color-gray-4: #6e6b65;
+  --sl-color-gray-5: #3c3d39;
+  --sl-color-gray-6: #292b28;
+  --sl-color-black: #191b19;
+}
+
+body {
+  background-image: linear-gradient(rgba(120, 95, 70, 0.035) 1px, transparent 1px);
+  background-size: 100% 2rem;
+}
+
+h1,
+h2,
+h3 {
+  font-family: 'Songti SC', 'Noto Serif CJK SC', 'Source Han Serif SC', Georgia, serif;
+  letter-spacing: -0.02em;
+}
+
+.site-title {
+  font-family: 'Songti SC', 'Noto Serif CJK SC', 'Source Han Serif SC', Georgia, serif;
+}
+
+.sl-markdown-content a:not([class]) {
+  text-underline-offset: 0.22em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

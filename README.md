@@ -29,6 +29,7 @@ specific method.
 | [`principles/`](principles/) | the one-line Sequence, interpretations, inquiries, candidates, and review/adoption evidence | skill workflows or project execution |
 | [`skills/`](skills/) | the current installable methodology and behavioral expressions | the semantic source they express |
 | [`packages/work-cell/`](packages/work-cell/) | a general bounded agent runtime, optional adapters, and experimental research implementations | planning, doctrine, or human acceptance |
+| [`site/`](site/) | the static public home page and reproducible documentation projection | source facts, project identity, or hosting authority |
 | [`design/`](design/) | accepted architecture, decisions, operations design, and retained design studies | live task state or raw runtime evidence |
 | [`regeneration/evaluations/`](regeneration/evaluations/) | durable behavior and boundary evaluations | governing design or raw run authority |
 | [`chronicle/`](chronicle/) | provenance-preserving observation receipts and correction chains | claims, decisions, or a universal activity log |
