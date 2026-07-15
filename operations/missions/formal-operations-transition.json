@@ -7,7 +7,7 @@
     "design/organization/sessions/2026-07-10-formal-operations-preparation.md"
   ],
   "createdAt": "2026-07-15T13:29:02Z",
-  "updatedAt": "2026-07-15T15:22:16Z",
+  "updatedAt": "2026-07-15T17:03:55Z",
   "mainline": {
     "contradiction": "Turn accumulated post-founding work into reviewable accepted or explicitly returned lines, then retire the temporary preparation formation without losing unique evidence.",
     "acceptance": [
@@ -49,7 +49,9 @@
         "https://github.com/lidessen/skills/pull/16",
         "git:mission/public-expression-readme@84346d65992fd76fcc2c7b58fb393d39e481fc75"
       ],
-      "status": "open"
+      "status": "closed",
+      "disposition": "integrate",
+      "mainlineDelta": "PR #19 reconstructed and integrated the durable Chinese README, public-entry evidence, route review, Sequence presentation, and compact portable Sequence packages on current main as merge commit 747588e7aa7883f2a799c092eca52fdf6c283c1a; superseded PR #16 was explicitly closed without merge."
     },
     {
       "id": "legacy-experiment-return",
@@ -76,5 +78,5 @@
       "status": "open"
     }
   ],
-  "currentFocus": "public-expression-return"
+  "currentFocus": "legacy-experiment-return"
 }
