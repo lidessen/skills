@@ -7,7 +7,7 @@
     "design/organization/sessions/2026-07-10-formal-operations-preparation.md"
   ],
   "createdAt": "2026-07-15T13:29:02Z",
-  "updatedAt": "2026-07-15T13:38:28Z",
+  "updatedAt": "2026-07-15T13:55:44Z",
   "mainline": {
     "contradiction": "Turn accumulated post-founding work into reviewable accepted or explicitly returned lines, then retire the temporary preparation formation without losing unique evidence.",
     "acceptance": [
@@ -22,13 +22,14 @@
       "id": "current-stage-integration",
       "parent": "mainline",
       "kind": "review",
-      "purpose": "Determine whether experiment/activation-field-scale at 8181a0b is a coherent, verified stage fit for one integration PR.",
+      "purpose": "Determine whether experiment/activation-field-scale at d66a125 is a coherent, verified stage fit for one integration PR.",
       "returnCondition": "A content committee report, preparation operational report, current deterministic evidence, and Principal integrate/return/hold disposition are retained.",
       "sources": [
-        "git:experiment/activation-field-scale@8181a0be8ed9fd24591dc956ffb0de9e5ebfe61a",
+        "git:experiment/activation-field-scale@d66a125d04ad8294dbfe6742ba007ab9a5f3015b",
         "design/organization/sessions/2026-07-15-formal-operations-transition-strategy-case.md",
         "design/organization/sessions/2026-07-15-current-stage-review-packet.md",
-        "design/organization/sessions/2026-07-15-current-stage-review-work-estimate.md"
+        "design/organization/sessions/2026-07-15-current-stage-review-work-estimate.md",
+        "chronicle/records/2026/07/obs-20260715-current-stage-review-output-recovery-failure.json"
       ],
       "status": "open"
     },

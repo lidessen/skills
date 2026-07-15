@@ -1,18 +1,18 @@
 # Current Stage Review Packet
 
-**Status:** prepared — independent content review not yet run
-**Review target:** `8181a0be8ed9fd24591dc956ffb0de9e5ebfe61a`
+**Status:** prepared — first independent invocation failed before retaining a review
+**Review target:** `d66a125d04ad8294dbfe6742ba007ab9a5f3015b`
 **Base:** `origin/main` at `89d6a85725a1be22eaa188c1f1a6b1840c604006`
 **Mission:** [`formal-operations-transition`](../../../operations/missions/formal-operations-transition.json), branch `current-stage-integration`
 **Authority:** evidence packet only; it cannot accept, push, merge, or broaden the review
 
 ## Review question
 
-Does this 14-commit stage form one coherent, Sequence-faithful and operationally
+Does this 16-commit stage form one coherent, Sequence-faithful and operationally
 safe integration candidate, or does a material defect require return to a named
 owner before a PR is opened?
 
-The target changes 202 paths (`+25,274/-903`). File count is not a quality
+The target changes 205 paths (`+25,724/-906`). File count is not a quality
 metric; it indicates that a diff-only pass is insufficient. Inspect the named
 owning sources and trace material changes into their callers, projections, and
 verification surfaces. Findings must cite exact files and lines, state impact,
@@ -136,10 +136,10 @@ recovery evidence.
 At the review target plus the CI-test correction included in that target:
 
 - all packaged Sequence snapshots pass `--all --dry-run`;
-- Chronicle validates seven records and its validator tests pass;
+- Chronicle validates eight records and its validator tests pass;
 - Mission Record tests and the active transition record check pass;
-- Work Cell installs with its frozen lock, typechecks, and passes 68 tests
-  across 14 files (295 assertions);
+- Work Cell installs with its frozen lock, typechecks, and passes 69 tests
+  across 14 files (300 assertions);
 - the site passes a cold `npm ci`, Astro reports zero diagnostics, eight pages
   build, and 17 internal links/fragments return 200;
 - intervention reconciliation and five install-safety tests pass;
@@ -149,6 +149,17 @@ At the review target plus the CI-test correction included in that target:
 These checks establish declared deterministic behavior and packaging. They do
 not establish semantic fitness, independent review, production traffic, or
 human aesthetic acceptance.
+
+## Prior invocation disposition
+
+Run `e63a2355-9af6-4d89-8701-c5c3ed5f5576` inspected repository sources but
+did not retain a structured review. Its recovery loop called `submit_review`,
+then the runtime read the empty main-loop output and settled as `failed` with an
+incorrect zero-token usage. The [Chronicle receipt](../../../chronicle/records/2026/07/obs-20260715-current-stage-review-output-recovery-failure.json)
+retains the reconstructed 3,281,432-token audit and its limitations. The
+runtime correction and regression test are included in this review target.
+This failed run is operational evidence only; none of its lost prose is a
+finding, recommendation, or independent review.
 
 ## Known residuals and exclusions
 

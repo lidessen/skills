@@ -1,9 +1,10 @@
 # Work Estimate — Current Stage Independent Review
 
-**Status:** proposed
+**Status:** authorized A — first invocation failed before retaining a review;
+continuation awaits Principal disposition
 **Decision horizon:** mission
 **Current state and sources:** [review packet](2026-07-15-current-stage-review-packet.md)
-at target `8181a0b`; deterministic checks pass, semantic review remains open
+at target `d66a125`; deterministic checks pass, semantic review remains open
 **Target state / decision:** enough independent evidence to decide whether to
 open one integration PR or return a named partition
 **Estimator:** work-estimation in the authorized preparation session
@@ -23,6 +24,10 @@ several identical full-repository reads.
 | C — no external reviewer yet | Retain the present self-review and mechanical evidence only. | No additional model cost, but the integration mission cannot claim independent AI review readiness. |
 
 **Your reply:** `A`, `B`, `C`, or `explain <key>`.
+
+The Principal selected **A** on 2026-07-15. The first invocation is spent but
+did not settle W2; it is retained as a failed run observation rather than
+silently treated as either a review or a zero-cost attempt.
 
 ## Necessary work graph
 
@@ -77,9 +82,43 @@ several identical full-repository reads.
 - **Budget Envelope authority:** Principal. Option A authorizes only the first
   review; D1 requires a new evidence-based continuation decision.
 
+## First-invocation audit
+
+The [failed-run observation](../../../chronicle/records/2026/07/obs-20260715-current-stage-review-output-recovery-failure.json)
+reconciles the source run record with its trace:
+
+| Observation | Result |
+|---|---:|
+| Main-loop steps | 40 |
+| Files read / listings | 69 / 10 |
+| Reconstructed input | 3,273,963 tokens |
+| Cached input | 3,029,760 tokens |
+| Output | 7,469 tokens |
+| Reconstructed total | 3,281,432 tokens |
+| Forecast variance | 36.4604× the 90,000-token estimate |
+| Estimated cost at retained price revision | USD 0.044763 |
+| Retained review | no |
+
+The material variance is explained: the 90k projection treated repository
+context approximately as a one-time amount, while a tool loop bills the growing
+prompt again on every step. DeepSeek cache hits kept the monetary conversion
+small, but cache does not make cumulative input disappear from the audit. A
+runtime defect then read structured output from the main loop after the
+recovery loop had called `submit_review`; because the parse error happened
+outside the usage-carrying boundary, the settlement record incorrectly showed
+zero tokens. Commit `d66a125` makes recovery inherit the output schema, selects
+the recovery output, and retains observed usage on final parsing failure. The
+full Work Cell suite now passes 69 tests and 300 assertions.
+
+For an unchanged rerun shape, use the observed **3.3M cumulative tokens**, about
+**100 seconds**, and roughly **USD 0.045** as the single-observation conversion
+baseline—not as a hard cap. The underlying review workload has not become 36×
+larger; the corrected number accounts for iterative context transport.
+
 ## Reopening observation
 
-Re-estimate if the first reviewer cannot inspect all four partitions within its
-context, if a confirmed finding requires code changes across more than one
-partition, or if actual use differs materially because the runtime injects
-unintended repository/global context.
+Re-estimate if a continued reviewer cannot inspect all four partitions within
+its context, if a confirmed finding requires code changes across more than one
+partition, or if an altered execution shape changes the observed cumulative
+context transport. A new invocation requires Principal continuation authority;
+the failed first invocation did not produce W2 evidence and does not open D1.
