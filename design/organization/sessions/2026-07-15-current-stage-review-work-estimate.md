@@ -1,7 +1,6 @@
 # Work Estimate — Current Stage Independent Review
 
-**Status:** authorized A — first invocation failed before retaining a review;
-continuation awaits Principal disposition
+**Status:** completed — corrected rerun retained and preparation-verified
 **Decision horizon:** mission
 **Current state and sources:** [review packet](2026-07-15-current-stage-review-packet.md)
 at target `d66a125`; deterministic checks pass, semantic review remains open
@@ -25,9 +24,12 @@ several identical full-repository reads.
 
 **Your reply:** `A`, `B`, `C`, or `explain <key>`.
 
-The Principal selected **A** on 2026-07-15. The first invocation is spent but
+The Principal selected **A** on 2026-07-15. The first invocation was spent but
 did not settle W2; it is retained as a failed run observation rather than
-silently treated as either a review or a zero-cost attempt.
+silently treated as either a review or a zero-cost attempt. After the runtime
+repair and revised conversion estimate, the Principal authorized one corrected
+rerun. That run settled W2, and the preparation group completed W3 by verifying
+or rejecting every material claim.
 
 ## Necessary work graph
 
@@ -79,8 +81,9 @@ silently treated as either a review or a zero-cost attempt.
 - **Execution shape:** one read-only Cell with the review packet, full target
   repository read access, a strict output schema, and a required
   `submit_review` terminal tool. Do not expose write paths or commands.
-- **Budget Envelope authority:** Principal. Option A authorizes only the first
-  review; D1 requires a new evidence-based continuation decision.
+- **Budget Envelope authority:** Principal. The first invocation and one
+  corrected rerun were separately authorized. D1 still requires a new
+  evidence-based continuation decision and was not opened.
 
 ## First-invocation audit
 
@@ -115,10 +118,33 @@ For an unchanged rerun shape, use the observed **3.3M cumulative tokens**, about
 baseline—not as a hard cap. The underlying review workload has not become 36×
 larger; the corrected number accounts for iterative context transport.
 
+## Corrected-rerun audit
+
+The Principal-authorized corrected rerun settled `passed` with both terminal
+and structured-output verification:
+
+| Observation | Result |
+|---|---:|
+| Main-loop steps | 25 |
+| Files read / listings | 59 / 8 |
+| Input / cached input | 1,626,189 / 1,412,864 tokens |
+| Output / total | 7,654 / 1,633,843 tokens |
+| Revised-estimate ratio | 0.495104 of 3.3M |
+| Duration | 79.272 seconds |
+| Estimated cost | USD 0.035965 |
+
+The [successful-run receipt](../../../chronicle/records/2026/07/obs-20260715-current-stage-independent-review-rerun.json)
+also preserves the report's limitations. Four of six findings retracted
+themselves, the alleged partition-C blocker was false, and the raw final
+recommendation conflicted with its partition disposition. Preparation
+verification rejected the blocker through target-tree evidence and a fresh
+site build, confirmed one low-risk CLI AX residual, and found no
+decision-changing defect. W4 is therefore omitted; W5 is now eligible.
+
 ## Reopening observation
 
-Re-estimate if a continued reviewer cannot inspect all four partitions within
-its context, if a confirmed finding requires code changes across more than one
+Re-estimate if a later reviewer cannot inspect all four partitions within its
+context, if a confirmed finding requires code changes across more than one
 partition, or if an altered execution shape changes the observed cumulative
-context transport. A new invocation requires Principal continuation authority;
-the failed first invocation did not produce W2 evidence and does not open D1.
+context transport. No further reviewer is presently required or authorized;
+D1 remains closed because direct verification resolved the disputed claim.

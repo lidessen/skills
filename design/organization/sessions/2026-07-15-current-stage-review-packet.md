@@ -1,6 +1,6 @@
 # Current Stage Review Packet
 
-**Status:** prepared — first independent invocation failed before retaining a review
+**Status:** reviewed — independent evidence retained and preparation-verified
 **Review target:** `d66a125d04ad8294dbfe6742ba007ab9a5f3015b`
 **Base:** `origin/main` at `89d6a85725a1be22eaa188c1f1a6b1840c604006`
 **Mission:** [`formal-operations-transition`](../../../operations/missions/formal-operations-transition.json), branch `current-stage-integration`
@@ -160,6 +160,14 @@ retains the reconstructed 3,281,432-token audit and its limitations. The
 runtime correction and regression test are included in this review target.
 This failed run is operational evidence only; none of its lost prose is a
 finding, recommendation, or independent review.
+
+The separately authorized corrected rerun settled successfully. Its
+[Chronicle receipt](../../../chronicle/records/2026/07/obs-20260715-current-stage-independent-review-rerun.json),
+[content committee report](2026-07-15-current-stage-content-committee-review.md),
+and [preparation operational review](2026-07-15-current-stage-preparation-operational-review.md)
+retain the raw recommendation, factual dispositions, execution audit, and next
+gate. The preparation verifier rejected the report's alleged partition-C
+blocker using target-tree evidence and a fresh successful site build.
 
 ## Known residuals and exclusions
 
