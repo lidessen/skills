@@ -85,8 +85,9 @@ verification is visible.
 - Intervention reconciliation and install-source safety tests passed.
 - `git diff --check` passes for the prepared evidence changes.
 
-These are local and retained checks. Remote verification has not yet run on a
-PR containing the complete current head.
+These were the retained local checks before integration. PR #17 subsequently
+ran current-head remote verification successfully; the settlement below records
+that later operational result without rewriting the pre-merge evidence.
 
 ## Operational settlement
 
@@ -102,7 +103,7 @@ implicitly decide them.
 
 ## Reopening observation
 
-Return to execution if the PR head differs materially from the reviewed target,
-remote verification fails, a review comment reproduces a material defect, or
-the retained raw-run digest no longer identifies the source used by these
-reports. Return to the Principal if pushing/opening the PR is not authorized.
+Reopen this settled branch only if the recorded merge is absent from `main`, a
+later correction reproduces a material defect in the integrated stage, or the
+retained raw-run digest no longer identifies the source used by these reports.
+Handle the three remaining Mission branches through their own return conditions.
