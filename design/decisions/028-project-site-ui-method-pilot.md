@@ -89,8 +89,8 @@ On 2026-07-14, the Principal replaced that provisional route with
 `https://skills.atthis.run`. The domain family is already owned and DNS-managed
 in the same Vercel team, so the change keeps the original single-control-path
 intent while retaining a descriptive subdomain that does not depend on the
-project's unresolved final name. `skills.angineer.dev` remains only as a
-compatibility redirect during the transition.
+project's unresolved final name. The superseded `skills.angineer.dev` route was
+removed instead of retained as a compatibility redirect.
 
 ## Content authority and first slice
 
