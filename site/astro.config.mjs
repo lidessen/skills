@@ -1,7 +1,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
-const publicSite = process.env.SITE_URL ?? 'https://skills.angineer.dev';
+const publicSite = process.env.SITE_URL ?? 'https://atthis.run';
 
 export default defineConfig({
   site: publicSite,
