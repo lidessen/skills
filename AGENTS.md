@@ -118,3 +118,9 @@ python3 scripts/probe-skill-installation.py <skill-name>
 The probe copies one skill into a disposable source snapshot, installs it into
 a separate disposable project, compares file hashes, and removes both. Do not
 replace this with a direct local-source install merely to save setup time.
+
+Before running an unfamiliar or potentially mutating external CLI, inspect the
+working tree. Stage or commit any validated work—especially untracked artifacts
+that would be costly to reconstruct—before the probe. A staged checkpoint makes
+recovery possible; it does not make an unsafe source/target relation safe, so
+the disposable probe remains mandatory.
