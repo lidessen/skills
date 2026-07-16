@@ -56,6 +56,7 @@ specific method.
 | [artifact-organization](skills/artifact-organization/SKILL.md) | `/artifact-organization` | Audit whether artifact roles and paths still express accepted design, then apply one smallest justified organization transition. |
 | [structural-refactoring](skills/structural-refactoring/SKILL.md) | `/structural-refactoring` | Reconstitute code across meaningful boundaries while preserving declared behavior, caller impact, and verification authority. |
 | [visual-design](skills/visual-design/SKILL.md) | `/visual-design` | Design or review content-led visual work, inheriting or forming a project direction without imposing a portable fixed style or claiming human acceptance. |
+| [code-review](skills/code-review/SKILL.md) | `/code-review` | Review a proposed code change against its accepted intent and actual impact field, reporting only source-backed failure stories while leaving orchestration and merge authority external. |
 
 ## Experimental runtime
 
