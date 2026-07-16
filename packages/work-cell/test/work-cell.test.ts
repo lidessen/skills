@@ -192,6 +192,24 @@ describe("Work Cell core", () => {
     expect(record.durationMs).toBeLessThan(200);
   });
 
+  test("settles cancellation even when a driver ignores the abort signal", async () => {
+    const root = await fixture();
+    const uncooperative: CellDriver = {
+      descriptor: { adapter: "uncooperative-test", provider: "deterministic", model: "fixture" },
+      async run() {
+        return new Promise<DriverResult>(() => {});
+      },
+    };
+    const base = input(root);
+    base.budget.maxDurationMs = 20;
+
+    const record = await runCell(base, uncooperative);
+
+    expect(record.status).toBe("cancelled");
+    expect(record.durationMs).toBeLessThan(200);
+    expect(record.error?.toLowerCase()).toContain("timed out");
+  });
+
   test("retains work and execution references as an observation without treating them as a forecast", async () => {
     const root = await fixture();
     const base = input(root);

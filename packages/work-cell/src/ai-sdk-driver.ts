@@ -232,13 +232,15 @@ export class AiSdkDeepSeekDriver implements CellDriver {
       );
     }
     let output: unknown;
-    try {
-      output = (closureResult ?? executionResult).output;
-    } catch (error) {
-      throw new CellExecutionError(
-        error instanceof Error ? error.message : String(error),
-        addUsage(observedUsage, closureUsage),
-      );
+    if (outputSchema) {
+      try {
+        output = (closureResult ?? executionResult).output;
+      } catch (error) {
+        throw new CellExecutionError(
+          error instanceof Error ? error.message : String(error),
+          addUsage(observedUsage, closureUsage),
+        );
+      }
     }
     const usage = addUsage(
       normalizeUsage(executionResult.totalUsage, executionResult.providerMetadata),

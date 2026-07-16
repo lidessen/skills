@@ -66,7 +66,7 @@ export async function runCell(
           usage: options.preparation.usage,
         }));
       }
-      driverResult = await driver.run(input, context);
+      driverResult = await runWithSignal(() => driver.run(input, context), signal);
       const terminalTools = input.terminalTools ?? [];
       const terminalSatisfied = terminalTools.length === 0 || terminalTools.some(
         (terminal) => driverResult!.terminalToolsCalled.includes(terminal.name),
@@ -165,6 +165,21 @@ export async function runCell(
     ],
     ...(error ? { error } : {}),
   };
+}
+
+function runWithSignal<T>(start: () => Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const onAbort = () => reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+    signal.addEventListener("abort", onAbort, { once: true });
+    Promise.resolve()
+      .then(start)
+      .then(resolve, reject)
+      .finally(() => signal.removeEventListener("abort", onAbort));
+  });
 }
 
 async function verifyArtifacts(

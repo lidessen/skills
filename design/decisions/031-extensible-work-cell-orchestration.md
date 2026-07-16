@@ -102,6 +102,23 @@ remain domain adapters. They may use an execution form, but their roles,
 schemas, tallies, treatments, and acceptance rules do not enter the
 orchestration kernel.
 
+Code-review instructions follow the same boundary. The installable
+[`code-review` skill](../../skills/code-review/SKILL.md) owns how one reviewer
+constructs an evidence-linked project or subsystem model, recovers an impact
+field, qualifies findings, and reports residual risk. A host may apply that
+unchanged method to one Cell or many caller-created packets, but the
+orchestration runtime owns only release and settlement and never embeds a
+reviewer role, cognitive model, risk rubric, report doctrine, or merge verdict.
+
+In review and other knowledge work, a Swarm may outperform one large Cell by
+forming independent local or whole models that expose incompatible ownership,
+causal, constraint, and change relations. That is a domain-level cognitive
+effect, not a kernel guarantee. The kernel retains each model as an independent
+result. If reconciliation is needed, the caller prepares a later Cell or stage
+that receives those records and resolves conflicts against source evidence;
+the kernel neither concatenates them into one hidden context nor converts
+agreement into truth.
+
 Dynamic expansion is allowed only through a named source or adapter that
 constructs and validates a new `CellInput` and records its provenance. A model
 output cannot enqueue itself merely by looking like a task proposal.
@@ -212,8 +229,9 @@ general-core/adapter split.
 - The existing [Swarm probes](../../packages/work-cell/test/swarm.test.ts) still
   pass at 256 Cells and retain driver freshness, exact in-process dispatch,
   order, sibling failure isolation, cancellation outcomes, and compact
-  persistence. The complete package passes 77 tests and 339 assertions plus
-  TypeScript checking after this transition.
+  persistence. With the later terminal and cancellation regressions included,
+  the complete package passes 78 tests and 342 assertions plus TypeScript
+  checking.
 - The [independent review and correction record](../../regeneration/evaluations/2026-07-15-work-cell-orchestration-independent-review.md)
   retains failed review forms, finding dispositions, the fatal-source evidence
   repair, and the final focused `ready` verdict.

@@ -69,10 +69,17 @@ evidence before accepting the review.
   failure plus `terminal.contract.violation` evidence.
 - Existing recovery and simultaneous `terminalTools + outputSchema` probes pass
   while retaining usage from both loops.
+- A live terminal-only review retained a valid tool payload but AI SDK's absent
+  structured-output getter raised `No output generated`. The adapter now reads
+  structured output only when `outputSchema` is declared; a live replay settles
+  the same terminal form as passed without inventing another output contract.
 - The [independent review record](../../regeneration/evaluations/2026-07-15-work-cell-orchestration-independent-review.md)
   retains the failed forms and fabricated findings, then a stronger-model
   correction review that submitted `ready` from the primary loop without
   recovery.
+- The [cognitive-modeling evaluation](../../regeneration/evaluations/2026-07-15-code-review-cognitive-modeling.md)
+  retains the terminal projection failure, its source payload, and the corrected
+  provider replay.
 
 Reopen this decision if a provider cannot reliably express an explicit tool
 choice, if preserving response messages makes recovery exceed a real context
