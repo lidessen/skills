@@ -1,7 +1,8 @@
 # Project Cognition Form Decision
 
-**Status:** proposed
+**Status:** approved
 **Date:** 2026-07-16
+**Approved by:** principal
 **Host design:** [Project cognition bootstrap Strategy Case](2026-07-16-project-cognition-bootstrap-strategy-case.md)
 **Evidence:** [Shilu bootstrap and refresh probe](../../../regeneration/evaluations/2026-07-16-project-cognition-bootstrap-and-refresh.md)
 

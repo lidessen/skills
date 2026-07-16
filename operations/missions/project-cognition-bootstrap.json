@@ -9,7 +9,7 @@
     "design/decisions/031-extensible-work-cell-orchestration.md"
   ],
   "createdAt": "2026-07-16T12:08:08Z",
-  "updatedAt": "2026-07-16T13:06:00Z",
+  "updatedAt": "2026-07-16T13:32:40Z",
   "mainline": {
     "contradiction": "The project can construct useful temporary source-linked models, but it cannot yet preserve and selectively refresh project cognition across tasks without creating a second canon or leaking domain semantics into Work Cell and Swarm.",
     "acceptance": [
@@ -21,7 +21,13 @@
       "A domain method and caller select each partition from the actual project, named decision, and cognition relations; Work Cell and Swarm retain only generic execution mechanics and no fixed decomposition taxonomy.",
       "The result produces a form decision or an explicit no-change disposition; it does not infer a Skill or runtime from model output alone."
     ],
-    "status": "active"
+    "status": "settled",
+    "closureSources": [
+      "regeneration/evaluations/2026-07-16-project-cognition-bootstrap-and-refresh.md",
+      "design/organization/sessions/2026-07-16-project-cognition-form-decision.md",
+      "regeneration/evaluations/2026-07-16-project-cognition-skill-positive-probe.md",
+      "skills/project-cognition/SKILL.md"
+    ]
   },
   "branches": [
     {
@@ -54,8 +60,27 @@
         "design/decisions/026-context-engineering-reconstitutes-harness.md",
         "design/decisions/031-extensible-work-cell-orchestration.md"
       ],
-      "status": "open"
+      "status": "closed",
+      "disposition": "integrate",
+      "mainlineDelta": "The Principal approved an independently installable project-cognition domain Skill with an optional rebuildable target-project projection; Work Cell, Swarm, context delivery, source authority, and future storage adapters remain separate owners."
+    },
+    {
+      "id": "skill-positive-validation",
+      "parent": "mainline",
+      "kind": "implementation",
+      "purpose": "Express the approved project-cognition judgment as the smallest standalone Skill and test whether a fresh agent can use it in a structurally different project without inherited conversation context.",
+      "returnCondition": "The Skill has a selected P-ID lineage and portable snapshot; action, boundary, and context probes are retained; an independent comparable probe supports, revises, or rejects the form; and no runtime, fixed taxonomy, or hard file-size protocol is added.",
+      "sources": [
+        "design/organization/sessions/2026-07-16-project-cognition-form-decision.md",
+        "design/organization/sessions/2026-07-16-project-cognition-expression-team.md",
+        "skills/skill-engineering/SKILL.md",
+        "regeneration/evaluations/2026-07-16-project-cognition-bootstrap-and-refresh.md",
+        "regeneration/evaluations/2026-07-16-project-cognition-skill-positive-probe.md"
+      ],
+      "status": "closed",
+      "disposition": "integrate",
+      "mainlineDelta": "A standalone project-cognition Skill passed disposable installation, progressive context loading, a structurally different semajsx-v0 action comparison, a blinded source-backed preference over baseline, a corrected verifier-authority probe, and a one-off persistence-decline boundary probe without expanding Work Cell or Swarm semantics."
     }
   ],
-  "currentFocus": "cognition-form-decision"
+  "currentFocus": "mainline"
 }
