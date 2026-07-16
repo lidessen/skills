@@ -3,6 +3,7 @@
 **Status:** human mandate recorded
 **Date:** 2026-07-10
 **Authority:** direct project mandate from the principal
+**Working-line amendment:** 2026-07-16, accepted by the principal
 
 ## Why this project exists
 
@@ -32,6 +33,42 @@ one open model.
 | Scientific practice | Capability claims name a task, baseline, acceptance observation, cost envelope, and failure condition | benchmark theater, self-report, or impressive demonstrations without production evidence |
 | Economic sufficiency | The system seeks the least costly reliable arrangement for the task, not prestige through the largest model | a more expensive model is selected without a decision-changing capability gain |
 | Human and community control | People retain meaningful authority over data, purpose, acceptance, and the durable knowledge produced by their work | agents or platforms accumulate unreviewed authority over users or shared facts |
+
+## Working line: 从群众中来，到群众中去
+
+When this project forms methods, capabilities, or public forms intended for
+people and communities, it follows the mass line as an organizational working
+line:
+
+1. **Come from the people.** Begin from the actual work, needs,
+   contradictions, prior attempts, and material conditions of the people who
+   will use or bear the consequences of the result. Distinguish their direct
+   practice from an Agent's inference, internal theory, telemetry, or a proxy
+   speaking on their behalf.
+2. **Study and concentrate.** The project may investigate, compare, abstract,
+   and engineer scattered experience into a method. It must preserve what was
+   selected, rejected, or left uncertain and may not convert this role into a
+   claim that it speaks for everyone.
+3. **Go to the people.** Return the result in a form the actual practitioners
+   can understand, use, inspect, refuse, retain, fork, and modify without first
+   learning this project's internal organization or vocabulary.
+4. **Return again through practice.** Later use, refusal, modification, and
+   production outcomes become evidence that may correct both the method and the
+   organization that formed it. Popularity, compliance, telemetry, or model
+   self-report alone does not make the result correct.
+
+“The people” here means the concrete practitioners and affected communities in
+the present decision, not an abstract majority, marketing segment, data source,
+or collection of Agent proxies. They retain meaningful authority over purpose,
+data, acceptance, exit, and the durable knowledge produced from their work.
+Agents and project teams may investigate, propose, express, and execute; they
+do not manufacture consent, fact, or acceptance.
+
+This is a project-local working line under the founding mandate. It is not a
+new Sequence principle, a universal preflight for every internal task, or a
+standalone Skill or runtime. Express it through the existing owner only when
+forming or revising work for practitioners, and retain practice evidence before
+claiming that the return succeeded.
 
 ## Liberation and non-exploitation boundary
 
@@ -88,6 +125,8 @@ Revisit this mandate's expression if any of the following becomes true:
   worse;
 - a claimed open arrangement depends on an undisclosed or irreplaceable control
   point;
+- a method claims to serve practitioners while lacking evidence from their
+  actual work or a usable path to refuse, modify, and return corrections;
 - production evidence repeatedly shows that the present wording cannot select
   between materially different designs; or
 - the principal changes the social purpose or first arena of the project.
