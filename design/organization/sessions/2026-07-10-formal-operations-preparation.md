@@ -1,6 +1,6 @@
 # Formal Operations Preparation Campaign
 
-**Status:** active — reconvened for stage convergence and formal disposition
+**Status:** archive approved — settlement PR integration pending
 **Authority:** [decision 015](../../decisions/015-human-initiated-formal-operations.md)
 **Principal contradiction:** the collection has enough methods and evidence to
 undertake shared work, but its current large uncommitted transition cannot yet
@@ -105,3 +105,18 @@ artifact organization rather than hiding it in a founding commit.
 When F5 passes, promote only the stable operating status into the relevant
 design record and change this file to archived with links to the baseline and
 shadow PRs. Do not retain an operations-preparation committee.
+
+## 2026-07-16 exit disposition
+
+The [exit review](2026-07-16-preparation-exit-review.md) found the bounded
+mission branches, PRs, remote `verify` checks, and correction/return behavior
+sufficient for F3 while retaining one limitation: removed historical worktree
+paths cannot be reconstructed from Git or GitHub. The Principal selected option
+A, accepting that limitation and authorizing the minimal `main` protection.
+
+GitHub now requires a PR and the non-strict `verify` check, requires zero
+approving reviews, preserves administrator recovery, and rejects force pushes
+and branch deletion. This passes F4. The Principal also authorized F5 archive.
+The campaign has no remaining organizational purpose; its status becomes
+archived when the settlement PR enters `main`, after which only the operating
+protocol and its ordinary temporary formations remain.
