@@ -1,7 +1,7 @@
 # Preparation Exit Review
 
 **Date:** 2026-07-16
-**Status:** Principal selected A — remote rule active; archive integration pending
+**Status:** completed — option A integrated through PR #23
 **Authority:** [decision 015](../../decisions/015-human-initiated-formal-operations.md)
 **Mission:** [`formal-operations-transition`](../../../operations/missions/formal-operations-transition.json)
 
@@ -95,5 +95,7 @@ and read back through the GitHub API:
 - force pushes, branch deletion, and linear-history enforcement remain
   disabled.
 
-The remote action succeeded. Archive integration still follows the normal PR
-boundary; this review does not self-merge its own settlement.
+The remote action succeeded. [PR #23](https://github.com/lidessen/skills/pull/23)
+then passed the newly required `verify` check and merged as
+`e70572fe0b71b456cba75d5eb18bdd70d715d7d9`. This confirms the normal mission
+PR remained mergeable under the rule and completes the archive integration.

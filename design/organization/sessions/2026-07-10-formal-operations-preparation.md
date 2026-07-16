@@ -1,6 +1,6 @@
 # Formal Operations Preparation Campaign
 
-**Status:** archive approved — settlement PR integration pending
+**Status:** archived — exit integrated through PR #23 on 2026-07-16
 **Authority:** [decision 015](../../decisions/015-human-initiated-formal-operations.md)
 **Principal contradiction:** the collection has enough methods and evidence to
 undertake shared work, but its current large uncommitted transition cannot yet
@@ -117,6 +117,7 @@ A, accepting that limitation and authorizing the minimal `main` protection.
 GitHub now requires a PR and the non-strict `verify` check, requires zero
 approving reviews, preserves administrator recovery, and rejects force pushes
 and branch deletion. This passes F4. The Principal also authorized F5 archive.
-The campaign has no remaining organizational purpose; its status becomes
-archived when the settlement PR enters `main`, after which only the operating
-protocol and its ordinary temporary formations remain.
+The campaign has no remaining organizational purpose. [PR #23](https://github.com/lidessen/skills/pull/23)
+entered `main` as `e70572fe0b71b456cba75d5eb18bdd70d715d7d9`, so the campaign is
+archived. Only the operating protocol and its ordinary temporary formations
+remain; there is no continuing preparation committee.
