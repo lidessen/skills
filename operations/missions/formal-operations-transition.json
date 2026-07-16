@@ -7,7 +7,7 @@
     "design/organization/sessions/2026-07-10-formal-operations-preparation.md"
   ],
   "createdAt": "2026-07-15T13:29:02Z",
-  "updatedAt": "2026-07-15T17:09:33Z",
+  "updatedAt": "2026-07-16T11:01:51Z",
   "mainline": {
     "contradiction": "Turn accumulated post-founding work into reviewable accepted or explicitly returned lines, then retire the temporary preparation formation without losing unique evidence.",
     "acceptance": [
@@ -64,6 +64,20 @@
         "design/organization/sessions/2026-07-15-formal-operations-transition-strategy-case.md",
         "design/organization/sessions/2026-07-15-legacy-experiment-return-partition.md"
       ],
+      "status": "closed",
+      "disposition": "integrate",
+      "mainlineDelta": "Principal selected A on 2026-07-16: the complete 129-path partition is accepted; direct integration of superseded implementations and raw carriers is abandoned; only separately gated research, progressive-adoption, and compact negative-evidence candidates remain. No raw index was published or removed, and final carrier disposal moved to legacy-index-retention."
+    },
+    {
+      "id": "legacy-index-retention",
+      "parent": "mainline",
+      "kind": "investigation",
+      "purpose": "Inspect the protected 129-path legacy index for private or sensitive material and repository-weight cost, then propose one bounded local retention, remote archive, or deletion action without publishing or removing it prematurely.",
+      "returnCondition": "A source-backed privacy and repository-weight report identifies sensitive paths, compares retention carriers, and returns one final disposal action for Principal confirmation while the protected index remains unchanged.",
+      "sources": [
+        "worktree:/Users/lidessen/workspaces/skills-worktrees/public-expression-readme",
+        "design/organization/sessions/2026-07-15-legacy-experiment-return-partition.md"
+      ],
       "status": "open"
     },
     {
@@ -79,5 +93,5 @@
       "status": "open"
     }
   ],
-  "currentFocus": "legacy-experiment-return"
+  "currentFocus": "legacy-index-retention"
 }

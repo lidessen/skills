@@ -1,6 +1,6 @@
 # Legacy Experiment Return — Source, Value, and Status Partition
 
-**Status:** prepared — partition complete; retention/disposal decision pending
+**Status:** accepted — Principal selected A; privacy/retention probe pending
 **Mission:** [`formal-operations-transition`](../../../operations/missions/formal-operations-transition.json), branch `legacy-experiment-return`
 **Review target:** protected staged index in the local `public-expression-readme` worktree
 **Authority:** inventory and recommendation only; this record cannot integrate staged content, publish raw runs, delete the protected worktree, or approve a later mission
@@ -70,7 +70,7 @@ receive authority, and make an explicit retention decision for the raw index.
 
 ## Principal Decision Brief
 
-**Recommendation: A — accept the partition and authorize bounded settlement.**
+**Principal decision: A — accepted on 2026-07-16; bounded settlement authorized.**
 
 | Key | Immediate result | Tradeoff / reopening signal |
 |---|---|---|
@@ -78,7 +78,7 @@ receive authority, and make an explicit retention decision for the raw index.
 | B — archive all 129 remotely | Preserve the exact index tree on a non-main archival ref before removing the worktree. | Maximizes recoverability but publishes 1.5 MiB of unreviewed raw/model material and perpetuates repository-state cost; requires privacy review first. |
 | C — keep the worktree suspended | Make no retention or disposal change. | Avoids irreversible action now but leaves the Mission branch open and the hidden operational state in place. |
 
-Acceptance of A does not approve either future candidate, publish any raw run,
-or delete the worktree by itself. It authorizes the preparation group to perform
-the named privacy/retention probe and return the final disposal action for human
-confirmation.
+The accepted A decision does not approve either future candidate, publish any
+raw run, or delete the worktree by itself. It authorizes the preparation group
+to perform the named privacy/retention probe and return the final disposal
+action for human confirmation.
