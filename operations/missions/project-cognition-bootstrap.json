@@ -9,7 +9,7 @@
     "design/decisions/031-extensible-work-cell-orchestration.md"
   ],
   "createdAt": "2026-07-16T12:08:08Z",
-  "updatedAt": "2026-07-16T12:08:08Z",
+  "updatedAt": "2026-07-16T12:20:00Z",
   "mainline": {
     "contradiction": "The project can construct useful temporary source-linked models, but it cannot yet preserve and selectively refresh project cognition across tasks without creating a second canon or leaking domain semantics into Work Cell and Swarm.",
     "acceptance": [
@@ -30,6 +30,7 @@
       "returnCondition": "Source revisions, packet boundaries, accepted local records, typed synthesis, withheld-question comparison, delta invalidation audit, observed work/cost, privacy limits, and disconfirming results are retained for independent form review.",
       "sources": [
         "design/organization/sessions/2026-07-16-project-cognition-bootstrap-strategy-case.md",
+        "design/organization/sessions/2026-07-16-project-cognition-bootstrap-work-estimate.md",
         "skills/code-review/references/review-model.md",
         "regeneration/evaluations/2026-07-15-project-cognition-scale-control.md"
       ],
