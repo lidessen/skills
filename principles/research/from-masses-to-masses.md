@@ -84,8 +84,13 @@ The [founding mandate](../../design/FOUNDING-MANDATE.md#material-commitments)
 already commits the project to productive equality, commons, replaceability,
 and human/community control. It specifies the people for whom productive AI is
 being developed and rejects tools that extract their work or data while
-withholding control. It is a direction and authority source, however, not a
-repeatable method for how project knowledge must be formed and returned.
+withholding control. After the completed inquiry, the principal explicitly
+accepted [“从群众中来，到群众中去” as a project-local working line](../../design/FOUNDING-MANDATE.md#working-line-从群众中来到群众中去):
+practice supplies the material, the project studies and concentrates it, the
+result returns in a usable and modifiable form, and later practice may correct
+both method and organization. This is a downstream expression of the mandate
+and existing P-IDs, not evidence that the research should create a new
+Sequence line.
 
 The [project-site decision](../../design/decisions/028-project-site-ui-method-pilot.md#content-authority-and-first-slice)
 records a concrete return failure: the site knew a full/partial/target-specific
