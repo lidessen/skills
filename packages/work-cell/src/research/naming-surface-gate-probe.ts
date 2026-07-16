@@ -1,10 +1,14 @@
 import { createHash, randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { createDeepSeek, type DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import type { CellUsage } from "../contracts";
+import {
+  createValidationModel,
+  requireValidationCredentials,
+  validationProviderOptions,
+} from "../validation-model";
 
 (globalThis as typeof globalThis & { AI_SDK_LOG_WARNINGS?: boolean }).AI_SDK_LOG_WARNINGS = false;
 
@@ -75,7 +79,7 @@ async function main(args: string[]): Promise<void> {
   if (!expressionArg || !manifestArg) {
     throw new Error("usage: bun src/research/naming-surface-gate-probe.ts <naming-expression.json> <manifest.json>");
   }
-  if (!process.env.DEEPSEEK_API_KEY) throw new Error("DEEPSEEK_API_KEY is required for a live naming surface gate");
+  requireValidationCredentials("a live naming surface gate");
   const expressionPath = resolve(expressionArg);
   const expressionContent = await readFile(expressionPath, "utf8");
   const expression = ExpressionEnvelopeSchema.parse(JSON.parse(expressionContent));
@@ -84,8 +88,7 @@ async function main(args: string[]): Promise<void> {
   const candidates = mergeCandidates(expression.treatment);
   const allowedNames = new Set(candidates.map((candidate) => candidate.name));
   const modelId = "deepseek-v4-flash";
-  const provider = createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY });
-  const model = provider(modelId);
+  const model = createValidationModel({ model: modelId }).model;
   const startedAt = new Date();
   const results = candidates.length === 0 ? [] : await Promise.all(seats.map(async (seat) => {
     const result = await generateText({
@@ -109,9 +112,7 @@ async function main(args: string[]): Promise<void> {
       maxOutputTokens: 2_000,
       temperature: 0.35,
       topP: 0.9,
-      providerOptions: {
-        deepseek: { thinking: { type: "disabled" } } satisfies DeepSeekLanguageModelOptions,
-      },
+      providerOptions: validationProviderOptions,
     });
     const value = SurfaceJudgmentSchema.parse(result.output);
     assertCompleteJudgments(value, allowedNames, seat.id);

@@ -1,7 +1,7 @@
-import { createDeepSeek, type DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import type { CellUsage } from "../../contracts";
+import { createValidationModel, validationProviderOptions, type ValidationModelOptions } from "../../validation-model";
 
 export const BlindJudgementSchema = z.object({
   preferred: z.enum(["A", "B", "tie", "inconclusive"]),
@@ -18,12 +18,6 @@ export const BlindJudgementSchema = z.object({
 });
 
 export type BlindJudgement = z.infer<typeof BlindJudgementSchema>;
-
-const deepSeekNonThinking = {
-  deepseek: {
-    thinking: { type: "disabled" },
-  } satisfies DeepSeekLanguageModelOptions,
-};
 
 export interface JudgeCandidate {
   label: "A" | "B";
@@ -65,15 +59,11 @@ export interface ComparisonJudge {
   judge(request: ComparisonJudgeRequest): Promise<ComparisonJudgeResult>;
 }
 
-export class AiSdkDeepSeekJudge implements ComparisonJudge {
+export class AiSdkValidationJudge implements ComparisonJudge {
   private readonly model;
 
-  constructor(options: { apiKey?: string; baseURL?: string; model?: string } = {}) {
-    const provider = createDeepSeek({
-      apiKey: options.apiKey ?? process.env.DEEPSEEK_API_KEY ?? "",
-      ...(options.baseURL ? { baseURL: options.baseURL } : {}),
-    });
-    this.model = provider(options.model ?? "deepseek-v4-flash");
+  constructor(options: ValidationModelOptions = {}) {
+    this.model = createValidationModel(options).model;
   }
 
   async judge(request: ComparisonJudgeRequest): Promise<ComparisonJudgeResult> {
@@ -99,7 +89,7 @@ export class AiSdkDeepSeekJudge implements ComparisonJudge {
       ),
       temperature: 0,
       maxOutputTokens: 4_000,
-      providerOptions: deepSeekNonThinking,
+      providerOptions: validationProviderOptions,
       ...(request.signal ? { abortSignal: request.signal } : {}),
     });
     if (!result.output) throw new Error("judge returned no structured output");

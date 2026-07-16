@@ -1,4 +1,3 @@
-import { createDeepSeek, type DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
 import { generateText, NoObjectGeneratedError, NoOutputGeneratedError, Output } from "ai";
 import { z } from "zod";
 import type { FieldDriverResult } from "./activation-field";
@@ -16,17 +15,16 @@ import {
   type SeedSelection,
 } from "./candidate-field";
 import type { CellUsage } from "../contracts";
+import {
+  createValidationModel,
+  validationProviderName,
+  validationProviderOptions,
+  type ValidationModelOptions,
+} from "../validation-model";
 
-export interface AiSdkCandidateFieldOptions {
-  apiKey?: string;
-  baseURL?: string;
-  model?: string;
+export interface AiSdkCandidateFieldOptions extends ValidationModelOptions {
   seedRetriever?: SeedMaterialRetriever;
 }
-
-const deepSeekNonThinking = {
-  deepseek: { thinking: { type: "disabled" } } satisfies DeepSeekLanguageModelOptions,
-};
 
 export class AiSdkCandidateFieldDriver implements CandidateFieldDriver {
   readonly descriptor;
@@ -35,13 +33,10 @@ export class AiSdkCandidateFieldDriver implements CandidateFieldDriver {
 
   constructor(options: AiSdkCandidateFieldOptions = {}) {
     const modelId = options.model ?? "deepseek-v4-flash";
-    const provider = createDeepSeek({
-      apiKey: options.apiKey ?? process.env.DEEPSEEK_API_KEY ?? "",
-      ...(options.baseURL ? { baseURL: options.baseURL } : {}),
-    });
-    this.model = provider(modelId);
+    const selection = createValidationModel(options);
+    this.model = selection.model;
     this.seedRetriever = options.seedRetriever;
-    this.descriptor = { provider: "deepseek", model: modelId };
+    this.descriptor = { provider: validationProviderName(selection), model: modelId };
   }
 
   async retrieve(
@@ -81,7 +76,7 @@ export class AiSdkCandidateFieldDriver implements CandidateFieldDriver {
       maxOutputTokens: 500,
       temperature: 0.8,
       topP: 0.95,
-      providerOptions: deepSeekNonThinking,
+      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
     if (!this.seedRetriever) {
@@ -138,7 +133,7 @@ export class AiSdkCandidateFieldDriver implements CandidateFieldDriver {
       maxOutputTokens: 500,
       temperature: 0.75,
       topP: 0.95,
-      providerOptions: deepSeekNonThinking,
+      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
     const basis = evidence.length === activation.value.titleIds.length ? "retrieval" : "mixed";
@@ -194,7 +189,7 @@ export class AiSdkCandidateFieldDriver implements CandidateFieldDriver {
       maxOutputTokens: 120,
       temperature: 1.25,
       topP: 0.98,
-      providerOptions: deepSeekNonThinking,
+      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }
@@ -226,7 +221,7 @@ export class AiSdkCandidateFieldDriver implements CandidateFieldDriver {
       maxOutputTokens: 120,
       temperature: 1.3,
       topP: 0.98,
-      providerOptions: deepSeekNonThinking,
+      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }
@@ -259,7 +254,7 @@ export class AiSdkCandidateFieldDriver implements CandidateFieldDriver {
       maxOutputTokens: 900,
       temperature: 0.35,
       topP: 0.9,
-      providerOptions: deepSeekNonThinking,
+      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }

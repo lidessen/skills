@@ -1,10 +1,14 @@
 import { createHash, randomInt, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
-import { createDeepSeek, type DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
 import { generateText, NoObjectGeneratedError, NoOutputGeneratedError, Output } from "ai";
 import { z } from "zod";
 import type { CellUsage } from "../contracts";
+import {
+  createValidationModel,
+  requireValidationCredentials,
+  validationProviderOptions,
+} from "../validation-model";
 
 (globalThis as typeof globalThis & { AI_SDK_LOG_WARNINGS?: boolean }).AI_SDK_LOG_WARNINGS = false;
 
@@ -99,7 +103,7 @@ const EvidenceChallengeSchema = z.object({
 
 type Idea = z.infer<typeof IdeaSchema>;
 type FinalIdea = z.infer<typeof FinalIdeaSchema>;
-type Model = ReturnType<ReturnType<typeof createDeepSeek>>;
+type Model = ReturnType<typeof createValidationModel>["model"];
 
 interface EvidenceChunk {
   id: string;
@@ -115,10 +119,6 @@ interface StructuredResult<T> {
   recovered: boolean;
   audit?: unknown;
 }
-
-const nonThinking = {
-  deepseek: { thinking: { type: "disabled" } } satisfies DeepSeekLanguageModelOptions,
-};
 
 const baselineOperations = [
   "trace the narrowest causal bottleneck",
@@ -160,7 +160,7 @@ if (import.meta.main) {
 async function main(args: string[]): Promise<void> {
   const specArg = args[0];
   if (!specArg) throw new Error("usage: bun src/research/idea-development-probe.ts <spec.json>");
-  if (!process.env.DEEPSEEK_API_KEY) throw new Error("DEEPSEEK_API_KEY is required for a live idea-development probe");
+  requireValidationCredentials("a live idea-development probe");
   const specPath = resolve(specArg);
   const specContent = await readFile(specPath, "utf8");
   const spec = ProbeSpecSchema.parse(JSON.parse(specContent));
@@ -170,8 +170,7 @@ async function main(args: string[]): Promise<void> {
   const evidenceById = new Map(evidence.map((entry) => [entry.id, entry]));
   const evidencePayload = JSON.stringify(evidence);
   const modelId = "deepseek-v4-flash";
-  const provider = createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY });
-  const model = provider(modelId);
+  const model = createValidationModel({ model: modelId }).model;
   const startedAt = new Date();
 
   const baselineDraftResults = await Promise.all(Array.from({ length: spec.baselineSamples }, (_, index) =>
@@ -392,7 +391,7 @@ async function generateBaselineDraft(
     maxOutputTokens: 1_400,
     temperature: 0.9,
     topP: 0.95,
-    providerOptions: nonThinking,
+    providerOptions: validationProviderOptions,
   }), "Return every required idea field and at least two supplied evidence IDs.", `baseline-${index + 1}`);
 }
 
@@ -415,7 +414,7 @@ async function generateObservation(
     maxOutputTokens: 900,
     temperature: 0.5,
     topP: 0.9,
-    providerOptions: nonThinking,
+    providerOptions: validationProviderOptions,
   }), "Return every required observation field and cite only supplied evidence IDs.", `observation-${index + 1}`);
 }
 
@@ -443,7 +442,7 @@ async function generateHypothesis(
     maxOutputTokens: 1_200,
     temperature: 0.85,
     topP: 0.95,
-    providerOptions: nonThinking,
+    providerOptions: validationProviderOptions,
   }), "Return every required hypothesis field and only supplied observation and evidence IDs.", `hypothesis-${index + 1}`);
 }
 
@@ -476,7 +475,7 @@ async function developHypothesis(
     maxOutputTokens: 1_400,
     temperature: 0.75,
     topP: 0.92,
-    providerOptions: nonThinking,
+    providerOptions: validationProviderOptions,
   }), "Return every required development field and cite only supplied evidence IDs.", `development-${target.id}`);
 }
 
@@ -550,7 +549,7 @@ async function challengeClaim(
     maxOutputTokens: 1_500,
     temperature: 0.2,
     topP: 0.85,
-    providerOptions: nonThinking,
+    providerOptions: validationProviderOptions,
   }), "Return every challenge field, cite only supplied evidence IDs, and copy exact source quotations.", `challenge-${claimId}`);
 }
 
@@ -580,7 +579,7 @@ async function synthesizeFinal(input: {
     maxOutputTokens: 1_800,
     temperature: 0.45,
     topP: 0.9,
-    providerOptions: nonThinking,
+    providerOptions: validationProviderOptions,
   }), "Keep disposition and idea consistent and use only supplied lineage and evidence IDs.", `synthesis-${input.treatment}`);
 }
 
@@ -605,7 +604,7 @@ async function judgeFinals(
     maxOutputTokens: 1_100,
     temperature: 0.25,
     topP: 0.85,
-    providerOptions: nonThinking,
+    providerOptions: validationProviderOptions,
   }), "Return one allowed preference and every required finding field.", `judge-${judgeSeats.indexOf(seat as typeof judgeSeats[number]) + 1}`);
 }
 

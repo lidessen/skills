@@ -1,7 +1,12 @@
-import { createDeepSeek, type DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
 import { generateText, NoObjectGeneratedError, NoOutputGeneratedError, Output } from "ai";
 import { z } from "zod";
 import type { CellUsage } from "../contracts";
+import {
+  createValidationModel,
+  validationProviderName,
+  validationProviderOptions,
+  type ValidationModelOptions,
+} from "../validation-model";
 import {
   ActivationDraftSchema,
   ActivationFieldDriverError,
@@ -18,19 +23,9 @@ import {
   renderCognitiveShape,
 } from "./activation-field";
 
-export interface AiSdkActivationFieldOptions {
-  apiKey?: string;
-  baseURL?: string;
-  model?: string;
-}
+export interface AiSdkActivationFieldOptions extends ValidationModelOptions {}
 
 const DirectBaselineSchema = z.object({ response: z.string().min(1) });
-
-const deepSeekNonThinking = {
-  deepseek: {
-    thinking: { type: "disabled" },
-  } satisfies DeepSeekLanguageModelOptions,
-};
 
 export class AiSdkActivationFieldDriver implements ActivationFieldDriver {
   readonly descriptor;
@@ -38,12 +33,9 @@ export class AiSdkActivationFieldDriver implements ActivationFieldDriver {
 
   constructor(options: AiSdkActivationFieldOptions = {}) {
     const modelId = options.model ?? "deepseek-v4-flash";
-    const provider = createDeepSeek({
-      apiKey: options.apiKey ?? process.env.DEEPSEEK_API_KEY ?? "",
-      ...(options.baseURL ? { baseURL: options.baseURL } : {}),
-    });
-    this.model = provider(modelId);
-    this.descriptor = { provider: "deepseek", model: modelId };
+    const selection = createValidationModel(options);
+    this.model = selection.model;
+    this.descriptor = { provider: validationProviderName(selection), model: modelId };
   }
 
   async activate(
@@ -76,7 +68,7 @@ export class AiSdkActivationFieldDriver implements ActivationFieldDriver {
       maxOutputTokens: 500,
       temperature: request.receptor.temperature ?? 1.15,
       topP: 0.95,
-      providerOptions: deepSeekNonThinking,
+      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }
@@ -114,7 +106,7 @@ export class AiSdkActivationFieldDriver implements ActivationFieldDriver {
       maxOutputTokens: 700,
       temperature: 0.7,
       topP: 0.9,
-      providerOptions: deepSeekNonThinking,
+      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }
@@ -148,7 +140,7 @@ export class AiSdkActivationFieldDriver implements ActivationFieldDriver {
       maxOutputTokens: 2_500,
       temperature: 0.75,
       topP: 0.9,
-      providerOptions: deepSeekNonThinking,
+      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }
@@ -173,7 +165,7 @@ export class AiSdkActivationFieldDriver implements ActivationFieldDriver {
       maxOutputTokens: 2_500,
       temperature: 0.75,
       topP: 0.9,
-      providerOptions: deepSeekNonThinking,
+      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }

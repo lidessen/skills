@@ -1,6 +1,11 @@
-import { createDeepSeek, type DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
 import { generateText, NoObjectGeneratedError, NoOutputGeneratedError, Output } from "ai";
 import type { CellUsage } from "../contracts";
+import {
+  createValidationModel,
+  validationProviderName,
+  validationProviderOptions,
+  type ValidationModelOptions,
+} from "../validation-model";
 import { ActivationFieldDriverError, type FieldDriverResult } from "./activation-field";
 import {
   ResidualHeadDeltaSchema,
@@ -13,15 +18,7 @@ import {
   type ResidualRoute,
 } from "./residual-readout";
 
-export interface AiSdkResidualReadoutOptions {
-  apiKey?: string;
-  baseURL?: string;
-  model?: string;
-}
-
-const deepSeekNonThinking = {
-  deepseek: { thinking: { type: "disabled" } } satisfies DeepSeekLanguageModelOptions,
-};
+export interface AiSdkResidualReadoutOptions extends ValidationModelOptions {}
 
 export class AiSdkResidualReadoutDriver implements ResidualReadoutDriver {
   readonly descriptor;
@@ -29,12 +26,9 @@ export class AiSdkResidualReadoutDriver implements ResidualReadoutDriver {
 
   constructor(options: AiSdkResidualReadoutOptions = {}) {
     const modelId = options.model ?? "deepseek-v4-flash";
-    const provider = createDeepSeek({
-      apiKey: options.apiKey ?? process.env.DEEPSEEK_API_KEY ?? "",
-      ...(options.baseURL ? { baseURL: options.baseURL } : {}),
-    });
-    this.model = provider(modelId);
-    this.descriptor = { provider: "deepseek", model: modelId };
+    const selection = createValidationModel(options);
+    this.model = selection.model;
+    this.descriptor = { provider: validationProviderName(selection), model: modelId };
   }
 
   async route(
@@ -62,7 +56,7 @@ export class AiSdkResidualReadoutDriver implements ResidualReadoutDriver {
       maxOutputTokens: 800,
       temperature: 0.45,
       topP: 0.9,
-      providerOptions: deepSeekNonThinking,
+      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }
@@ -93,7 +87,7 @@ export class AiSdkResidualReadoutDriver implements ResidualReadoutDriver {
       maxOutputTokens: 1_800,
       temperature: 0.9,
       topP: 0.95,
-      providerOptions: deepSeekNonThinking,
+      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }
@@ -123,7 +117,7 @@ export class AiSdkResidualReadoutDriver implements ResidualReadoutDriver {
       maxOutputTokens: 3_500,
       temperature: 0.75,
       topP: 0.92,
-      providerOptions: deepSeekNonThinking,
+      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }

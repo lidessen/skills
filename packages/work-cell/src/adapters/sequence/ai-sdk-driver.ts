@@ -1,4 +1,3 @@
-import type { DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
 import { ToolLoopAgent, hasToolCall, tool } from "ai";
 import type { CellUsage } from "../../contracts";
 import type { DriverContext } from "../../driver";
@@ -10,17 +9,12 @@ import {
   type Genome,
   type SequenceCellInput,
 } from "./genome";
-import { AiSdkDeepSeekDriver } from "../../ai-sdk-driver";
+import { AiSdkValidationDriver } from "../../ai-sdk-driver";
+import { validationProviderOptions } from "../../validation-model";
 import type { SequenceSelector } from "./runtime";
 
-const deepSeekNonThinking = {
-  deepseek: {
-    thinking: { type: "disabled" },
-  } satisfies DeepSeekLanguageModelOptions,
-};
-
 /** Sequence-specific preparation paired with the general AI SDK executor. */
-export class AiSdkDeepSeekSequenceDriver extends AiSdkDeepSeekDriver implements SequenceSelector {
+export class AiSdkValidationSequenceDriver extends AiSdkValidationDriver implements SequenceSelector {
   async selectSequenceGenes(
     input: SequenceCellInput,
     genome: Genome,
@@ -52,7 +46,7 @@ export class AiSdkDeepSeekSequenceDriver extends AiSdkDeepSeekDriver implements 
       stopWhen: hasToolCall("express_genes"),
       maxOutputTokens: 2_000,
       temperature: 0,
-      providerOptions: deepSeekNonThinking,
+      providerOptions: validationProviderOptions,
     });
 
     const result = await expressionAgent.generate({

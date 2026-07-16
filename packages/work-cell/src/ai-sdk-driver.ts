@@ -1,4 +1,3 @@
-import { createDeepSeek, type DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
 import { Output, ToolLoopAgent, hasToolCall, isStepCount, tool } from "ai";
 import { z } from "zod";
 import {
@@ -14,18 +13,14 @@ import {
 } from "./driver";
 // AI SDK and provider types remain confined to this adapter.
 import { compileOutputSchema } from "./output-schema";
+import {
+  createValidationModel,
+  validationProviderName,
+  validationProviderOptions,
+  type ValidationModelOptions,
+} from "./validation-model";
 
-export interface AiSdkDriverOptions {
-  apiKey?: string;
-  baseURL?: string;
-  model?: string;
-}
-
-const deepSeekNonThinking = {
-  deepseek: {
-    thinking: { type: "disabled" },
-  } satisfies DeepSeekLanguageModelOptions,
-};
+export type AiSdkDriverOptions = ValidationModelOptions;
 
 const EXECUTION_TOOL_NAMES = new Set([
   "list_files",
@@ -34,28 +29,19 @@ const EXECUTION_TOOL_NAMES = new Set([
   "run_command",
 ]);
 
-export class AiSdkDeepSeekDriver implements CellDriver {
+export class AiSdkValidationDriver implements CellDriver {
   readonly descriptor: DriverDescriptor;
   protected readonly model;
 
   constructor(options: AiSdkDriverOptions = {}) {
     const modelId = options.model ?? "deepseek-v4-flash";
-    const provider = createDeepSeek({
-      apiKey: options.apiKey ?? process.env.DEEPSEEK_API_KEY ?? "",
-      ...(options.baseURL ? { baseURL: options.baseURL } : {}),
-    });
-    this.model = provider(modelId);
+    const selection = createValidationModel(options);
+    this.model = selection.model;
     this.descriptor = {
       adapter: "ai-sdk-v7",
-      provider: "deepseek",
+      provider: validationProviderName(selection),
       model: modelId,
-      pricing: {
-        inputPerMillionUsd: 0.14,
-        cachedInputPerMillionUsd: 0.0028,
-        outputPerMillionUsd: 0.28,
-        source: "https://api-docs.deepseek.com/quick_start/pricing",
-        revision: "2026-07-10",
-      },
+      pricing: selection.pricing,
     };
   }
 
@@ -123,7 +109,7 @@ export class AiSdkDeepSeekDriver implements CellDriver {
         : {}),
       maxOutputTokens: 16_000,
       temperature: 0,
-      providerOptions: deepSeekNonThinking,
+      providerOptions: validationProviderOptions,
     });
     let observedUsage: CellUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0, cachedInputTokens: 0 };
     let closureUsage: CellUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0, cachedInputTokens: 0 };
@@ -134,11 +120,12 @@ export class AiSdkDeepSeekDriver implements CellDriver {
         prompt: renderTaskPrompt(input),
         abortSignal: context.signal,
         timeout: { totalMs: input.budget.maxDurationMs },
-        onStepEnd: ({ usage, finishReason, performance, toolCalls, toolResults }) => {
+        onStepEnd: ({ usage, finishReason, performance, providerMetadata, toolCalls, toolResults }) => {
           observedUsage = addUsage(observedUsage, normalizeUsage(usage, undefined));
           context.emit("agent.step.finished", {
             finishReason,
             performance: sanitize(performance),
+            providerMetadata: sanitize(providerMetadata),
             usage,
             cumulativeUsage: observedUsage,
             toolCalls: sanitize(toolCalls),
@@ -198,7 +185,7 @@ export class AiSdkDeepSeekDriver implements CellDriver {
         },
         maxOutputTokens: 4_000,
         temperature: 0,
-        providerOptions: deepSeekNonThinking,
+        providerOptions: validationProviderOptions,
       });
       try {
         closureResult = await closureAgent.generate({
@@ -215,11 +202,12 @@ export class AiSdkDeepSeekDriver implements CellDriver {
           ],
           abortSignal: context.signal,
           timeout: { totalMs: input.budget.maxDurationMs },
-          onStepEnd: ({ usage, finishReason, performance, toolCalls, toolResults }) => {
+          onStepEnd: ({ usage, finishReason, performance, providerMetadata, toolCalls, toolResults }) => {
             closureUsage = addUsage(closureUsage, normalizeUsage(usage, undefined));
             context.emit("terminal.recovery.step.finished", {
               finishReason,
               performance: sanitize(performance),
+              providerMetadata: sanitize(providerMetadata),
               usage,
               cumulativeUsage: closureUsage,
               toolCalls: sanitize(toolCalls),
