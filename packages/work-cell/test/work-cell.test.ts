@@ -67,6 +67,21 @@ describe("Work Cell core", () => {
     })).toThrow("treatment");
   });
 
+  test("rejects duplicate terminal tool names at the generic input boundary", async () => {
+    const root = await fixture();
+    const base = input(root);
+    const terminal = {
+      name: "finish_report",
+      description: "Signal completion.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    };
+
+    expect(() => CellInputSchema.parse({
+      ...base,
+      terminalTools: [terminal, terminal],
+    })).toThrow("duplicate terminal tool name: finish_report");
+  });
+
   test("settles an independent output and artifact after a caller-defined terminal tool", async () => {
     const root = await fixture();
     const base = input(root);
@@ -124,6 +139,34 @@ describe("Work Cell core", () => {
     expect(record.output).toEqual({ status: "ready" });
     expect(record.artifacts).toHaveLength(1);
     expect(record.verification).toMatchObject({ output: { passed: true }, artifacts: { passed: true } });
+  });
+
+  test("rejects multiple terminal calls returned by a generic driver", async () => {
+    const root = await fixture();
+    const base = input(root);
+    base.terminalTools = [
+      {
+        name: "approve",
+        description: "Approve the result.",
+        inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      },
+      {
+        name: "reject",
+        description: "Reject the result.",
+        inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      },
+    ];
+
+    const record = await runCell(base, new ContractDriver(false));
+
+    expect(record.status).toBe("protocol_error");
+    expect(record.error).toContain("expected exactly one declared terminal tool call; received 2");
+    expect(record.verification.terminal).toEqual({
+      passed: false,
+      required: ["approve", "reject"],
+      called: ["approve", "reject"],
+    });
+    expect(record.trace.some((event) => event.type === "terminal.contract.violation")).toBe(true);
   });
 
   test("rejects a terminal contract that leaves no final-output step", async () => {
@@ -190,6 +233,24 @@ describe("Work Cell core", () => {
 
     expect(record.status).toBe("cancelled");
     expect(record.durationMs).toBeLessThan(200);
+  });
+
+  test("settles cancellation even when a driver ignores the abort signal", async () => {
+    const root = await fixture();
+    const uncooperative: CellDriver = {
+      descriptor: { adapter: "uncooperative-test", provider: "deterministic", model: "fixture" },
+      async run() {
+        return new Promise<DriverResult>(() => {});
+      },
+    };
+    const base = input(root);
+    base.budget.maxDurationMs = 20;
+
+    const record = await runCell(base, uncooperative);
+
+    expect(record.status).toBe("cancelled");
+    expect(record.durationMs).toBeLessThan(200);
+    expect(record.error?.toLowerCase()).toContain("timed out");
   });
 
   test("retains work and execution references as an observation without treating them as a forecast", async () => {

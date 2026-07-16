@@ -4,6 +4,10 @@
 **Date:** 2026-07-13
 **Approved by:** principal
 
+Decision [031](031-extensible-work-cell-orchestration.md) later preserves this
+Swarm contract while moving its shared dispatch and settlement mechanics into
+the general orchestration runtime.
+
 ## Concrete need
 
 The activation-field experiment executed 256 independent model calls with
@@ -15,9 +19,11 @@ candidate field, and residual readout while the normal Work Cell CLI can start
 only one complete Cell at a time.
 
 The useful capability is not an activation field, committee, or creative
-method. A caller needs to release many already-defined Work Cells into one
-bounded Swarm and receive one retained result for every input without completion
-order changing identity or a failed Cell silently cancelling unrelated work.
+method. A caller or domain method first decomposes work that exceeds one Cell's
+stable operating scale into already-defined Cells. The runtime then needs to
+release those Cells under one bounded Swarm and return one retained result for
+every input without completion order changing identity or a failed Cell
+silently cancelling unrelated work.
 
 The strongest keep-as-is case is to leave concurrency inside each specialized
 adapter. That avoids a new surface, but it makes every adapter reimplement
@@ -61,6 +67,13 @@ intelligence. This capability belongs in `packages/work-cell`; it is not an
 installable Skill.
 Prompt, skills, tools, output schemas, and workspace policies continue to
 differentiate each Cell through the existing `CellInput` contract.
+
+The Swarm system controls scale in two distinct places. A domain method owns
+semantic decomposition so each Cell receives a coherent, locally verifiable
+unit of work; the runtime owns resource-scale control through bounded admission,
+failure isolation, and compact retained records. The runtime cannot infer a
+sound decomposition from file count or prompt text, so `runSwarm` still accepts
+only prepared Cells and never invents or splits them.
 
 Input, memory, and retained evidence are separate contracts. The external input
 has its own version and Zod schema. The in-memory run contains only execution

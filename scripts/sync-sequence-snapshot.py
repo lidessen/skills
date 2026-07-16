@@ -44,6 +44,7 @@ SNAPSHOT_SKILLS = (
     "strategic-advisory",
     "structural-refactoring",
     "visual-design",
+    "code-review",
 )
 FULL_INTERPRETATION_SKILLS = frozenset({"skill-engineering"})
 
