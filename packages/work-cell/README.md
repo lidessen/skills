@@ -165,9 +165,13 @@ Differentiate Cells primarily through their bounded intent, semantic packet,
 evidence surface, local acceptance question, and result contract. These fields
 shape what the Cell must notice without spending active context on a simulated
 personality. Add at most one compact attention bias only when a controlled probe
-shows that the local task needs it. A verbose role or "think harder" prompt can
-push the same packet outside its stable working envelope, while even a short
-label can redirect source order and worsen a mismatched authority judgment.
+shows that the local task needs it; semantic relevance alone is not evidence of
+need. A verbose role or "think harder" prompt can push the same packet outside
+its stable working envelope, while even a short label can redirect source order
+and worsen a mismatched authority judgment. A task-matched state-transition
+bias also tripled median use on an already stable packet without improving its
+judgment; see the
+[cross-project differentiation probe](../../regeneration/evaluations/2026-07-15-cross-project-cell-differentiation.md).
 Stability therefore belongs to the whole prepared Cell shape, not to the model
 name or token count alone; see the
 [stability and sparse-differentiation probe](../../regeneration/evaluations/2026-07-15-cell-stability-and-sparse-differentiation.md).
