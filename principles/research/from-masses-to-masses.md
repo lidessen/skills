@@ -1,6 +1,6 @@
 # Research — 从群众中来，到群众中去
 
-**Disposition:** open
+**Disposition:** no-proposal
 **Scope:** Determine whether “从群众中来，到群众中去” contributes a
 cross-context, decision-changing principle that cannot be reduced to the current
 practice, concrete-analysis, reconstruction, authority, and action-form P-IDs.
@@ -10,8 +10,10 @@ progressive adoption, admits feedback, and assigns control over returned tools.
 text mirror rather than an official facsimile. Official Party-constitution
 sources establish the continuing organizational formulation but do not by
 themselves prove transfer to AI engineering. Current project evidence is rich in
-internal agent probes but does not yet include a clean external adoption cycle
-with ordinary practitioners.
+internal agent probes and now includes a fixed external-project adoption
+comparison plus ordinary-entry replay. It still does not include an independent
+external practitioner community able to accept, refuse, fork, and modify the
+returned method over production work.
 
 > This record is cited, revisable research. It owns no P-ID, cannot redefine an
 > interpretation, and does not propose a Sequence change by itself.
@@ -191,7 +193,8 @@ Use one real progressive-adoption task in an external project with two
 predeclared treatments:
 
 ```text
-Baseline: P03, P05, P07, P11, and P16 only.
+Baseline: P03 with P05, P11, and P16 as supports. P07 remains a
+          research comparator rather than a fifth expression seat.
 Trial:    the same team plus the human-nominated alternate
           “从群众中来，到群众中去”.
 ```
@@ -211,6 +214,41 @@ additional interviews, marketing copy, more telemetry, or the same adoption
 design. Strengthen it only if it changes source selection, concentration,
 return, practitioner control, or the correction path in a way the existing team
 did not already require.
+
+## Completed trial evidence
+
+The [2026-07-16 progressive-adoption trial](../../regeneration/evaluations/2026-07-16-mass-line-progressive-adoption-trial.md)
+used `agent-worker` at fixed revision
+`594281210d856febc485d288188468d5d38ec3a8`. Two matched Cells received the
+same target, method packet, P03/P05/P11/P16 team, model, and acceptance
+contract. The treatment alone received the separately labelled mass-line
+hypothesis. The baseline recommended a removable trial of the target-facing
+`improve-agent-workflow` Skill; the treatment recommended no adoption. A
+randomized independent evaluator preferred the baseline and classified the
+alternate as `overlap`: the different recommendation did not add a distinct
+source, concentration, return, practitioner-control, or correction decision.
+
+The recommended downstream Skill was then tested against a recorded Agent
+priority error. Its matched audit localized the existing `attention-driven go`
+owner more precisely than the ordinary audit, but proposed an unconditional
+rule that a record's `Next` line should override the stable goal compass. The
+positive behavior probe exposed the missing distinction: the earlier retained
+record said the human must choose and merely recommended slice 2; a later
+record made the human correction and accepted path explicit.
+
+With the ambiguous earlier state, three unchanged ordinary-entry runs selected
+the monitor twice and returned the choice to the human once. With the corrected
+record state, the same unchanged ordinary path selected slice 2 and its
+substrate-cut blueprint in 3/3 runs. The proposed override would have risked
+turning a recommendation into approval; the existing path worked once source
+state and authority were explicit.
+
+This result is decision-changing for the inquiry but not in the candidate's
+favor. P03 required returning the diagnosis to action; P05 required separating
+the two concrete record states; P11 preserved the human decision boundary; P12
+carried the correction into later work; and P16 made the corrected record
+actionable at entry. The alternate made the social relation more vivid but did
+not change the final action beyond the existing Sequence and founding mandate.
 
 ## Strongest no-proposal case
 
@@ -247,13 +285,17 @@ candidate or reserve a P-ID.
 
 ## Disposition and next evidence
 
-**Disposition:** `open`
+**Disposition:** `no-proposal`
 
-The inquiry passes cross-context, compactness, and plausible
-decision-consequence checks. Irreducibility and admission cost remain open.
-Run the external progressive-adoption comparison above. Move to
-`candidate:from-masses-to-masses` only if the trial changes at least one of
-source selection, concentration, return form, practitioner control, or
-correction authority beyond the existing P-ID baseline. Conclude `no-proposal`
-if the existing team already makes those decisions or if the alternate produces
-only rhetorical emphasis.
+The inquiry passes cross-context and compactness checks, but the completed
+matched trial does not pass irreducibility or permanent-attention cost. Do not
+create `candidate:from-masses-to-masses`, reserve a P-ID, or change the
+Sequence. Keep progressive adoption, practitioner control, and explicit
+recommendation-versus-approval state as downstream expressions of the existing
+Sequence and founding mandate.
+
+Reopen research only from a later cross-context practice case in which the
+affected practitioners' control changes source selection, concentration,
+returned form, or correction authority after P03/P05/P07/P11/P12/P16 have been
+faithfully applied. An evocative restatement, additional interviews, popularity,
+or a different final recommendation remains insufficient.
