@@ -9,7 +9,7 @@
     "design/decisions/031-extensible-work-cell-orchestration.md"
   ],
   "createdAt": "2026-07-16T12:08:08Z",
-  "updatedAt": "2026-07-16T12:39:15Z",
+  "updatedAt": "2026-07-16T12:50:00Z",
   "mainline": {
     "contradiction": "The project can construct useful temporary source-linked models, but it cannot yet preserve and selectively refresh project cognition across tasks without creating a second canon or leaking domain semantics into Work Cell and Swarm.",
     "acceptance": [
@@ -18,6 +18,7 @@
       "One bounded revision delta invalidates and refreshes only affected packets while reconnecting cross-packet boundaries and reporting missed or uncertain impact.",
       "All cognition artifacts remain rebuildable, non-authoritative projections over named sources; no source, Work Cell core, Swarm kernel, or sibling project is mutated or made a dependency.",
       "The default cognition surface is a small index plus bounded question-owned shards; large run records remain referenced cold evidence and no monolithic integrated model is required for agent use.",
+      "A domain method and caller select each partition from the actual project, named decision, and cognition relations; Work Cell and Swarm retain only generic execution mechanics and no fixed decomposition taxonomy.",
       "The result produces a form decision or an explicit no-change disposition; it does not infer a Skill or runtime from model output alone."
     ],
     "status": "active"
