@@ -71,7 +71,6 @@ export function classifyOpenCodeGoFailure(
     || status === 402
     || status === 403
     || status === 408
-    || status === 409
     || status === 429
     || (status !== undefined && status >= 500)
   ) {

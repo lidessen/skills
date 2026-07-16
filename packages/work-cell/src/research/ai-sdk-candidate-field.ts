@@ -15,10 +15,10 @@ import {
   type SeedSelection,
 } from "./candidate-field";
 import type { CellUsage } from "../contracts";
+import { normalizeAiSdkUsage as normalizeUsage } from "../ai-sdk-usage";
 import {
   createValidationModel,
   validationProviderName,
-  validationProviderOptions,
   type ValidationModelOptions,
 } from "../validation-model";
 
@@ -76,7 +76,6 @@ export class AiSdkCandidateFieldDriver implements CandidateFieldDriver {
       maxOutputTokens: 500,
       temperature: 0.8,
       topP: 0.95,
-      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
     if (!this.seedRetriever) {
@@ -133,7 +132,6 @@ export class AiSdkCandidateFieldDriver implements CandidateFieldDriver {
       maxOutputTokens: 500,
       temperature: 0.75,
       topP: 0.95,
-      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
     const basis = evidence.length === activation.value.titleIds.length ? "retrieval" : "mixed";
@@ -189,7 +187,6 @@ export class AiSdkCandidateFieldDriver implements CandidateFieldDriver {
       maxOutputTokens: 120,
       temperature: 1.25,
       topP: 0.98,
-      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }
@@ -221,7 +218,6 @@ export class AiSdkCandidateFieldDriver implements CandidateFieldDriver {
       maxOutputTokens: 120,
       temperature: 1.3,
       topP: 0.98,
-      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }
@@ -254,7 +250,6 @@ export class AiSdkCandidateFieldDriver implements CandidateFieldDriver {
       maxOutputTokens: 900,
       temperature: 0.35,
       topP: 0.9,
-      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }
@@ -304,27 +299,6 @@ function fieldResult<T>(result: StructuredResult<T>, recoveredUsage: CellUsage, 
       providerMetadata: result.providerMetadata,
     },
   };
-}
-
-function normalizeUsage(usage: unknown, metadata: unknown): CellUsage {
-  const record = asRecord(usage);
-  const provider = asRecord(asRecord(metadata).deepseek);
-  const inputTokens = numberValue(record.inputTokens) || numberValue(record.promptTokens);
-  const outputTokens = numberValue(record.outputTokens) || numberValue(record.completionTokens);
-  return {
-    inputTokens,
-    outputTokens,
-    totalTokens: numberValue(record.totalTokens) || inputTokens + outputTokens,
-    cachedInputTokens: numberValue((record.inputTokenDetails as { cacheReadTokens?: unknown } | null | undefined)?.cacheReadTokens) || numberValue(provider.promptCacheHitTokens),
-  };
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? value as Record<string, unknown> : {};
-}
-
-function numberValue(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 function emptyUsage(): CellUsage {

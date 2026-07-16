@@ -4,7 +4,6 @@ import {
   createDeepSeekModel,
   DEEPSEEK_PROVIDER_ID,
   deepSeekFlashPricing,
-  deepSeekProviderOptions,
 } from "./providers/deepseek";
 import {
   classifyOpenCodeGoFailure,
@@ -15,8 +14,6 @@ import {
 
 const DEFAULT_MODEL = "deepseek-v4-flash";
 const VALIDATION_ROUTE_ID = "validation";
-
-export const validationProviderOptions = deepSeekProviderOptions;
 
 export interface ValidationModelOptions {
   deepSeekApiKey?: string;

@@ -1,9 +1,9 @@
 import { generateText, NoObjectGeneratedError, NoOutputGeneratedError, Output } from "ai";
 import type { CellUsage } from "../contracts";
+import { normalizeAiSdkUsage as normalizeUsage } from "../ai-sdk-usage";
 import {
   createValidationModel,
   validationProviderName,
-  validationProviderOptions,
   type ValidationModelOptions,
 } from "../validation-model";
 import { ActivationFieldDriverError, type FieldDriverResult } from "./activation-field";
@@ -56,7 +56,6 @@ export class AiSdkResidualReadoutDriver implements ResidualReadoutDriver {
       maxOutputTokens: 800,
       temperature: 0.45,
       topP: 0.9,
-      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }
@@ -87,7 +86,6 @@ export class AiSdkResidualReadoutDriver implements ResidualReadoutDriver {
       maxOutputTokens: 1_800,
       temperature: 0.9,
       topP: 0.95,
-      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }
@@ -117,7 +115,6 @@ export class AiSdkResidualReadoutDriver implements ResidualReadoutDriver {
       maxOutputTokens: 3_500,
       temperature: 0.75,
       topP: 0.92,
-      providerOptions: validationProviderOptions,
       ...(signal ? { abortSignal: signal } : {}),
     }));
   }
@@ -187,19 +184,6 @@ function fieldResult<T>(result: StructuredResult<T>, recoveredUsage: CellUsage, 
   };
 }
 
-function normalizeUsage(usage: unknown, metadata: unknown): CellUsage {
-  const record = asRecord(usage);
-  const provider = asRecord(asRecord(metadata).deepseek);
-  const inputTokens = numberValue(record.inputTokens) || numberValue(record.promptTokens);
-  const outputTokens = numberValue(record.outputTokens) || numberValue(record.completionTokens);
-  return {
-    inputTokens,
-    outputTokens,
-    totalTokens: numberValue(record.totalTokens) || inputTokens + outputTokens,
-    cachedInputTokens: numberValue((record.inputTokenDetails as { cacheReadTokens?: unknown } | null | undefined)?.cacheReadTokens) || numberValue(provider.promptCacheHitTokens),
-  };
-}
-
 function emptyUsage(): CellUsage {
   return { inputTokens: 0, outputTokens: 0, totalTokens: 0, cachedInputTokens: 0 };
 }
@@ -211,12 +195,4 @@ function addUsage(left: CellUsage, right: CellUsage): CellUsage {
     totalTokens: left.totalTokens + right.totalTokens,
     cachedInputTokens: left.cachedInputTokens + right.cachedInputTokens,
   };
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
-}
-
-function numberValue(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }

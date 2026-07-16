@@ -5,10 +5,11 @@ import { generateText, NoObjectGeneratedError, NoOutputGeneratedError, Output } 
 import { z } from "zod";
 import type { CandidateArtifact, CandidateFieldRecord } from "./candidate-field";
 import type { CellUsage } from "../contracts";
+import { normalizeAiSdkUsage as normalizeUsage } from "../ai-sdk-usage";
 import {
   createValidationModel,
   requireValidationCredentials,
-  validationProviderOptions,
+  validationProviderName,
 } from "../validation-model";
 
 (globalThis as typeof globalThis & { AI_SDK_LOG_WARNINGS?: boolean }).AI_SDK_LOG_WARNINGS = false;
@@ -133,7 +134,8 @@ async function main(args: string[]): Promise<void> {
   if (material.length === 0) throw new Error("candidate field contains no projection material");
   const snapshot = snapshotParts.join("\n\n");
   const modelId = "deepseek-v4-flash";
-  const model = createValidationModel({ model: modelId }).model;
+  const selection = createValidationModel({ model: modelId });
+  const model = selection.model;
   const startedAt = new Date();
   const relationProjection = await extractProjectionRelations({ model, snapshot, material });
   const [direct, projected] = await Promise.all([
@@ -163,7 +165,7 @@ async function main(args: string[]): Promise<void> {
     startedAt: startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),
     durationMs: finishedAt.getTime() - startedAt.getTime(),
-    driver: { provider: "deepseek", model: modelId },
+    driver: { provider: validationProviderName(selection), model: modelId },
     sourceEvidence,
     candidateField: {
       path: candidatePath,
@@ -236,7 +238,6 @@ async function generatePrivateNamingSet(input: {
     maxOutputTokens: 2_800,
     temperature: 0.78,
     topP: 0.92,
-    providerOptions: validationProviderOptions,
   }), "Keep disposition and candidates consistent: all-rejected requires an empty list, while candidates requires at least one item.");
 }
 
@@ -280,7 +281,6 @@ async function extractProjectionRelations(input: {
     maxOutputTokens: 1_800,
     temperature: 0.4,
     topP: 0.9,
-    providerOptions: validationProviderOptions,
   }), "Return an object with a relations array only; every retained relation requires relation, boundary, and one to four valid materialIndexes.");
   for (const relation of result.output.relations) {
     const invalid = relation.materialIndexes.filter((index) => index > input.material.length);
@@ -339,19 +339,6 @@ function seededRank(seed: string, group: string, id: string): string {
   return createHash("sha256").update(`${seed}:${group}:${id}`).digest("hex");
 }
 
-function normalizeUsage(usage: unknown, metadata: unknown): CellUsage {
-  const record = asRecord(usage);
-  const provider = asRecord(asRecord(metadata).deepseek);
-  const inputTokens = numberValue(record.inputTokens) || numberValue(record.promptTokens);
-  const outputTokens = numberValue(record.outputTokens) || numberValue(record.completionTokens);
-  return {
-    inputTokens,
-    outputTokens,
-    totalTokens: numberValue(record.totalTokens) || inputTokens + outputTokens,
-    cachedInputTokens: numberValue((record.inputTokenDetails as { cacheReadTokens?: unknown } | null | undefined)?.cacheReadTokens) || numberValue(provider.promptCacheHitTokens),
-  };
-}
-
 function addUsage(left: CellUsage, right: CellUsage): CellUsage {
   return {
     inputTokens: left.inputTokens + right.inputTokens,
@@ -363,12 +350,4 @@ function addUsage(left: CellUsage, right: CellUsage): CellUsage {
 
 function emptyUsage(): CellUsage {
   return { inputTokens: 0, outputTokens: 0, totalTokens: 0, cachedInputTokens: 0 };
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? value as Record<string, unknown> : {};
-}
-
-function numberValue(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }

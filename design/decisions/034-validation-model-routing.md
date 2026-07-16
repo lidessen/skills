@@ -121,7 +121,10 @@ or a second variation makes the boundary real.
 
 The retained [validation evaluation](../../regeneration/evaluations/2026-07-16-opencode-go-validation-routing.md)
 records deterministic failover and non-replay probes, the live terminal call,
-the live structured-output call, and the rejected native `json_schema` form.
+the live structured-output call, the rejected native `json_schema` form, and
+the independent review corrections. It also retains a large review-run estimate
+miss as an unresolved orchestration observation rather than hiding it behind the
+successful provider route.
 
 ## Sequence expression
 

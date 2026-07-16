@@ -1,9 +1,10 @@
 import { createDeepSeek, type DeepSeekLanguageModelOptions } from "@ai-sdk/deepseek";
 import type { LanguageModelV4 } from "@ai-sdk/provider";
+import { defaultSettingsMiddleware, wrapLanguageModel } from "ai";
 
 export const DEEPSEEK_PROVIDER_ID = "deepseek";
 
-export const deepSeekProviderOptions = {
+const deepSeekProviderOptions = {
   deepseek: {
     thinking: { type: "disabled" },
   } satisfies DeepSeekLanguageModelOptions,
@@ -26,5 +27,10 @@ export function createDeepSeekModel(options: {
     apiKey: options.apiKey,
     ...(options.baseURL ? { baseURL: options.baseURL } : {}),
   });
-  return provider(options.model);
+  return wrapLanguageModel({
+    model: provider(options.model),
+    middleware: defaultSettingsMiddleware({
+      settings: { providerOptions: deepSeekProviderOptions },
+    }),
+  });
 }

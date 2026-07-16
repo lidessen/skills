@@ -3,6 +3,7 @@ import { APICallError, type LanguageModelV4GenerateResult } from "@ai-sdk/provid
 import { generateText } from "ai";
 import { MockLanguageModelV4 } from "ai/test";
 import { createRoutedLanguageModel } from "../src/model-route";
+import { normalizeAiSdkUsage } from "../src/ai-sdk-usage";
 import {
   adaptOpenCodeGoRequestBody,
   classifyOpenCodeGoFailure,
@@ -175,6 +176,7 @@ test("the OpenCode adapter permits quota fallback but keeps an invalid request v
     reason: "quota_or_rate_limit",
   });
   expect(classifyOpenCodeGoFailure(apiError(400), {})).toBeUndefined();
+  expect(classifyOpenCodeGoFailure(apiError(409), {})).toBeUndefined();
 
   let fallbackCalls = 0;
   const primary = new MockLanguageModelV4({
@@ -201,6 +203,30 @@ test("the OpenCode adapter permits quota fallback but keeps an invalid request v
     maxRetries: 0,
   })).rejects.toThrow("allowance unavailable");
   expect(fallbackCalls).toBe(0);
+});
+
+test("usage normalization reads standard cache details before provider-neutral metadata fallback", () => {
+  expect(normalizeAiSdkUsage({
+    inputTokens: 100,
+    outputTokens: 10,
+    totalTokens: 110,
+    inputTokenDetails: { cacheReadTokens: 64 },
+  }, {
+    arbitraryProvider: { promptCacheHitTokens: 32 },
+  }).cachedInputTokens).toBe(64);
+
+  expect(normalizeAiSdkUsage({
+    promptTokens: 100,
+    completionTokens: 10,
+  }, {
+    arbitraryProvider: { promptCacheHitTokens: 32 },
+    workCellRoute: { servedBy: "arbitraryProvider" },
+  })).toEqual({
+    inputTokens: 100,
+    outputTokens: 10,
+    totalTokens: 110,
+    cachedInputTokens: 32,
+  });
 });
 
 function apiError(statusCode: number): APICallError {

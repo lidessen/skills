@@ -13,10 +13,10 @@ import {
 } from "./driver";
 // AI SDK and provider types remain confined to this adapter.
 import { compileOutputSchema } from "./output-schema";
+import { normalizeAiSdkUsage as normalizeUsage } from "./ai-sdk-usage";
 import {
   createValidationModel,
   validationProviderName,
-  validationProviderOptions,
   type ValidationModelOptions,
 } from "./validation-model";
 
@@ -109,7 +109,6 @@ export class AiSdkValidationDriver implements CellDriver {
         : {}),
       maxOutputTokens: 16_000,
       temperature: 0,
-      providerOptions: validationProviderOptions,
     });
     let observedUsage: CellUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0, cachedInputTokens: 0 };
     let closureUsage: CellUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0, cachedInputTokens: 0 };
@@ -185,7 +184,6 @@ export class AiSdkValidationDriver implements CellDriver {
         },
         maxOutputTokens: 4_000,
         temperature: 0,
-        providerOptions: validationProviderOptions,
       });
       try {
         closureResult = await closureAgent.generate({
@@ -453,20 +451,6 @@ function renderTaskPrompt(input: CellInput): string {
   ].join("\n\n");
 }
 
-function normalizeUsage(usage: unknown, metadata: unknown): CellUsage {
-  const record = asRecord(usage);
-  const provider = asRecord(asRecord(metadata).deepseek);
-  const inputTokens = numberValue(record.inputTokens);
-  const outputTokens = numberValue(record.outputTokens);
-  return {
-    inputTokens,
-    outputTokens,
-    totalTokens: numberValue(record.totalTokens) || inputTokens + outputTokens,
-    cachedInputTokens:
-      numberValue((record.inputTokenDetails as { cacheReadTokens?: unknown } | null | undefined)?.cacheReadTokens) || numberValue(provider.promptCacheHitTokens),
-  };
-}
-
 function addUsage(left: CellUsage, right: CellUsage): CellUsage {
   return {
     inputTokens: left.inputTokens + right.inputTokens,
@@ -478,10 +462,6 @@ function addUsage(left: CellUsage, right: CellUsage): CellUsage {
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-function numberValue(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 function sanitize(value: unknown): unknown {

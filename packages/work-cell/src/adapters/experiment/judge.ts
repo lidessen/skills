@@ -1,7 +1,8 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import type { CellUsage } from "../../contracts";
-import { createValidationModel, validationProviderOptions, type ValidationModelOptions } from "../../validation-model";
+import { normalizeAiSdkUsage as normalizeUsage } from "../../ai-sdk-usage";
+import { createValidationModel, type ValidationModelOptions } from "../../validation-model";
 
 export const BlindJudgementSchema = z.object({
   preferred: z.enum(["A", "B", "tie", "inconclusive"]),
@@ -89,13 +90,12 @@ export class AiSdkValidationJudge implements ComparisonJudge {
       ),
       temperature: 0,
       maxOutputTokens: 4_000,
-      providerOptions: validationProviderOptions,
       ...(request.signal ? { abortSignal: request.signal } : {}),
     });
     if (!result.output) throw new Error("judge returned no structured output");
     return {
       judgement: BlindJudgementSchema.parse(result.output),
-      usage: normalizeUsage(result.totalUsage),
+      usage: normalizeUsage(result.totalUsage, result.providerMetadata),
       raw: {
         text: result.text,
         providerMetadata: result.providerMetadata,
@@ -103,20 +103,4 @@ export class AiSdkValidationJudge implements ComparisonJudge {
       },
     };
   }
-}
-
-function normalizeUsage(value: unknown): CellUsage {
-  const record = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-  const inputTokens = numberValue(record.inputTokens);
-  const outputTokens = numberValue(record.outputTokens);
-  return {
-    inputTokens,
-    outputTokens,
-    totalTokens: numberValue(record.totalTokens) || inputTokens + outputTokens,
-    cachedInputTokens: numberValue((record.inputTokenDetails as { cacheReadTokens?: unknown } | null | undefined)?.cacheReadTokens),
-  };
-}
-
-function numberValue(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }

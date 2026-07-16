@@ -23,6 +23,10 @@ export interface ModelRoute {
   targets: readonly [ModelRouteTarget, ...ModelRouteTarget[]];
 }
 
+/**
+ * Routes non-streaming generate calls. Streaming is rejected explicitly because
+ * switching providers after partial output would duplicate or splice effects.
+ */
 export function createRoutedLanguageModel(route: ModelRoute): LanguageModelV4 {
   assertRoute(route);
   const [primary] = route.targets;
