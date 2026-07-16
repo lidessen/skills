@@ -7,7 +7,7 @@
     "design/decisions/027-general-work-cell-core-and-sequence-adapter.md"
   ],
   "createdAt": "2026-07-15T17:32:13Z",
-  "updatedAt": "2026-07-16T02:01:15Z",
+  "updatedAt": "2026-07-16T12:08:08Z",
   "mainline": {
     "contradiction": "The generic Cell executes well in isolation, but execution modes beyond the fixed Swarm would duplicate scheduling, settlement, and evidence logic or leak orchestration vocabulary into CellInput.",
     "acceptance": [
@@ -16,7 +16,12 @@
       "Raw CellRunRecord and orchestration events remain sources while indexes, summaries, and queue views are rebuildable projections.",
       "The current Swarm public behavior remains verified after the smallest kernel extraction."
     ],
-    "status": "active"
+    "status": "settled",
+    "closureSources": [
+      "https://github.com/lidessen/skills/pull/21",
+      "design/decisions/031-extensible-work-cell-orchestration.md",
+      "regeneration/evaluations/2026-07-15-work-cell-orchestration-independent-review.md"
+    ]
   },
   "branches": [
     {
