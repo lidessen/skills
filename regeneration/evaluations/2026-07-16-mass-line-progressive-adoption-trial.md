@@ -151,7 +151,7 @@ owner model in the matched audit. It did not earn mandatory or default use, and
 its first action recommendation did not survive behavior testing. Retain its
 current role as an optional diagnostic entry when the owner is unclear; verify
 through the target's ordinary path before changing the owner. This is consistent
-with its accepted [smallest-form decision](../../design/decisions/030-improve-agent-workflow.md#smallest-truthful-form).
+with its accepted [smallest-form decision](../../design/decisions/030-improve-agent-workflow.md#decision).
 
 ### Project-form lesson
 
