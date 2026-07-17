@@ -1,18 +1,23 @@
 ---
 name: agent-environment
 description: >-
-  Set up, audit, reconcile, verify, or migrate any bounded part of a person's
-  user-level coding-agent environment, from selected skills or harness guidance
-  through complete tool runtimes such as Codex, Cursor, and Claude Code.
+  Fail closed when a selected user-level agent capability has no declared
+  source: return `NEEDS_INPUT` before lookup, inventory, or planning. Set up,
+  audit, reconcile, verify, or migrate any bounded part of a person's coding
+  agent environment, from selected skills or harness guidance through complete
+  tool runtimes such as Codex, Cursor, and Claude Code.
   Use for "set up my agents on this machine", "migrate my AI coding setup",
   "新设备配置 Codex/Cursor/Claude Code", "update my global agent workflow",
   "同步我的 agent skills and rules", or
   when personal instructions, skills, plugins, MCP servers, hooks, permissions,
   tool installation, and authentication prerequisites must be reconstructed or
   evolved safely. A setup request does not imply installing CLI tools or
-  configuring providers unless those capabilities are actually required. Do
-  not use for project-local agent workflow design, fleet policy, copying
-  sessions/caches, or ordinary dotfiles unrelated to agent work.
+  configuring providers unless those capabilities are actually required. A
+  setup request never authorizes marketplace discovery by itself. When the
+  human already names the capability to set up, use this Skill instead of a
+  marketplace-discovery skill even if its source is missing. Do not use for
+  project-local agent workflow design, fleet policy, copying sessions/caches,
+  or ordinary dotfiles unrelated to agent work.
 ---
 
 # Agent Environment
@@ -50,6 +55,13 @@ Otherwise use this Skill's read-only fallback in `references/sequence.md`.
 Read only P12, P14, P16, and P15.
 
 ## Dispatch
+
+Before dispatch or inspection, apply this source gate: when setup names a
+selected capability but supplies no desired source or source locator, return a
+plain final response with status `NEEDS_INPUT` and one scoped request for that
+source. This is not an interactive-question tool call. Stop without listing or
+reading skills, inventorying either device, consulting vendor material, or
+forming a conditional installation plan.
 
 - With `audit`, read and follow `commands/audit.md`.
 - With `setup`, read and follow `commands/setup.md`.
@@ -92,6 +104,14 @@ identifiers.
    state. Resolve the target harness from the request or active runtime only
    when a projection needs one. If the target is missing and would change the
    action, ask one scoped question; do not scan installed tools to guess it.
+   Resolve a selected capability's desired source through the pre-dispatch
+   source gate. Enter marketplace discovery only after an explicit request.
+   For every projection, name its material ordinary-use benefit and added
+   burden; preserve the unchanged environment when the gain is not material.
+   Keep user scope thin: concise nearly-universal agreements, source locators,
+   and native discovery of already-selected on-demand capabilities. A named
+   capability is setup data, not an instruction to invoke it or install its
+   target harness.
 2. **Inventory through supported surfaces.** Inspect only what the selected
    capability can depend on. A skill setup may need source, installer, and
    discovery evidence; a harness setup may add instructions, plugins, MCP,
@@ -103,7 +123,10 @@ identifiers.
    and skill identity are sufficient unless compatibility or safety depends on
    its content; do not fetch or load the skill body merely to plan an
    installer-managed projection. Use official status or diagnostics commands
-   when available.
+   when available. Treat the declared target device as the object; the active
+   host running this Skill is not the target unless the human says so. When the
+   target is another or hypothetical device and no target access is supplied,
+   plan from declared facts and leave target observations unresolved.
 3. **Classify every item.** Assign `desired source`, `tool projection`, `secret
    prerequisite`, `machine-local state`, `local override`, or `unknown`. Unknown
    and conflicting items block automatic copying; they do not become portable
@@ -120,8 +143,14 @@ identifiers.
    of [tool surfaces](references/tool-surfaces.md), then verify the current
    official path and precedence. Prefer a supported import, installer, settings
    command, or structural merge over editing undocumented application stores.
+   Choose an installation mechanism only after the desired source and selection
+   are known. An installer's catalog or marketplace cannot supply missing setup
+   intent.
    If current documentation, runtime help, or diagnostics are unavailable, name
    the lookup/manual action; never invent an exact command or configuration key.
+   Treat discoverable vendor mechanics as `lookup-required`, not as missing
+   human intent; ask the human only for a choice, authority boundary, or source
+   that investigation cannot determine.
    Every exact command or key in a plan or receipt must carry the official page,
    inspected `--help`, or runtime diagnostic that admitted it in this activation.
    Words such as `example`, `equivalent`, or `likely` do not bypass this gate.
@@ -143,7 +172,11 @@ identifiers.
    harmless behavior probe per selected capability. A copied file is not proof
    that the intended agent or runtime loaded it. Confirm an adjacent unselected
    surface was not changed and preserve one relevant unmanaged item as boundary
-   evidence.
+   evidence. Also confirm that the selected projection improved its named action
+   without adding an unnecessary always-on instruction, runtime, updater, or
+   duplicate source. When marketplace discovery is a live competing trigger,
+   repeat the raw setup request through the ordinary classifier with the actual
+   installed skill set; do not name this Skill or disclose the expected route.
 10. **Return a reconciliation receipt.** Report applied, preserved, deferred,
    unsupported, and failed items; source revision; target/tool versions;
    rollback locations; manual authorization still required; and observations
@@ -175,6 +208,15 @@ identifiers.
 - Do not make full runtime installation the implicit meaning of setup. A
   skill-only or harness-only setup is complete when its declared capability and
   boundary probes pass; unselected surfaces are out of scope, not failures.
+- Do not add a projection merely for cross-tool symmetry. Prefer each harness's
+  smallest native, on-demand surface; leave an already sufficient environment
+  unchanged rather than manufacturing setup parity.
+- Do not turn user scope into an always-on control plane. A user-level setup is
+  thin by default; move project truth and specialized behavior to the narrower
+  project or on-demand surface that owns it.
+- Do not turn setup into third-party capability discovery. Marketplace search
+  is eligible only when the human explicitly asks to discover or compare
+  candidates; it never fills a missing source in an otherwise selected setup.
 - Do not make a generated tool configuration bidirectionally authoritative.
   Adopt a tool-local improvement into the workflow source explicitly, then
   project it outward in a later reconciliation.
@@ -191,7 +233,9 @@ An environment setup, update, or migration is ready only when its declared
 scope, desired source or source locator, and human owner are explicit; every
 in-scope item has a state classification; secrets and local state remain outside
 the desired source; existing target content has a rollback path; each selected
-capability passes an ordinary-use verification or is visibly deferred; and the
-receipt states residual manual work. When a portable profile is actually used,
+capability passes an ordinary-use verification or is visibly deferred; every
+applied projection has a named material benefit and bounded burden; and the
+receipt states residual manual work and deliberate no-ops. When a portable
+profile is actually used,
 source and target drift must be distinguished, and the profile must remain
 updatable without copying opaque vendor state or overwriting target differences.

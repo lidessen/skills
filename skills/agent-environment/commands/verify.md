@@ -18,7 +18,26 @@ ordinary use surfaces and preserve their safety boundaries.
 4. Run boundary probes appropriate to the selected scope: confirm one adjacent
    unselected capability was not changed and one relevant unmanaged item was
    preserved. When cross-tool translation is in scope, keep an unsupported
-   setting visible rather than silently translating it.
+   setting visible rather than silently translating it. For a skill setup,
+   confirm that the declared source was used—or that execution stopped for a
+   missing source—and that no marketplace candidate silently became desired
+   state. For every applied projection, compare the named recurring action with
+   the unchanged case and identify any new always-on context, dependency,
+   updater, duplicate source, or maintenance obligation. A projection with no
+   observable material gain is `repair`, not successful parity. At user scope,
+   also classify project-specific truth or specialized behavior as misplaced
+   unless an explicit recurring cross-project need justifies it.
+   If the target harness was not installed within the declared scope, report
+   ordinary-use verification as deferred rather than broadening setup to
+   install the runtime.
+   When an installed capability-discovery skill can match the same raw request,
+   run one classifier-level boundary probe with the actual installed skill set.
+   Do not name `agent-environment`, forbid search in the prompt, or reveal the
+   expected route. Treat marketplace activity before source input as a failed
+   setup boundary even if a later step recovers. Also fail the boundary if the
+   run inventories the active host after the raw task declares a different or
+   hypothetical target, or performs any lookup before returning `NEEDS_INPUT`
+   for a missing selected source.
 5. Compare observations with the declared source and, when present, its profile
    and reconciliation ledger. Classify every in-scope requirement as
    `supported`, `repair`, `manual`, `unsupported`, or `not-tested`; include the

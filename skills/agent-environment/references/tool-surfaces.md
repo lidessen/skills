@@ -6,6 +6,12 @@ permission, open the linked official documentation and compare it with the
 installed version's diagnostics. Record the observed version in the migration
 receipt.
 
+Across harnesses, prefer an on-demand skill for a reusable procedure or body of
+methodology. Reserve always-on personal instructions or rules for a small
+working agreement that truly applies to nearly every task. Do not project the
+same method into both surfaces merely to make tools look alike: that spends
+context, creates two update paths, and makes precedence harder to observe.
+
 ## Codex
 
 - [Codex configuration basics](https://learn.chatgpt.com/docs/config-file/config-basic)
@@ -73,3 +79,9 @@ only record of provenance. Inspect the target CLI's current help before
 execution and retain that output as command evidence. This bundled reference
 deliberately carries no update, list, install, remove, or verification command:
 those verbs, flags, and scopes belong to the target version's observed surface.
+
+This installation path applies only after the desired source and skill
+selection are known. The CLI's marketplace or catalog search is a separate
+capability-discovery surface: use it only when the human explicitly asks to
+discover or compare candidates. A setup request with a missing source must ask
+for that source rather than searching for substitutes.
