@@ -1,4 +1,4 @@
-import { Output, ToolLoopAgent, hasToolCall, isStepCount, tool } from "ai";
+import { Output, ToolLoopAgent, isStepCount, tool } from "ai";
 import { z } from "zod";
 import {
   type CellInput,
@@ -16,6 +16,7 @@ import { compileOutputSchema } from "./output-schema";
 import { normalizeAiSdkUsage as normalizeUsage } from "./ai-sdk-usage";
 import {
   createValidationModel,
+  validationModelName,
   validationProviderName,
   type ValidationModelOptions,
 } from "./validation-model";
@@ -29,19 +30,20 @@ const EXECUTION_TOOL_NAMES = new Set([
   "run_command",
 ]);
 
+const MAX_AGENT_OUTPUT_TOKENS = 16_000;
+
 export class AiSdkValidationDriver implements CellDriver {
   readonly descriptor: DriverDescriptor;
   protected readonly model;
 
   constructor(options: AiSdkDriverOptions = {}) {
-    const modelId = options.model ?? "deepseek-v4-flash";
     const selection = createValidationModel(options);
     this.model = selection.model;
     this.descriptor = {
       adapter: "ai-sdk-v7",
       provider: validationProviderName(selection),
-      model: modelId,
-      pricing: selection.pricing,
+      model: validationModelName(selection),
+      ...(selection.pricing ? { pricing: selection.pricing } : {}),
     };
   }
 
@@ -72,12 +74,13 @@ export class AiSdkValidationDriver implements CellDriver {
     );
     const terminalNames = input.terminalTools?.map((terminal) => terminal.name) ?? [];
     const terminalSatisfied = () => terminalNames.some((name) => terminalToolsCalled.has(name));
+    const stopAfterAcceptedTerminal = () => terminalSatisfied();
     const executionAgent = new ToolLoopAgent({
       model: this.model,
       instructions: renderExecutionInstructions(input),
       tools,
       stopWhen: terminalNames.length > 0 && !outputSchema
-        ? [isStepCount(input.budget.maxSteps), hasToolCall(...terminalNames)]
+        ? [isStepCount(input.budget.maxSteps), stopAfterAcceptedTerminal]
         : isStepCount(input.budget.maxSteps),
       ...(outputSchema ? { output: Output.object({ schema: outputSchema.forAiSdk() }) } : {}),
       ...(input.terminalTools?.length
@@ -107,7 +110,7 @@ export class AiSdkValidationDriver implements CellDriver {
             },
           }
         : {}),
-      maxOutputTokens: 16_000,
+      maxOutputTokens: MAX_AGENT_OUTPUT_TOKENS,
       temperature: 0,
     });
     let observedUsage: CellUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0, cachedInputTokens: 0 };
@@ -165,24 +168,24 @@ export class AiSdkValidationDriver implements CellDriver {
         ].join("\n"),
         tools: closureTools,
         stopWhen: outputSchema
-          ? isStepCount(2)
-          : [isStepCount(2), hasToolCall(...terminalNames)],
+          ? isStepCount(3)
+          : [isStepCount(2), stopAfterAcceptedTerminal],
         ...(outputSchema ? { output: Output.object({ schema: outputSchema.forAiSdk() }) } : {}),
-        prepareStep: ({ stepNumber }) => {
+        prepareStep: () => {
           if (terminalSatisfied()) {
             terminalOnly = true;
             return finalOutputStep(input);
           }
-          if (stepNumber === 0) {
-            terminalOnly = true;
-            return {
-              activeTools: terminalNames,
-              toolChoice: terminalToolChoice(terminalNames) as never,
-            };
-          }
-          return undefined;
+          terminalOnly = true;
+          return {
+            activeTools: terminalNames,
+            toolChoice: terminalToolChoice(terminalNames) as never,
+          };
         },
-        maxOutputTokens: 4_000,
+        // Recovery must be able to emit every terminal payload admitted by the
+        // main loop. A smaller provider limit can truncate otherwise valid tool
+        // input before Work Cell gets a chance to verify it.
+        maxOutputTokens: MAX_AGENT_OUTPUT_TOKENS,
         temperature: 0,
       });
       try {

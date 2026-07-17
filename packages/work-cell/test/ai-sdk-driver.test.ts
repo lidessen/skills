@@ -12,24 +12,38 @@ import type { SeedMaterialRetriever } from "../src/research/candidate-field";
 import { runCell } from "../src/run-cell";
 
 const roots: string[] = [];
+const explicitDeepSeekRoute = () => [{
+  provider: "deepseek" as const,
+  credential: { source: "env" as const, name: "DEEPSEEK_TEST_KEY" },
+}];
 
 afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
-test("recovers a natural finish without a terminal tool when provider metadata is absent", async () => {
+test("retries an invalid terminal payload during recovery before settlement", async () => {
   const root = await fixture();
   let calls = 0;
   const model = new MockLanguageModelV3({
     doGenerate: async () => {
       calls += 1;
       if (calls === 1) return response([{ type: "text", text: "Main response stopped before terminal." }], "stop");
-      if (calls === 2) return response([{ type: "tool-call", toolCallId: "terminal", toolName: "finish_review", input: "{}" }], "tool-calls");
-      if (calls === 3) return response([], "stop");
+      if (calls === 2) return response([{
+        type: "tool-call",
+        toolCallId: "invalid-terminal",
+        toolName: "finish_review",
+        input: JSON.stringify({ verdict: "maybe" }),
+      }], "tool-calls");
+      if (calls === 3) return response([{
+        type: "tool-call",
+        toolCallId: "valid-terminal",
+        toolName: "finish_review",
+        input: JSON.stringify({ verdict: "ready" }),
+      }], "tool-calls");
       throw new Error(`unexpected mock call ${calls}`);
     },
   });
-  const driver = new AiSdkValidationDriver({ deepSeekApiKey: "not-used", model: "mock-recovery" });
+  const driver = new AiSdkValidationDriver({ route: explicitDeepSeekRoute(), deepSeekApiKey: "not-used", model: "mock-recovery" });
   // The adapter owns the model handle; the mock replaces only the provider edge.
   Object.defineProperty(driver, "model", { value: model });
 
@@ -44,7 +58,12 @@ test("recovers a natural finish without a terminal tool when provider metadata i
     terminalTools: [{
       name: "finish_review",
       description: "Signal review completion.",
-      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      inputSchema: {
+        type: "object",
+        properties: { verdict: { type: "string", enum: ["ready"] } },
+        required: ["verdict"],
+        additionalProperties: false,
+      },
     }],
     budget: { maxSteps: 4, estimatedTokens: 1_000, maxDurationMs: 10_000, maxCommandOutputBytes: 4_000 },
   }, driver);
@@ -56,7 +75,7 @@ test("recovers a natural finish without a terminal tool when provider metadata i
     performance: expect.objectContaining({ stepTimeMs: expect.any(Number) }),
   });
   expect(record.finalText).toContain("Terminal contract satisfied during recovery");
-  expect(calls).toBe(2);
+  expect(calls).toBe(3);
 });
 
 test("forces the sole terminal tool before the step limit and blocks late ordinary actions", async () => {
@@ -86,7 +105,7 @@ test("forces the sole terminal tool before the step limit and blocks late ordina
       throw new Error(`unexpected mock call ${calls}`);
     },
   });
-  const driver = new AiSdkValidationDriver({ deepSeekApiKey: "not-used", model: "mock-terminal-action" });
+  const driver = new AiSdkValidationDriver({ route: explicitDeepSeekRoute(), deepSeekApiKey: "not-used", model: "mock-terminal-action" });
   Object.defineProperty(driver, "model", { value: model });
 
   const record = await runCell({
@@ -157,6 +176,7 @@ test("falls back inside one agent loop without replaying an earlier tool action"
     },
   });
   const driver = new AiSdkValidationDriver({
+    route: explicitDeepSeekRoute(),
     deepSeekApiKey: "not-used",
     opencodeApiKey: "not-used",
     model: "mock-failover",
@@ -231,6 +251,7 @@ test("retains provider-metadata cache usage when a later model step fails", asyn
     },
   });
   const driver = new AiSdkValidationDriver({
+    route: explicitDeepSeekRoute(),
     deepSeekApiKey: "not-used",
     model: "mock-provider-metadata-usage",
   });
@@ -287,7 +308,7 @@ test("terminal recovery preserves successful evidence after a provider repeats a
       throw new Error(`unexpected mock call ${calls}`);
     },
   });
-  const driver = new AiSdkValidationDriver({ deepSeekApiKey: "not-used", model: "mock-late-action-recovery" });
+  const driver = new AiSdkValidationDriver({ route: explicitDeepSeekRoute(), deepSeekApiKey: "not-used", model: "mock-late-action-recovery" });
   Object.defineProperty(driver, "model", { value: model });
 
   const record = await runCell({
@@ -332,7 +353,7 @@ test("rejects more than one terminal tool call", async () => {
       { type: "tool-call", toolCallId: "second", toolName: "reject", input: "{}" },
     ], "tool-calls"),
   });
-  const driver = new AiSdkValidationDriver({ deepSeekApiKey: "not-used", model: "mock-terminal-one-of" });
+  const driver = new AiSdkValidationDriver({ route: explicitDeepSeekRoute(), deepSeekApiKey: "not-used", model: "mock-terminal-one-of" });
   Object.defineProperty(driver, "model", { value: model });
 
   const record = await runCell({
@@ -364,7 +385,7 @@ test("rejects terminal tools that collide with AI SDK execution tools before mod
       throw new Error("model dispatch should not occur");
     },
   });
-  const driver = new AiSdkValidationDriver({ deepSeekApiKey: "not-used", model: "mock-terminal-collision" });
+  const driver = new AiSdkValidationDriver({ route: explicitDeepSeekRoute(), deepSeekApiKey: "not-used", model: "mock-terminal-collision" });
   Object.defineProperty(driver, "model", { value: model });
 
   const record = await runCell({
@@ -411,7 +432,7 @@ test("stops the main loop after one structured output step following a terminal 
       throw new Error(`unexpected extra main-loop call ${calls}`);
     },
   });
-  const driver = new AiSdkValidationDriver({ deepSeekApiKey: "not-used", model: "mock-main-output" });
+  const driver = new AiSdkValidationDriver({ route: explicitDeepSeekRoute(), deepSeekApiKey: "not-used", model: "mock-main-output" });
   Object.defineProperty(driver, "model", { value: model });
 
   const record = await runCell({
@@ -446,9 +467,11 @@ test("recovers structured output after a terminal tool and retains all usage", a
   const root = await fixture();
   let calls = 0;
   let recoveryPrompt: unknown;
+  const outputLimits: Array<number | undefined> = [];
   const model = new MockLanguageModelV3({
     doGenerate: async (options) => {
       calls += 1;
+      outputLimits.push(options.maxOutputTokens);
       if (calls <= 4) return response([{
         type: "tool-call",
         toolCallId: `read-${calls}`,
@@ -457,13 +480,24 @@ test("recovers structured output after a terminal tool and retains all usage", a
       }], "tool-calls");
       if (calls === 5) {
         recoveryPrompt = options.prompt;
-        return response([{ type: "tool-call", toolCallId: "terminal", toolName: "submit_review", input: "{}" }], "tool-calls");
+        return response([{
+          type: "tool-call",
+          toolCallId: "invalid-terminal",
+          toolName: "submit_review",
+          input: JSON.stringify({ unexpected: true }),
+        }], "tool-calls");
       }
-      if (calls === 6) return response([{ type: "text", text: JSON.stringify({ recommendation: "hold", reason: "One boundary remains unverified." }) }], "stop");
+      if (calls === 6) return response([{
+        type: "tool-call",
+        toolCallId: "valid-terminal",
+        toolName: "submit_review",
+        input: "{}",
+      }], "tool-calls");
+      if (calls === 7) return response([{ type: "text", text: JSON.stringify({ recommendation: "hold", reason: "One boundary remains unverified." }) }], "stop");
       throw new Error(`unexpected mock call ${calls}`);
     },
   });
-  const driver = new AiSdkValidationDriver({ deepSeekApiKey: "not-used", model: "mock-structured-recovery" });
+  const driver = new AiSdkValidationDriver({ route: explicitDeepSeekRoute(), deepSeekApiKey: "not-used", model: "mock-structured-recovery" });
   Object.defineProperty(driver, "model", { value: model });
 
   const record = await runCell({
@@ -498,10 +532,11 @@ test("recovers structured output after a terminal tool and retains all usage", a
     terminal: { passed: true, called: ["submit_review"] },
     output: { passed: true },
   });
-  expect(record.usage).toEqual({ inputTokens: 6, outputTokens: 6, totalTokens: 12, cachedInputTokens: 0 });
+  expect(record.usage).toEqual({ inputTokens: 7, outputTokens: 7, totalTokens: 14, cachedInputTokens: 0 });
   expect(JSON.stringify(recoveryPrompt)).toContain("read_file");
   expect(JSON.stringify(recoveryPrompt)).toContain("principles/SEQUENCE.md");
-  expect(calls).toBe(6);
+  expect(outputLimits).toEqual(Array(7).fill(16_000));
+  expect(calls).toBe(7);
 });
 
 test("activation adapter retries one malformed structured impulse and retains its usage", async () => {
@@ -519,7 +554,7 @@ test("activation adapter retries one malformed structured impulse and retains it
       throw new Error(`unexpected mock call ${calls}`);
     },
   });
-  const driver = new AiSdkActivationFieldDriver({ deepSeekApiKey: "not-used", model: "mock-activation-recovery" });
+  const driver = new AiSdkActivationFieldDriver({ route: explicitDeepSeekRoute(), deepSeekApiKey: "not-used", model: "mock-activation-recovery" });
   Object.defineProperty(driver, "model", { value: model });
 
   const result = await driver.activate({
@@ -545,7 +580,7 @@ test("candidate adapter recovers one malformed artifact without losing observed 
       throw new Error(`unexpected mock call ${calls}`);
     },
   });
-  const driver = new AiSdkCandidateFieldDriver({ deepSeekApiKey: "not-used", model: "mock-candidate-recovery" });
+  const driver = new AiSdkCandidateFieldDriver({ route: explicitDeepSeekRoute(), deepSeekApiKey: "not-used", model: "mock-candidate-recovery" });
   Object.defineProperty(driver, "model", { value: model });
 
   const result = await driver.emit({
@@ -591,7 +626,7 @@ test("candidate adapter grounds a selected title in injected runtime evidence", 
       };
     },
   };
-  const driver = new AiSdkCandidateFieldDriver({ deepSeekApiKey: "not-used", model: "mock-retrieval", seedRetriever });
+  const driver = new AiSdkCandidateFieldDriver({ route: explicitDeepSeekRoute(), deepSeekApiKey: "not-used", model: "mock-retrieval", seedRetriever });
   Object.defineProperty(driver, "model", { value: model });
 
   const result = await driver.retrieve({
