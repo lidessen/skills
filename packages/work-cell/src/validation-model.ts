@@ -6,6 +6,7 @@ import {
   type ProviderRouteTarget,
 } from "./provider-profile";
 import {
+  classifyDeepSeekFailure,
   createDeepSeekModel,
   DEEPSEEK_PROVIDER_ID,
   deepSeekFlashPricing,
@@ -105,6 +106,7 @@ export function createValidationModel(
           model: target.model,
           ...(target.baseURL ? { baseURL: target.baseURL } : {}),
         }),
+        fallbackOn: classifyDeepSeekFailure,
       });
     }
     models.push(target.model);

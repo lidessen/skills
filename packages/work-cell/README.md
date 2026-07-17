@@ -399,9 +399,11 @@ by that route. The default profile is
 `$XDG_CONFIG_HOME/work-cell/providers.json` (or
 `~/.config/work-cell/providers.json`); `WORK_CELL_PROVIDER_PROFILE` can select
 another file. Credential discovery never creates this profile. Kimi uses
-`kimi-for-coding` by default; callers
-may explicitly select another model admitted by their membership through the
-profile's model field. The runtime reacts to provider responses rather than
+`kimi-for-coding` by default; callers may explicitly select another model
+admitted by their membership through the profile's model field. The current
+`provider configure` command selects and orders providers only, so a non-default
+model is set by directly editing that strict, non-secret profile. The runtime
+reacts to provider responses rather than
 mirroring remote allowance counters. To use one provider directly, configure a
 one-target route; merely setting one key does not authorize it.
 

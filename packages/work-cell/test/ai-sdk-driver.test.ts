@@ -452,9 +452,11 @@ test("recovers structured output after a terminal tool and retains all usage", a
   const root = await fixture();
   let calls = 0;
   let recoveryPrompt: unknown;
+  const outputLimits: Array<number | undefined> = [];
   const model = new MockLanguageModelV3({
     doGenerate: async (options) => {
       calls += 1;
+      outputLimits.push(options.maxOutputTokens);
       if (calls <= 4) return response([{
         type: "tool-call",
         toolCallId: `read-${calls}`,
@@ -507,6 +509,7 @@ test("recovers structured output after a terminal tool and retains all usage", a
   expect(record.usage).toEqual({ inputTokens: 6, outputTokens: 6, totalTokens: 12, cachedInputTokens: 0 });
   expect(JSON.stringify(recoveryPrompt)).toContain("read_file");
   expect(JSON.stringify(recoveryPrompt)).toContain("principles/SEQUENCE.md");
+  expect(outputLimits).toEqual(Array(6).fill(16_000));
   expect(calls).toBe(6);
 });
 

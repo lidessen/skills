@@ -19,6 +19,7 @@ import {
   classifyKimiCodingFailure,
   createKimiCodingModel,
 } from "../src/providers/kimi-coding";
+import { classifyDeepSeekFailure } from "../src/providers/deepseek";
 import {
   createValidationModel,
   validationModelName,
@@ -198,7 +199,7 @@ test("Kimi plan exhaustion can fall through but request-shape defects remain vis
   expect(classifyKimiCodingFailure(apiError(429), {})).toEqual({
     reason: "quota_or_rate_limit",
   });
-  expect(classifyKimiCodingFailure(apiError(400), {})).toBeUndefined();
+  expect(classifyKimiCodingFailure(apiError(400, true), {})).toBeUndefined();
   expect(classifyKimiCodingFailure(apiError(404), {})).toBeUndefined();
 });
 
@@ -389,7 +390,7 @@ test("the OpenCode adapter permits quota fallback but keeps an invalid request v
   expect(classifyOpenCodeGoFailure(apiError(429), {})).toEqual({
     reason: "quota_or_rate_limit",
   });
-  expect(classifyOpenCodeGoFailure(apiError(400), {})).toBeUndefined();
+  expect(classifyOpenCodeGoFailure(apiError(400, true), {})).toBeUndefined();
   expect(classifyOpenCodeGoFailure(apiError(409), {})).toBeUndefined();
 
   let fallbackCalls = 0;
@@ -419,6 +420,16 @@ test("the OpenCode adapter permits quota fallback but keeps an invalid request v
   expect(fallbackCalls).toBe(0);
 });
 
+test("DeepSeek can occupy a preferred route position without hiding request defects", () => {
+  expect(classifyDeepSeekFailure(apiError(429), {})).toEqual({
+    reason: "quota_or_rate_limit",
+  });
+  expect(classifyDeepSeekFailure(apiError(500), {})).toEqual({
+    reason: "provider_unavailable",
+  });
+  expect(classifyDeepSeekFailure(apiError(400, true), {})).toBeUndefined();
+});
+
 test("usage normalization reads standard cache details before provider-neutral metadata fallback", () => {
   expect(normalizeAiSdkUsage({
     inputTokens: 100,
@@ -443,13 +454,16 @@ test("usage normalization reads standard cache details before provider-neutral m
   });
 });
 
-function apiError(statusCode: number): APICallError {
+function apiError(
+  statusCode: number,
+  isRetryable = statusCode === 429 || statusCode >= 500,
+): APICallError {
   return new APICallError({
     message: "allowance unavailable",
     url: "https://opencode.ai/zen/go/v1/chat/completions",
     requestBodyValues: {},
     statusCode,
-    isRetryable: statusCode === 429 || statusCode >= 500,
+    isRetryable,
   });
 }
 

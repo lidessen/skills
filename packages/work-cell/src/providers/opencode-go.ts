@@ -58,7 +58,6 @@ export function classifyOpenCodeGoFailure(
   const status = error.statusCode;
   if (
     status === undefined
-    || error.isRetryable
     || status === 401
     || status === 402
     || status === 403

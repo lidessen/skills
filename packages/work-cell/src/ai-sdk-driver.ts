@@ -30,6 +30,8 @@ const EXECUTION_TOOL_NAMES = new Set([
   "run_command",
 ]);
 
+const MAX_AGENT_OUTPUT_TOKENS = 16_000;
+
 export class AiSdkValidationDriver implements CellDriver {
   readonly descriptor: DriverDescriptor;
   protected readonly model;
@@ -107,7 +109,7 @@ export class AiSdkValidationDriver implements CellDriver {
             },
           }
         : {}),
-      maxOutputTokens: 16_000,
+      maxOutputTokens: MAX_AGENT_OUTPUT_TOKENS,
       temperature: 0,
     });
     let observedUsage: CellUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0, cachedInputTokens: 0 };
@@ -182,7 +184,10 @@ export class AiSdkValidationDriver implements CellDriver {
           }
           return undefined;
         },
-        maxOutputTokens: 4_000,
+        // Recovery must be able to emit every terminal payload admitted by the
+        // main loop. A smaller provider limit can truncate otherwise valid tool
+        // input before Work Cell gets a chance to verify it.
+        maxOutputTokens: MAX_AGENT_OUTPUT_TOKENS,
         temperature: 0,
       });
       try {

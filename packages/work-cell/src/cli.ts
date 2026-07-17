@@ -412,7 +412,7 @@ async function providerCommand(args: string[]): Promise<void> {
     for (let index = 1; index < rest.length; index += 1) {
       const flag = rest[index];
       if (flag === "--output") output = resolve(requiredOptionValue(rest, index, flag)), index += 1;
-      else if (flag === "--forward") forward = resolve(requiredOptionValue(rest, index, flag)), index += 1;
+      else if (flag === "--forward") forward = requiredOptionValue(rest, index, flag), index += 1;
       else throw new Error(`unknown provider capture option: ${flag}`);
     }
     const raw = await readStandardInput();
