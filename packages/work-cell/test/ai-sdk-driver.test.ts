@@ -480,9 +480,20 @@ test("recovers structured output after a terminal tool and retains all usage", a
       }], "tool-calls");
       if (calls === 5) {
         recoveryPrompt = options.prompt;
-        return response([{ type: "tool-call", toolCallId: "terminal", toolName: "submit_review", input: "{}" }], "tool-calls");
+        return response([{
+          type: "tool-call",
+          toolCallId: "invalid-terminal",
+          toolName: "submit_review",
+          input: JSON.stringify({ unexpected: true }),
+        }], "tool-calls");
       }
-      if (calls === 6) return response([{ type: "text", text: JSON.stringify({ recommendation: "hold", reason: "One boundary remains unverified." }) }], "stop");
+      if (calls === 6) return response([{
+        type: "tool-call",
+        toolCallId: "valid-terminal",
+        toolName: "submit_review",
+        input: "{}",
+      }], "tool-calls");
+      if (calls === 7) return response([{ type: "text", text: JSON.stringify({ recommendation: "hold", reason: "One boundary remains unverified." }) }], "stop");
       throw new Error(`unexpected mock call ${calls}`);
     },
   });
@@ -521,11 +532,11 @@ test("recovers structured output after a terminal tool and retains all usage", a
     terminal: { passed: true, called: ["submit_review"] },
     output: { passed: true },
   });
-  expect(record.usage).toEqual({ inputTokens: 6, outputTokens: 6, totalTokens: 12, cachedInputTokens: 0 });
+  expect(record.usage).toEqual({ inputTokens: 7, outputTokens: 7, totalTokens: 14, cachedInputTokens: 0 });
   expect(JSON.stringify(recoveryPrompt)).toContain("read_file");
   expect(JSON.stringify(recoveryPrompt)).toContain("principles/SEQUENCE.md");
-  expect(outputLimits).toEqual(Array(6).fill(16_000));
-  expect(calls).toBe(6);
+  expect(outputLimits).toEqual(Array(7).fill(16_000));
+  expect(calls).toBe(7);
 });
 
 test("activation adapter retries one malformed structured impulse and retains its usage", async () => {

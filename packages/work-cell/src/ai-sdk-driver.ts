@@ -168,22 +168,19 @@ export class AiSdkValidationDriver implements CellDriver {
         ].join("\n"),
         tools: closureTools,
         stopWhen: outputSchema
-          ? isStepCount(2)
+          ? isStepCount(3)
           : [isStepCount(2), stopAfterAcceptedTerminal],
         ...(outputSchema ? { output: Output.object({ schema: outputSchema.forAiSdk() }) } : {}),
-        prepareStep: ({ stepNumber }) => {
+        prepareStep: () => {
           if (terminalSatisfied()) {
             terminalOnly = true;
             return finalOutputStep(input);
           }
-          if (stepNumber === 0) {
-            terminalOnly = true;
-            return {
-              activeTools: terminalNames,
-              toolChoice: terminalToolChoice(terminalNames) as never,
-            };
-          }
-          return undefined;
+          terminalOnly = true;
+          return {
+            activeTools: terminalNames,
+            toolChoice: terminalToolChoice(terminalNames) as never,
+          };
         },
         // Recovery must be able to emit every terminal payload admitted by the
         // main loop. A smaller provider limit can truncate otherwise valid tool
