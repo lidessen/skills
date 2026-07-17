@@ -1,23 +1,28 @@
 # Verify an Agent Environment
 
-Check whether the declared personal agent environment actually reaches each
-tool and preserves its safety boundaries.
+Check whether the declared in-scope agent capabilities actually reach their
+ordinary use surfaces and preserve their safety boundaries.
 
-1. Fix the portable profile revision, target device, tool versions, ordinary
-   entry paths, and expected observations. Verification does not modify the
-   profile or accept its own findings.
-2. Parse or use each tool's supported diagnostic surface to check configuration,
-   instruction, skill/plugin, MCP/hook, permission, and authentication status.
-   Redact values and do not infer successful loading from path presence alone.
-3. Run one harmless ordinary-entry probe per tool that exercises a distinctive
-   portable instruction or capability. Prefer built-in inspection commands;
+1. Fix the declared setup scope, desired source or source locator, target
+   device, relevant versions, ordinary use paths, and expected observations.
+   When a portable profile exists, fix its revision. Verification does not
+   modify the desired source or accept its own findings.
+2. Use supported diagnostics only for the selected surfaces—for example skill
+   discovery, harness guidance, runtime configuration, or authentication
+   status. Do not inspect unrelated MCP, hook, permission, provider, or account
+   state merely because the tool exposes it. Redact values and do not infer
+   successful loading from path presence alone.
+3. Run one harmless ordinary-use probe per selected capability that exercises a
+   distinctive instruction or behavior. Prefer built-in inspection commands;
    otherwise use a bounded prompt whose expected evidence is named in advance.
-4. Run boundary probes: one target-local override remains effective, one
-   excluded cache/session/memory item was not copied, and one unsupported
-   cross-tool setting remains visible rather than silently translated.
-5. Compare observations with the profile and reconciliation ledger. Classify
-   every requirement as `supported`, `repair`, `manual`, `unsupported`, or
-   `not-tested`; include the source and runtime evidence for that disposition.
+4. Run boundary probes appropriate to the selected scope: confirm one adjacent
+   unselected capability was not changed and one relevant unmanaged item was
+   preserved. When cross-tool translation is in scope, keep an unsupported
+   setting visible rather than silently translating it.
+5. Compare observations with the declared source and, when present, its profile
+   and reconciliation ledger. Classify every in-scope requirement as
+   `supported`, `repair`, `manual`, `unsupported`, or `not-tested`; include the
+   source and runtime evidence for that disposition.
 6. Return the smallest repair for failed items and the event that should reopen
    verification, such as a tool upgrade, profile revision, device replacement,
    changed credential scope, or lost discovery path.

@@ -27,8 +27,9 @@ promoted for a named reason.
   working agreements, reusable workflow modules, source locators, projection
   mappings, exclusions, and verification. It may be a profile inside an
   existing dotfiles source rather than a new repository.
-- **Portable profile:** compact index and template for that workflow source when
-  no existing carrier already owns it.
+- **Portable profile:** compact index and template for recurring setup with
+  multiple independently changing modules when no existing carrier already
+  owns it. A one-capability setup does not need a profile merely to be valid.
 - **Workflow module:** one independently changing piece of intent, such as a
   personal instruction, context-delivery choice, capability, safety boundary,
   hook, agent role, or verification expectation. Modules are chosen from the

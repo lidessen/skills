@@ -1,16 +1,18 @@
 ---
 name: agent-environment
 description: >-
-  Set up, audit, reconcile, verify, or migrate a person's user-level
-  coding-agent environment across devices and tools such as Codex, Cursor, and
-  Claude Code.
+  Set up, audit, reconcile, verify, or migrate any bounded part of a person's
+  user-level coding-agent environment, from selected skills or harness guidance
+  through complete tool runtimes such as Codex, Cursor, and Claude Code.
   Use for "set up my agents on this machine", "migrate my AI coding setup",
   "新设备配置 Codex/Cursor/Claude Code", "update my global agent workflow",
   "同步我的 agent skills and rules", or
   when personal instructions, skills, plugins, MCP servers, hooks, permissions,
   tool installation, and authentication prerequisites must be reconstructed or
-  evolved safely. Do not use for project-local agent workflow design, fleet
-  policy, copying sessions/caches, or ordinary dotfiles unrelated to agent work.
+  evolved safely. A setup request does not imply installing CLI tools or
+  configuring providers unless those capabilities are actually required. Do
+  not use for project-local agent workflow design, fleet policy, copying
+  sessions/caches, or ordinary dotfiles unrelated to agent work.
 ---
 
 # Agent Environment
@@ -60,11 +62,12 @@ Read only P12, P14, P16, and P15.
 ## Start
 
 ```text
-Person, source device, and target device:
-Tools and ordinary entry paths in scope:
+Person and device(s) in scope:
+Selected harness/tool and ordinary use path, if required:
 Required capabilities and working agreements:
-Existing portable source or dotfiles carrier:
-Last applied source revision and receipt, if any:
+Requested setup surface and explicit exclusions:
+Existing desired source or carrier, if any:
+Prior source revision and receipt, if relevant:
 Configuration that must remain machine-local:
 Secret/authentication prerequisites, named but not read:
 Target OS, shell, and trust constraints:
@@ -79,23 +82,40 @@ identifiers.
 
 ## Core method
 
-1. **Recover intended work before files.** Name the tools, recurring actions,
-   personal working agreements, capabilities, and verification observations.
-   Do not treat every file under a vendor home directory as desired state.
-2. **Inventory through supported surfaces.** Inspect installation provenance,
-   versions, user instructions, skills/plugins, MCP and hook declarations,
-   permission policy, and authentication *status*. Record paths and presence;
-   redact values. Use official status or diagnostics commands when available.
+1. **Recover intended work before files.** Name the recurring actions,
+   capabilities, working agreements, and verification observations. Select only
+   the setup surfaces needed to enable that work: a skill or capability,
+   harness guidance/configuration, runtime tooling, authorization, or another
+   bounded subset. These are composable surfaces, not mandatory levels. Do not
+   infer a CLI install, provider route, or full environment from the word
+   `setup`, and do not treat every file under a vendor home directory as desired
+   state. Resolve the target harness from the request or active runtime only
+   when a projection needs one. If the target is missing and would change the
+   action, ask one scoped question; do not scan installed tools to guess it.
+2. **Inventory through supported surfaces.** Inspect only what the selected
+   capability can depend on. A skill setup may need source, installer, and
+   discovery evidence; a harness setup may add instructions, plugins, MCP,
+   hooks, or permissions; a runtime setup may add installation provenance,
+   versions, and authentication *status*. Record paths and presence; redact
+   values. For one skill, inspect only its source, the selected harness's
+   discovery surface, and a same-name conflict there—not unrelated vendor
+   directories. In a classify/propose-only task, the declared source locator
+   and skill identity are sufficient unless compatibility or safety depends on
+   its content; do not fetch or load the skill body merely to plan an
+   installer-managed projection. Use official status or diagnostics commands
+   when available.
 3. **Classify every item.** Assign `desired source`, `tool projection`, `secret
    prerequisite`, `machine-local state`, `local override`, or `unknown`. Unknown
    and conflicting items block automatic copying; they do not become portable
    merely because they are readable.
 4. **Select the smallest carrier.** Reuse an accepted dotfiles/configuration
-   source when present. Otherwise prepare a small user-controlled,
-   version-controlled profile from
-   [the profile template](assets/environment-profile.md). Store workflow intent,
-   source locators, install provenance, non-secret modules, projection mappings,
-   exclusions, and verification—not vendor caches or an export of `$HOME`.
+   source when present. For one bounded capability, a source locator, explicit
+   selection, and setup receipt may be sufficient. Prepare a small
+   user-controlled profile from [the profile template](assets/environment-profile.md)
+   only when recurring setup has multiple independently changing modules or
+   needs later reconciliation. Store workflow intent, source locators, install
+   provenance, non-secret modules, projection mappings, exclusions, and
+   verification—not vendor caches or an export of `$HOME`.
 5. **Plan per tool from current documentation.** Read only the relevant section
    of [tool surfaces](references/tool-surfaces.md), then verify the current
    official path and precedence. Prefer a supported import, installer, settings
@@ -119,10 +139,11 @@ identifiers.
    provider, required scope, preferred secure store, and status check. On the
    target device, use the tool's supported login or secret-manager path and let
    the human complete interactive authorization.
-9. **Verify through ordinary entry paths.** Check parse/discovery, then run one
-   harmless behavior or capability probe per tool. A copied file is not proof
-   that the runtime loaded it. Preserve local overrides and one deliberately
-   excluded history/cache item as boundary evidence.
+9. **Verify through ordinary use paths.** Check parse/discovery, then run one
+   harmless behavior probe per selected capability. A copied file is not proof
+   that the intended agent or runtime loaded it. Confirm an adjacent unselected
+   surface was not changed and preserve one relevant unmanaged item as boundary
+   evidence.
 10. **Return a reconciliation receipt.** Report applied, preserved, deferred,
    unsupported, and failed items; source revision; target/tool versions;
    rollback locations; manual authorization still required; and observations
@@ -134,10 +155,10 @@ identifiers.
 
 | Need | Owner |
 |---|---|
-| Personal cross-device agent workflow setup, evolution, and migration | this Skill |
+| Personal user-level agent workflow setup, evolution, and migration | this Skill |
 | Agent behavior inside one repository | project `AGENTS.md`, `CLAUDE.md`, rules, or `improve-agent-workflow` |
 | General shell/editor/package dotfiles | existing dotfiles or configuration-management method |
-| Install or update portable agent skills | current skills installer or the tool's supported package path |
+| Install or update agent skills | current skills installer or the tool's supported package path |
 | Secret value, login, account, or provider authorization | human plus supported credential store/login flow |
 | Organization-wide enforced policy | organization administrator and managed configuration |
 | Tool-specific current configuration semantics | vendor documentation and runtime diagnostics |
@@ -151,6 +172,9 @@ identifiers.
 - Do not translate every setting across tools. Preserve common intent where a
   faithful projection exists; otherwise retain an explicit tool-specific
   commitment or `unsupported` result.
+- Do not make full runtime installation the implicit meaning of setup. A
+  skill-only or harness-only setup is complete when its declared capability and
+  boundary probes pass; unselected surfaces are out of scope, not failures.
 - Do not make a generated tool configuration bidirectionally authoritative.
   Adopt a tool-local improvement into the workflow source explicitly, then
   project it outward in a later reconciliation.
@@ -163,11 +187,11 @@ identifiers.
 
 ## Completion standard
 
-An environment setup, update, or migration is ready only when the portable
-workflow source and its human owner are explicit, every in-scope item has a
-state classification, source and target drift are distinguished, secrets and
-local state remain outside the portable source, existing target content has a
-rollback path, each tool passes an ordinary-entry verification or is visibly
-deferred, and the receipt states residual manual work. A profile that cannot be
-updated without copying opaque vendor state or overwriting target differences
-is not yet a portable environment.
+An environment setup, update, or migration is ready only when its declared
+scope, desired source or source locator, and human owner are explicit; every
+in-scope item has a state classification; secrets and local state remain outside
+the desired source; existing target content has a rollback path; each selected
+capability passes an ordinary-use verification or is visibly deferred; and the
+receipt states residual manual work. When a portable profile is actually used,
+source and target drift must be distinguished, and the profile must remain
+updatable without copying opaque vendor state or overwriting target differences.
