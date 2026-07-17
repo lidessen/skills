@@ -21,15 +21,25 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
-test("recovers a natural finish without a terminal tool when provider metadata is absent", async () => {
+test("retries an invalid terminal payload during recovery before settlement", async () => {
   const root = await fixture();
   let calls = 0;
   const model = new MockLanguageModelV3({
     doGenerate: async () => {
       calls += 1;
       if (calls === 1) return response([{ type: "text", text: "Main response stopped before terminal." }], "stop");
-      if (calls === 2) return response([{ type: "tool-call", toolCallId: "terminal", toolName: "finish_review", input: "{}" }], "tool-calls");
-      if (calls === 3) return response([], "stop");
+      if (calls === 2) return response([{
+        type: "tool-call",
+        toolCallId: "invalid-terminal",
+        toolName: "finish_review",
+        input: JSON.stringify({ verdict: "maybe" }),
+      }], "tool-calls");
+      if (calls === 3) return response([{
+        type: "tool-call",
+        toolCallId: "valid-terminal",
+        toolName: "finish_review",
+        input: JSON.stringify({ verdict: "ready" }),
+      }], "tool-calls");
       throw new Error(`unexpected mock call ${calls}`);
     },
   });
@@ -48,7 +58,12 @@ test("recovers a natural finish without a terminal tool when provider metadata i
     terminalTools: [{
       name: "finish_review",
       description: "Signal review completion.",
-      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      inputSchema: {
+        type: "object",
+        properties: { verdict: { type: "string", enum: ["ready"] } },
+        required: ["verdict"],
+        additionalProperties: false,
+      },
     }],
     budget: { maxSteps: 4, estimatedTokens: 1_000, maxDurationMs: 10_000, maxCommandOutputBytes: 4_000 },
   }, driver);
@@ -60,7 +75,7 @@ test("recovers a natural finish without a terminal tool when provider metadata i
     performance: expect.objectContaining({ stepTimeMs: expect.any(Number) }),
   });
   expect(record.finalText).toContain("Terminal contract satisfied during recovery");
-  expect(calls).toBe(2);
+  expect(calls).toBe(3);
 });
 
 test("forces the sole terminal tool before the step limit and blocks late ordinary actions", async () => {

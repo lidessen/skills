@@ -1,4 +1,4 @@
-import { Output, ToolLoopAgent, hasToolCall, isStepCount, tool } from "ai";
+import { Output, ToolLoopAgent, isStepCount, tool } from "ai";
 import { z } from "zod";
 import {
   type CellInput,
@@ -74,12 +74,13 @@ export class AiSdkValidationDriver implements CellDriver {
     );
     const terminalNames = input.terminalTools?.map((terminal) => terminal.name) ?? [];
     const terminalSatisfied = () => terminalNames.some((name) => terminalToolsCalled.has(name));
+    const stopAfterAcceptedTerminal = () => terminalSatisfied();
     const executionAgent = new ToolLoopAgent({
       model: this.model,
       instructions: renderExecutionInstructions(input),
       tools,
       stopWhen: terminalNames.length > 0 && !outputSchema
-        ? [isStepCount(input.budget.maxSteps), hasToolCall(...terminalNames)]
+        ? [isStepCount(input.budget.maxSteps), stopAfterAcceptedTerminal]
         : isStepCount(input.budget.maxSteps),
       ...(outputSchema ? { output: Output.object({ schema: outputSchema.forAiSdk() }) } : {}),
       ...(input.terminalTools?.length
@@ -168,7 +169,7 @@ export class AiSdkValidationDriver implements CellDriver {
         tools: closureTools,
         stopWhen: outputSchema
           ? isStepCount(2)
-          : [isStepCount(2), hasToolCall(...terminalNames)],
+          : [isStepCount(2), stopAfterAcceptedTerminal],
         ...(outputSchema ? { output: Output.object({ schema: outputSchema.forAiSdk() }) } : {}),
         prepareStep: ({ stepNumber }) => {
           if (terminalSatisfied()) {
