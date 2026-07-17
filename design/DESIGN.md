@@ -387,6 +387,16 @@ It is a domain improvement method, not a central orchestrator: generic task
 learning remains with `practice-cycle`, skill expression with
 `skill-engineering`, and project truth and acceptance with their host owners.
 
+For a person's agent workflow that must survive device replacement rather than
+one repository, [decision 035](decisions/035-portable-agent-environment.md)
+admits `agent-environment`. It reconstructs user-level instructions,
+capabilities, skills, tool configuration, and authentication prerequisites from
+a human-owned non-secret source, while treating Codex, Cursor, Claude Code, and
+other tool configurations as version-specific projections. Secrets, sessions,
+caches, generated memories, and machine identity remain outside the portable
+source by default. It reuses existing dotfiles and vendor import mechanisms;
+it is not another configuration manager or cross-vendor runtime.
+
 Vercel is the first hosting target, not a runtime dependency. The public
 `skills.<primary-domain>` subdomain names this repository surface rather than
 the unresolved whole-project identity. Human review retains aesthetic and

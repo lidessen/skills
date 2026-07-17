@@ -60,7 +60,10 @@
       "skills/strategic-advisory/SKILL.md",
       "skills/artifact-organization/SKILL.md",
       "skills/structural-refactoring/SKILL.md",
-      "skills/visual-design/SKILL.md"
+      "skills/visual-design/SKILL.md",
+      "skills/code-review/SKILL.md",
+      "skills/project-cognition/SKILL.md",
+      "skills/agent-environment/SKILL.md"
     ]
   }
 }

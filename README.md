@@ -58,6 +58,7 @@ specific method.
 | [visual-design](skills/visual-design/SKILL.md) | `/visual-design` | Design or review content-led visual work, inheriting or forming a project direction without imposing a portable fixed style or claiming human acceptance. |
 | [code-review](skills/code-review/SKILL.md) | `/code-review` | Review a proposed code change against its accepted intent and actual impact field, reporting only source-backed failure stories while leaving orchestration and merge authority external. |
 | [project-cognition](skills/project-cognition/SKILL.md) | `/project-cognition` | Build or selectively refresh a source-linked, non-authoritative working model when later agents need reusable project understanding across substantial tasks. |
+| [agent-environment](skills/agent-environment/SKILL.md) | `/agent-environment` | Audit, set up, reconcile, verify, or migrate a person's non-secret user-level coding-agent workflow across devices and tools without copying opaque machine state. |
 
 ## Experimental runtime
 
@@ -94,6 +95,7 @@ deliberation; see [decision 027](design/decisions/027-general-work-cell-core-and
 | Splitting modules, extracting responsibilities, or untangling dependencies without intended behavior change | `/structural-refactoring` |
 | Establishing, shaping, implementing, or reviewing a visual direction for an interface, document, illustration, or related product family | `/visual-design` |
 | Building or refreshing reusable source-linked project understanding across substantial future tasks | `/project-cognition bootstrap` or `/project-cognition refresh` |
+| Setting up, evolving, or migrating personal Codex, Cursor, Claude Code, skills, instructions, and related workflow configuration | `/agent-environment setup`, `/agent-environment reconcile`, or `/agent-environment migrate` |
 | Auditing how several established methods should cooperate | Read the project's organization operating model first; use the role that owns the observed disturbance, not a new universal skill |
 
 The Principle Sequence is the root and `principle-cultivation` maintains it.

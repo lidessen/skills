@@ -51,6 +51,9 @@ skill 则是在具体语境中对所选条目的表达。
 | [artifact-organization](skills/artifact-organization/SKILL.md) | `/artifact-organization` | 审计工件的角色和路径是否仍体现已接受的设计；只有存在实质缺口时才执行一次最小的组织转换。 |
 | [structural-refactoring](skills/structural-refactoring/SKILL.md) | `/structural-refactoring` | 在保留已声明行为、调用方影响和验证权威的前提下，跨有意义的边界重新组织代码。 |
 | [visual-design](skills/visual-design/SKILL.md) | `/visual-design` | 从内容、受众和行动出发设计或审查视觉工作；继承或形成项目方向，但不强加可移植的固定风格，也不声称已经得到人的验收。 |
+| [code-review](skills/code-review/SKILL.md) | `/code-review` | 对照已接受意图和实际影响范围审查代码变更，只报告有来源支撑的失败路径，并将编排与合并权留在外部。 |
+| [project-cognition](skills/project-cognition/SKILL.md) | `/project-cognition` | 当后续重大任务需要复用项目理解时，建立或选择性刷新带来源、无事实权的工作模型。 |
+| [agent-environment](skills/agent-environment/SKILL.md) | `/agent-environment` | 跨设备和工具审计、建立、调和、验证或迁移个人的非敏感用户级编码 Agent 工作流，不复制不透明的机器状态。 |
 
 ## 实验性运行时
 
@@ -82,6 +85,8 @@ skill 则是在具体语境中对所选条目的表达。
 | 检查项目布局是否仍符合既定设计 | `/artifact-organization audit`；仅在有实质缺口时使用 `transition` |
 | 拆分模块、抽取职责或解开依赖，同时不改变预期行为 | `/structural-refactoring` |
 | 为界面、文档、插图或相关产品族建立、塑造、实施或审查视觉方向 | `/visual-design` |
+| 为后续重大任务建立或刷新可复用、带来源的项目认知 | `/project-cognition bootstrap` 或 `/project-cognition refresh` |
+| 建立、持续更新或迁移个人 Codex、Cursor、Claude Code、skills、指令及相关工作流配置 | `/agent-environment setup`、`/agent-environment reconcile` 或 `/agent-environment migrate` |
 | 审计多个已建立方法如何协作 | 先阅读项目的组织运行模型；使用拥有已观察扰动的角色，而不是新建一个通用总控 skill |
 
 原则序列是根，`principle-cultivation` 负责维护它。**Context-engineering** 选择并
