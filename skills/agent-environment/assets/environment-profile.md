@@ -8,7 +8,9 @@
 ## Desired work
 
 Name the recurring actions, personal working agreements, and capabilities this
-profile must reconstruct. Do not begin with paths.
+profile must reconstruct. Do not begin with paths. At user scope, keep this a
+thin cross-project substrate; leave project facts and specialized behavior at a
+narrower or on-demand surface.
 
 ## Workflow modules
 
@@ -16,8 +18,8 @@ Use only modules that independently change. Candidate lenses include personal
 instructions, context delivery, capabilities/MCP, permissions and safety,
 hooks/interventions, agent roles, verification, and install provenance.
 
-| Module ID | Intended behavior | Desired source | Affected tool projections | Verification | Reopen when |
-|---|---|---|---|---|---|
+| Module ID | Intended behavior | Benefit observation | Added burden | Desired source | Affected tool projections | Verification | Reopen when |
+|---|---|---|---|---|---|---|---|
 
 ## Portable components
 
@@ -63,6 +65,7 @@ command or key blank when its status is `lookup-required`.
 - Prior applied revision and receipt:
 - Target device and tool versions:
 - Applied and preserved:
+- Deliberate no-ops and added burdens:
 - Deferred, unsupported, or failed:
 - Interactive authorization still required:
 - Rollback locations:

@@ -40,6 +40,12 @@ promoted for a named reason.
 - **Desired source:** authoritative non-secret content or commitment the person
   expects to survive devices. It may live in an existing dotfiles/configuration
   repository; the profile can point to it instead of duplicating it.
+- **Capability selection:** the human-approved capability identity. Together
+  with its desired source, it defines what setup may project. An installer can
+  apply this selection but cannot author it.
+- **Marketplace discovery:** optional exploration of unknown third-party
+  capabilities after an explicit request to discover or compare candidates. It
+  produces proposals, never desired setup state by itself.
 - **Tool projection:** Codex, Cursor, Claude Code, or another tool's local
   representation of desired source. A supported import can create a projection,
   but does not become the cross-tool source.
