@@ -4,6 +4,11 @@ Use this index only when host sources cannot resolve a material visual decision.
 Select one to three complementary sources, then read only their detail files.
 The index is fallback context, not a canon or style menu.
 
+For actual works that expose visual choices, use `../visual-seeds/index.md`.
+This index mainly supplies system and process evidence: how a relation was
+formed, translated, maintained, or tested. A process reading cannot substitute
+for inspecting a concrete visual artifact.
+
 The source field has two distinct roles. Interface-system sources help with
 hierarchy, layout, tokens, and maintenance. Expressive-process sources show how
 a relation was discovered, translated, distributed, and tested; they are not

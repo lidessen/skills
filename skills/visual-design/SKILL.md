@@ -144,8 +144,8 @@ exactly one command:
 |---|---|---|
 | `design` | command, host content/direction/system | visual-language reference when a style cue remains unresolved or provisional guidance must be translated across surfaces; presentation model when content hierarchy, attention, layout, or a token system is unresolved; visual-asset production when a logo, icon, illustration, or motion asset is a primary object; source index and 1–3 detail files only when local interface guidance is insufficient |
 | `review` | command, owning direction, rendered evidence | presentation model only for an attention/hierarchy diagnosis; visual-asset production only when reviewing a production visual asset; never the source index by default |
-| `cultivate` | command, presentation model | visual-language reference when a named style cue or expressive cross-surface relation is material; source index only when the host source field is insufficient; 1–3 selected source files plus live official and host-local sources needed by the source field |
-| `shape` | command, host content/direction, presentation model | visual-language reference when a style cue is ambiguous or later agents need a cross-surface guide; one expressive-process source through the source index when no supplied or inherited source grounds the cue; concepts only when domain terms are conflated; other source entries only when contrasts lack local evidence |
+| `cultivate` | command, presentation model | visual-language reference when a named style cue or expressive cross-surface relation is material; visual-seed index and selected cards when the host source field lacks inspectable visual contrast; design-source index only when formation or system evidence remains insufficient |
+| `shape` | command, host content/direction, presentation model | visual-language reference when a style cue is ambiguous or later agents need a cross-surface guide; visual-seed index and exactly two selected cards for the first direction pass when no supplied or inherited visual source grounds the cue; one expressive-process source only when the origin or testing of a relation remains material; concepts only when terms beyond the vocabulary above are genuinely conflated |
 
 The paths above are complete for routing; do not list the skill directory when
 the operation is known. Never load sibling command files to complete a formal
@@ -163,8 +163,10 @@ Whichever operation is selected:
 3. Treat a named style as a cue to expand, compare, and situate. When it affects
    more than one surface, form a provisional visual language and allocate its
    expressive strength without turning open dimensions into a specification.
-4. Use references for the decision they change and state what must not be
-   copied. Prefer host sources; built-in references are fallback context.
+4. Use visual seeds to expose choices and process sources to understand how a
+   relation was formed or tested. State the decision each source changes and
+   what must not be copied. Prefer host sources; built-in references are
+   fallback context.
 5. Derive tokens from repeated semantic roles. Admit one only when it has at
    least two independent consumers or a declared theme/context substitution;
    otherwise keep the value local. Raw values, trends, and component kits
@@ -179,8 +181,8 @@ Whichever operation is selected:
   work. Route naming and articulation to its owning method.
 - Do not prescribe a universal palette, font stack, grid, component language,
   motion system, or named visual trend.
-- Do not copy an external design system's surface or treat the built-in source
-  index as a canon.
+- Do not copy an external design system's surface or treat the built-in seed and
+  source indexes as a canon.
 - Do not claim image generation, browser operation, rendering, or accessibility
   verification unless the runtime supplies it.
 - Do not turn taste into deterministic lint; the designated human owns

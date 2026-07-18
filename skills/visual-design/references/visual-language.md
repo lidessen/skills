@@ -28,10 +28,14 @@ public accessibility, craft, historical continuity, or another project-specific
 relation. Do not equate the first adjective with that relation.
 
 Build a small source field when the supplied evidence cannot expose real
-contrasts. A recommendation requires at least one inspected source. When none
-is supplied or inherited, read `design-sources/index.md` and select one
-expressive-process detail whose decision lens fits this project. Select sources
-by the decision they can change:
+contrasts. A recommendation requires at least one inspected concrete artifact.
+When none is supplied or inherited, read `visual-seeds/index.md`, select exactly
+two contrasting cards for the first direction pass, and inspect their live
+artifacts. Retrieve a third only in a later iteration when human feedback or a
+real fragment reveals a missing material contrast. Use
+`design-sources/index.md` and at most one expressive-process detail only when
+the formation or testing of a relation remains decision-relevant. Select
+sources by the decision they can change:
 
 - a direct artifact that performs a comparable job;
 - a materially or culturally adjacent source that reveals another formal
@@ -44,6 +48,14 @@ Read primary artifacts where possible. For each retained source, separate
 directly observed form, inferred effect, historical or production context,
 decision changed here, and what must not be copied. A style name, mood board,
 artist name, or resemblance is not sufficient evidence by itself.
+
+A bundled seed card preserves discovery and a prior reading; it is not a local
+copy of the work and cannot substitute for seeing the artifact. If the live
+artifact is unavailable or the runtime lacks visual inspection, label the card
+as an unverified pointer, state that limitation in the returned source field,
+and do not claim its visual properties as direct observation. It may still
+suggest a tentative comparison to inspect later; it cannot settle the
+recommendation by itself.
 
 ## Resolve the visual language
 
@@ -92,7 +104,11 @@ Cost, production, accessibility, and maintenance consequences:
 
 Run a metaphor check on each candidate: if removing the named props makes the
 candidate collapse, it is a costume rather than a visual language. Re-form it
-from the project relation and formal tendencies before comparing it.
+from the project relation and formal tendencies before comparing it. Also scan
+candidate names, invariants, and asset implications for distinctive nouns,
+motifs, or metaphors carried by a seed. Unless independent project evidence
+requires them, remove them and retain only the relation the source helped make
+visible.
 
 Recommend one candidate when the evidence supports it. Present the alternatives
 and tradeoffs to the human rather than asking them to invent the choice space.

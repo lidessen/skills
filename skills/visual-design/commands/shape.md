@@ -25,10 +25,17 @@ before implementation, or the request names only a surface preference such as
    read `references/visual-language.md`. Treat the phrase as a style cue,
    expand its materially different readings, and prepare a choice rather than
    asking the user to define the field unaided.
-   If no supplied or inherited source grounds the cue, read
-   `references/design-sources/index.md` and one expressive-process detail whose
-   decision lens fits the project. The source must change or reject a candidate;
-   it is not permission to borrow its appearance.
+   If no supplied or inherited visual source grounds the cue, read
+   `references/visual-seeds/index.md`, select two contrasting cards, and inspect
+   their live artifacts. In the first direction pass, stop at exactly two;
+   retrieve a third only in a later iteration when human feedback or a real
+   fragment reveals a missing material contrast. The seeds must expose a
+   consequential choice; they are not permission to borrow an appearance. If
+   the runtime cannot open or render the live work, label each card as an
+   unverified discovery pointer and never say that its visual claims were
+   inspected. If a candidate's
+   origin or testing remains material, additionally select one process source
+   through `references/design-sources/index.md`.
    For a direction-only request, use the provisional visual-language return
    below and stop; do not expand it into the general Aesthetic Case.
 5. Form two or three meaningful contrasts. Vary relations such as density,
@@ -36,9 +43,9 @@ before implementation, or the request names only a surface preference such as
    arbitrary mood-board labels. For every reference, state what decision it
    changes and what must not be copied.
    If local evidence still cannot form those contrasts, select at most two
-   additional sources through `references/design-sources/index.md`. Read
-   `references/concepts.md` only when relation, direction,
-   system, treatment, or fixed style are actually being conflated.
+   additional visual or process sources through the corresponding index. Read
+   `references/concepts.md` only when terms beyond the vocabulary already in
+   `SKILL.md` are genuinely conflated; an ordinary style cue is not sufficient.
 6. Select or synthesize one provisional direction. Separate:
    - invariants shared by the related surfaces;
    - the visual-language tendencies and expression allocation needed by later
@@ -46,6 +53,10 @@ before implementation, or the request names only a surface preference such as
    - treatment dimensions that remain free for this case; and
    - a negative boundary that rejects a plausible but unfit result.
 7. Before returning the case, remove decisions that the evidence has not earned.
+   Scan candidate names, invariants, and asset implications for distinctive
+   nouns, motifs, or metaphors carried by a seed. Remove them unless independent
+   project evidence requires them; transfer the underlying relation, not the
+   source's identity vocabulary.
    Without an inherited source or inspected artifact, omit exact font families
    or examples, color values, pixel sizes, token names, grid values, component
    treatments, production technologies, and invented logo or illustration
@@ -56,7 +67,7 @@ For an unresolved style cue, return only:
 ```text
 Project, audience, and intended relation:
 Style cue and the ambiguity it leaves:
-Inspected sources, decision changed, and transfer boundary:
+Source status, direct observations or unverified pointers, decision changed, and transfer boundary:
 Two or three candidate relations:
   - relation-led formal tendencies that distinguish each candidate;
   - suitable content and artifact conditions;
