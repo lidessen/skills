@@ -341,6 +341,7 @@ points:
 
 - `src/adapters/sequence/`
 - `src/adapters/experiment/`
+- `src/adapters/model-evaluation/`
 - `src/adapters/deliberation/`
 
 Creative-field, naming, latent-routing, and idea-development code lives under
@@ -368,6 +369,9 @@ bun src/cli.ts swarm path/to/swarm.json
 
 # Matched baseline/treatment experiment
 bun src/cli.ts experiment experiments/p23-bounded-autonomy.json
+
+# Repeated real-task evidence for two explicit execution profiles.
+bun src/cli.ts model evaluate path/to/model-evaluation.json
 
 # Bounded independent deliberation; the result is evidence, never a vote that commits work.
 bun src/cli.ts deliberate path/to/deliberation.json
@@ -425,6 +429,10 @@ output as accepted project fact.
   docket. Each member must state a structured position; the CLI preserves raw
   member records and emits a non-authoritative vote-and-dissent projection. It
   cannot create consensus, accept a proposal, allocate budget, or merge work.
+- `model evaluate` runs one frozen task field through two explicit profiles,
+  retains repeated and blind-judge evidence, and emits descriptive observations.
+  It cannot admit a capability profile, rank models globally, or alter provider
+  preference.
 - No Sequence mutation or automatic candidate adoption.
 - Workspace containment is for local evaluation, not a hardened hostile-code
   sandbox. Commands use argv arrays, no shell, and an explicit executable list.
