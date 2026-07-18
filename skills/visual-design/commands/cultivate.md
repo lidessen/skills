@@ -9,8 +9,11 @@ instead.
    material constraints, and decisions that visual form must enable. Separate
    declared identity from personal taste and from current implementation
    accidents.
-2. Assemble a small **source field** by role rather than fame or visual
-   similarity:
+2. When a named style cue or expressive cross-surface relation materially
+   shapes the project, read `references/visual-language.md` before retaining
+   sources. Use its formal lenses to expose different readings without turning
+   the source field into a style catalog. Then assemble a small **source field**
+   by role rather than fame or visual similarity:
    - inherited project work and accepted/rejected human preference evidence;
    - direct exemplars that perform a comparable job well;
    - adjacent exemplars whose hierarchy, rhythm, materiality, interaction, or
@@ -28,10 +31,14 @@ instead.
    decision contrast is material here, and the transfer limit can be stated.
    Awards, popularity, novelty, or resemblance alone do not qualify it. A
    source field is not a ranking, screenshot dump, or license to copy.
-   If the project lacks enough sources, read
-   `references/design-sources/index.md`, select only two or three entries that
-   expose different decisions relevant to the present contradiction, and read
-   only those detail files.
+   If the project lacks enough inspectable visual contrast, read
+   `references/visual-seeds/index.md`, select two cards that expose different
+   relations, and inspect their live artifacts. Add another only in a later
+   iteration when human feedback or a real fragment reveals a missing material
+   contrast. If formation,
+   maintenance, or system evidence remains missing, additionally use
+   `references/design-sources/index.md` and read only the one or two process
+   details that change that decision.
 3. Read `references/presentation-model.md`. Then read every retained source
    through the same decision dimensions: content structure, attention path,
    relation to its audience, hierarchy, rhythm and density, layout,
@@ -61,6 +68,7 @@ Comparative readings and tensions:
 Human preference evidence:
 Provisional generative stance:
 Perceptual relation to preserve:
+Provisional visual language and cross-surface expression allocation, when material:
 Smallest project invariants:
 Dimensions intentionally left variable:
 Negative boundary:
@@ -77,5 +85,6 @@ Status, owner, and review date:
    record contrary evidence rather than editing history into consensus.
 
 The result is the project's first organizing visual proposition, not a finished
-brand book. Tokens, components, illustration rules, and motion language arise
+brand book. A provisional visual language may guide later agents, but tokens,
+components, illustration rules, logo derivatives, and motion language arise
 only where later design practice proves they are needed.
