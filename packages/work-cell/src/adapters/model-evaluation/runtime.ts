@@ -202,8 +202,6 @@ export async function runModelEvaluation(
           `r${repetition + 1}-${safe(evaluationCase.id)}-${safe(profile.id)}`,
         );
         const workspaceRoot = join(trialDirectory, "workspace");
-        await mkdir(trialDirectory, { recursive: true });
-        await cp(fixtureSnapshot, workspaceRoot, { recursive: true, force: true });
         const trial: ModelEvaluationTrial = {
           caseId: evaluationCase.id,
           profileId: profile.id,
@@ -212,6 +210,8 @@ export async function runModelEvaluation(
           directory: trialDirectory,
         };
         try {
+          await mkdir(trialDirectory, { recursive: true });
+          await cp(fixtureSnapshot, workspaceRoot, { recursive: true, force: true });
           const driver = createDriver(profile);
           const input = materializeInput(evaluationCase, profile, driver.descriptor, workspaceRoot, repetition);
           trial.record = await runCell(
@@ -222,12 +222,21 @@ export async function runModelEvaluation(
           await writeJson(join(trialDirectory, "record.json"), trial.record);
         } catch (error) {
           trial.runnerError = error instanceof Error ? error.message : String(error);
-          await writeJson(join(trialDirectory, "runner-error.json"), {
-            caseId: trial.caseId,
-            profileId: trial.profileId,
-            repetition: trial.repetition,
-            error: trial.runnerError,
-          });
+          delete trial.record;
+          try {
+            await mkdir(trialDirectory, { recursive: true });
+            await writeJson(join(trialDirectory, "runner-error.json"), {
+              caseId: trial.caseId,
+              profileId: trial.profileId,
+              repetition: trial.repetition,
+              error: trial.runnerError,
+            });
+          } catch (persistenceError) {
+            const message = persistenceError instanceof Error
+              ? persistenceError.message
+              : String(persistenceError);
+            trial.runnerError = `${trial.runnerError}; runner-error persistence failed: ${message}`;
+          }
         }
         trials.push(trial);
       }

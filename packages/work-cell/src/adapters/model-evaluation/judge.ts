@@ -117,19 +117,25 @@ export class AiSdkModelEvaluationJudge implements ModelEvaluationJudge {
   }
 }
 
-function assertAcceptanceCoverage(
+export function assertAcceptanceCoverage(
   judgement: ModelEvaluationJudgement,
   expected: string[],
 ): void {
   const actual = judgement.acceptance.map(({ condition }) => condition);
-  if (new Set(actual).size !== actual.length) {
+  const normalizedActual = actual.map(normalizeCondition);
+  const normalizedExpected = expected.map(normalizeCondition);
+  if (new Set(normalizedActual).size !== normalizedActual.length) {
     throw new Error("model-evaluation judge repeated an acceptance condition");
   }
-  const missing = expected.filter((condition) => !actual.includes(condition));
-  const unknown = actual.filter((condition) => !expected.includes(condition));
+  const missing = expected.filter((condition) => !normalizedActual.includes(normalizeCondition(condition)));
+  const unknown = actual.filter((condition) => !normalizedExpected.includes(normalizeCondition(condition)));
   if (missing.length > 0 || unknown.length > 0) {
     throw new Error(
       `model-evaluation judge acceptance mismatch; missing=${missing.join(" | ") || "none"}; unknown=${unknown.join(" | ") || "none"}`,
     );
   }
+}
+
+function normalizeCondition(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
 }

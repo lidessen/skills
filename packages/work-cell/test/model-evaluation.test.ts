@@ -15,6 +15,7 @@ import type {
   ModelEvaluationJudgeRequest,
   ModelEvaluationJudgeResult,
 } from "../src/adapters/model-evaluation/judge";
+import { assertAcceptanceCoverage } from "../src/adapters/model-evaluation/judge";
 
 const roots: string[] = [];
 
@@ -111,6 +112,29 @@ test("model evaluation rejects reference criteria leaked into worker-visible acc
       },
     }],
   })).toThrow("reference criteria must remain evaluator-only");
+});
+
+test("model evaluation judge tolerates formatting variation but rejects semantic criterion drift", () => {
+  const judgement = {
+    preferred: "tie" as const,
+    acceptance: [{
+      condition: "  THE conclusion   is grounded in EVIDENCE.txt  ",
+      a: "pass" as const,
+      b: "pass" as const,
+      evidence: [],
+    }],
+    findings: [],
+    evidence: [],
+  };
+
+  expect(() => assertAcceptanceCoverage(
+    judgement,
+    ["The conclusion is grounded in evidence.txt"],
+  )).not.toThrow();
+  expect(() => assertAcceptanceCoverage(
+    judgement,
+    ["The conclusion contradicts evidence.txt"],
+  )).toThrow("acceptance mismatch");
 });
 
 test("model evaluation does not project a driver declaration as selected route evidence", async () => {
