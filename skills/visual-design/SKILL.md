@@ -8,7 +8,8 @@ description: >-
   feels generic/inconsistent". Also use to establish a continuing project's
   visual direction from selected references when none exists. Triggers include
   "design this interface", "redesign this page", "review the UI", "make these
-  pages feel unified", "art direction", and "审美/视觉设计/确立风格". Do not use
+  pages feel unified", "align this logo or illustration with the product",
+  "art direction", and "审美/视觉设计/插画或品牌视觉统一/确立风格". Do not use
   for a purely functional code fix, naming task, or automatic aesthetic
   acceptance. Never impose a portable fixed style.
 ---
@@ -131,10 +132,10 @@ exactly one command:
 
 | Operation | Required next context | Conditional retrieval |
 |---|---|---|
-| `design` | command, host content/direction/system | presentation model when content hierarchy, attention, layout, or a token system is unresolved; source index and 1–3 detail files only when local guidance is insufficient |
-| `review` | command, owning direction, rendered evidence | presentation model only for an attention/hierarchy diagnosis; never the source index by default |
-| `cultivate` | command, presentation model, `design-sources/index.md` | 1–3 selected source files plus live official and host-local sources needed by the source field |
-| `shape` | command, host content/direction, presentation model | selective source entries only when contrasts lack local evidence |
+| `design` | command, host content/direction/system | presentation model when content hierarchy, attention, layout, or a token system is unresolved; visual-asset production when a logo, icon, illustration, or motion asset is a primary object; source index and 1–3 detail files only when local interface guidance is insufficient |
+| `review` | command, owning direction, rendered evidence | presentation model only for an attention/hierarchy diagnosis; visual-asset production only when reviewing a production visual asset; never the source index by default |
+| `cultivate` | command, presentation model | source index only when the host source field is insufficient; 1–3 selected source files plus live official and host-local sources needed by the source field |
+| `shape` | command, host content/direction, presentation model | concepts only when domain terms are conflated; selective source entries only when contrasts lack local evidence |
 
 The paths above are complete for routing; do not list the skill directory when
 the operation is known. Never load sibling command files to complete a formal

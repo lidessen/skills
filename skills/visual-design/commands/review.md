@@ -6,27 +6,41 @@ Review the whole in-scope experience before diagnosing an isolated page.
 1. Reconstruct the object, audience action, intended perceptual relation,
    inherited identity, and negative boundary from owning sources. If no
    direction exists, state that limitation rather than reverse-engineering one
-   from attractive details.
+   from attractive details. When the primary object is a production logo,
+   icon, illustration, repeated scene, or motion asset, read
+   `references/visual-asset-production.md`.
 2. Inspect the real artifact at representative routes, states, content lengths,
-   and viewports. Include neighboring surfaces that establish continuity and
-   downstream surfaces where page-specific polish can become an island.
+   and viewports. Include the highest-risk real content condition when language,
+   density, missing data, or user-generated material can change the judgment.
+   Include neighboring surfaces that establish continuity and downstream
+   surfaces where page-specific polish can become an island. For motion,
+   inspect initial, transition, settled, and reduced-motion states.
 3. Separate three kinds of evidence:
    - mechanical observations: rendering, overflow, interaction, accessibility,
      performance, and source integrity;
    - perceptual observations: actual attention order, hierarchy, continuity,
      distinction, atmosphere, legibility, and relation to action; and
    - preference or acceptance: the designated human's aesthetic judgment.
-4. Trace visible symptoms to their owning layer. Ask whether a defect belongs
-   to content structure, attention allocation, hierarchy, layout, semantic
+4. Name the highest-leverage visual mismatch: the one whose correction would
+   change the interpretation or priority of the other visible defects. Rank no
+   more than three decision-changing findings, then trace each to its owning
+   layer: content structure, attention allocation, hierarchy, layout, semantic
    tokens, shared identity, component treatment, implementation mechanics, or
-   the direction itself.
+   the direction itself. Do not turn a complete inventory into an unprioritized
+   redesign backlog.
 5. Name what should remain invariant and what should be allowed to vary. Do not
    call differentiated page forms inconsistent merely because they are not
    visually identical.
-6. Recommend the smallest change capable of testing the diagnosis, plus an
-   observation that would disconfirm it. Aesthetic acceptance remains a human
-   decision.
-7. Return:
+6. Recommend the smallest change capable of testing the leading diagnosis,
+   plus an observation that would disconfirm it. Aesthetic acceptance remains
+   a human decision.
+7. When designated human feedback rejects a visual assumption, classify the
+   feedback as `local treatment`, `shared system invariant`, or `project
+   direction reopening`. For the latter two, record the rejected assumption,
+   revised invariant or direction question, affected surfaces, and smallest
+   comparison that could show the new reading is wrong. Keep a local treatment
+   correction local.
+8. Return:
 
 ```text
 Object, audience action, and intended relation:
@@ -34,12 +48,15 @@ Direct mechanical observations:
 Direct perceptual observations:
 Observed attention order versus intended path:
 Inferred preference or unresolved judgment:
+Highest-leverage visual mismatch:
+Risk-ranked findings, maximum three:
 System layer that owns the main defect:
 Invariant to preserve:
 Variation to permit:
 Smallest next revision or no-change case:
 Disconfirming observation:
 Human acceptance question:
+Feedback disposition and affected surfaces, when applicable:
 Promotion status: case-only | study evidence | repeated direction candidate
 ```
 
