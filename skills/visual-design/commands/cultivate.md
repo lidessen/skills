@@ -12,8 +12,8 @@ instead.
 2. When a named style cue or expressive cross-surface relation materially
    shapes the project, read `references/visual-language.md` before retaining
    sources. Use its formal lenses to expose different readings without turning
-   the source field into a style catalogue. Then assemble a small **source
-   field** by role rather than fame or visual similarity:
+   the source field into a style catalog. Then assemble a small **source field**
+   by role rather than fame or visual similarity:
    - inherited project work and accepted/rejected human preference evidence;
    - direct exemplars that perform a comparable job well;
    - adjacent exemplars whose hierarchy, rhythm, materiality, interaction, or

@@ -138,7 +138,7 @@ decision:
 - ordinary downstream surfaces must retain enough of the language to belong to
   the same project without imitating the most expressive composition.
 
-Choose the website or document form from content and action together with the
+Choose the website or document form from the content, intended action, and
 visual relation. A campaign, publication, portfolio, community space, knowledge
 base, and operational tool should not receive the same composition merely
 because the same style cue was used.

@@ -5,7 +5,7 @@
 The portable [`visual-design`](../../skills/visual-design/SKILL.md) method should
 help a person or agent choose among meaningful visual relations by consulting a
 small field of real work. The field must improve the choice space without
-becoming a style catalogue, a house canon, or a source of borrowed identity
+becoming a style catalog, a house canon, or a source of borrowed identity
 vocabulary. A seed should remain a linked artifact plus a compact observation
 card; a live artifact, project evidence, a real fragment, and human judgment
 remain the decision authorities.
