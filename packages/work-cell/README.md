@@ -130,6 +130,14 @@ require a regular file in write scope that this run added or changed; the record
 retains its SHA-256 and byte size. None implies the schema or payload of another.
 See [decision 033](../../design/decisions/033-work-cell-terminal-contract.md).
 
+The AI SDK driver may change how it obtains `outputSchema` when a selected
+provider does not support native structured responses. It first completes the
+ordinary investigation without response-format pressure, then uses a private
+schema tool to project the retained evidence. The internal tool is not added to
+`terminalTools`; the caller still declares one output contract and Work Cell
+still validates it independently. Trace and usage expose the extra settlement
+phase instead of pretending it was one provider-native response.
+
 ## Work and budget boundary
 
 A Cell may carry a versioned **Work Estimate** and **Execution Profile**. The

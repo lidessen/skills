@@ -125,6 +125,14 @@ investigation from final structure or removing native response-format pressure.
 These three discovery cases must not then be reported as held-out confirmation;
 the revised profile needs separate retained cases.
 
+That probe is now retained in the
+[Kimi structured-settlement evaluation](2026-07-18-kimi-structured-settlement.md).
+It rejected a prompt-only repair, isolated unsupported structured completion as
+the behavior-changing condition, and verified a two-phase compatibility path.
+The original six runs remain valid evidence about the original execution
+profile; the repaired driver constitutes a revised profile that still needs
+confirmation on cases that did not teach the treatment.
+
 OpenCode Go is materially better supported for this narrow task population, but
 its one final-JSON failure shows non-trivial protocol variance. With only three
 cases and two repetitions, no reusable profile is admitted and no automatic

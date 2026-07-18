@@ -128,6 +128,9 @@ improves the same execution profile, use a matched baseline/treatment experiment
 that changes only that member. Feed the accepted treatment back as a new profile
 revision, then return here for task-population confirmation. Model evaluation
 discovers prompting hypotheses; it does not erase the attribution boundary.
+Prompting variables include wording, instruction priority and placement, phase
+separation, tool descriptions, and completion protocol. Test them separately;
+do not respond to a protocol failure by indefinitely adding stronger prose.
 
 ## Degradation boundary
 
