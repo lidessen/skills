@@ -34,6 +34,11 @@ cultivation unless the caller asks to establish a continuing project direction.
    requirement, or experiment. Reject choices justified only by trend or the
    surface of an unrelated successful artifact. Do not promote an open formal
    tendency into an exact project rule merely to make implementation easier.
+   For an interface whose direction must be carried by recurring elements, read
+   `references/component-expression.md`. Identify the smallest representative
+   set whose anatomy, spacing, depth, marks, and states would either carry or
+   contradict the direction. Do not wait for each mismatch to be named by the
+   user, and do not turn the scan into a requirement to restyle every component.
 4. Derive layout from content relationships and the attention path. Establish
    reading order, grouping, hierarchy, density, responsive behavior, and the
    smallest identity layer shared by in-scope surfaces. Let page archetypes and
@@ -63,12 +68,14 @@ Content hierarchy and attention path:
 Relation embodied and negative boundary:
 Visual language inherited or locally shaped, with open dimensions:
 Expression allocation across in-scope surfaces:
+Component expression decisions and deliberately neutral details:
 Inherited invariants preserved:
 Layout and responsive relations:
 Semantic tokens introduced or reused, with two consumers or substitution:
 Values deliberately kept local:
 Case-specific treatments chosen and why:
 Surfaces, states, themes, and viewports inspected:
+Representative recurring components inspected:
 Highest-risk real content condition inspected:
 Visual-asset production evidence, when applicable:
 Mechanical verification:
