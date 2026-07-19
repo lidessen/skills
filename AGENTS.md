@@ -38,6 +38,48 @@ probe proves the current policy solves the actual project problem.
 
 This is a collection of agent skills — reusable methodology plugins for AI-assisted development. Skills are installed into a project and invoked via slash commands (e.g., `/design-driven`).
 
+## Atthis workbench entry
+
+Treat a natural-language request to initialize, extend, register, or use the
+Atthis workbench as an instruction to operate the existing workbench entry. Do
+not make the human translate the request into CLI syntax. Select only the
+mechanical action their words authorize:
+
+- To initialize the workbench, run `python3 scripts/atthis.py init` and include
+  one `--workspace-root <path>` for each root they explicitly supplied. Do not
+  infer or scan `$HOME` when no root was supplied; an empty initialized home is
+  valid, and roots can be added later.
+- To add a later workspace root, run
+  `python3 scripts/atthis.py root add <path>`. Discovery remains bounded and
+  does not register the repositories it finds.
+- To register a project, require an explicit local Git root and a verified
+  stable project ID. Prefer a provider's immutable repository ID when one can
+  be verified; otherwise ask for an explicitly assigned ID. Treat requested
+  spoken names as aliases, never as identity, then run
+  `python3 scripts/atthis.py register <path> --id <id>` with one `--alias`
+  argument per alias.
+- To continue or resume a named external project or task, extract the smallest
+  intended name and run:
+
+```text
+python3 scripts/atthis.py resolve <name>
+```
+
+Treat the result as a verified routing projection, not task authority. Confirm
+the returned Git status, then read the target's returned instruction files and
+only the orientation files needed to recover the requested work. Do not infer
+task completion from an alias, copy target facts into global memory, search a
+Skill marketplace, or silently choose another project when resolution fails.
+If the current harness cannot write the returned workspace, state that runtime
+boundary rather than claiming the task has resumed.
+
+If resolution has no explicit match and the person supplied a new workspace
+root in the same request, add that root and retry. Refresh existing roots with
+`python3 scripts/atthis.py scan` only when stale discovery is plausible. A
+result marked `discovered` is a verified current location, not a stable project
+identity or durable alias. Do not turn a natural-language request into broader
+setup, marketplace search, automatic registration, or inferred task state.
+
 ## Principle Sequence
 
 `principles/SEQUENCE.md` is the collection's only semantic root of core principles. It contains one stable, unexplained principle per line. `principles/interpretations/P<id>.md` is that P-ID's living, source-bound reading: it reduces agent interpretation drift but cannot redefine or extend the source line. Skills and target-project guidance are downstream expressions.
