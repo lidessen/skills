@@ -97,7 +97,7 @@ Source decisions inherited and transformed:
 Relation-led formal tendencies that carry it:
 Suitable artifact and content conditions:
 Where expression should be strong, restrained, or absent:
-Logo, illustration, type, and motion implications:
+Logo, icon/mark, illustration, component, type, and motion implications:
 Plausible wrong reading and negative boundary:
 Cost, production, accessibility, and maintenance consequences:
 ```
@@ -175,7 +175,7 @@ Selected provisional visual language:
 Formal tendencies that carry the relation:
 Functional skeleton and attention constraints:
 Expression allocation across representative surfaces:
-Logo, illustration, typography, color, and motion implications:
+Logo, icon/mark, illustration, component, typography, color, and motion implications:
 Smallest shared invariants:
 Dimensions deliberately left open:
 Negative boundary and plausible wrong readings:
