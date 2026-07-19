@@ -40,8 +40,26 @@ This is a collection of agent skills — reusable methodology plugins for AI-ass
 
 ## Atthis workbench entry
 
-When the human enters this repository and asks to continue or resume a named
-external project or task, extract the smallest intended name and run:
+Treat a natural-language request to initialize, extend, register, or use the
+Atthis workbench as an instruction to operate the existing workbench entry. Do
+not make the human translate the request into CLI syntax. Select only the
+mechanical action their words authorize:
+
+- To initialize the workbench, run `python3 scripts/atthis.py init` and include
+  one `--workspace-root <path>` for each root they explicitly supplied. Do not
+  infer or scan `$HOME` when no root was supplied; an empty initialized home is
+  valid, and roots can be added later.
+- To add a later workspace root, run
+  `python3 scripts/atthis.py root add <path>`. Discovery remains bounded and
+  does not register the repositories it finds.
+- To register a project, require an explicit local Git root and a verified
+  stable project ID. Prefer a provider's immutable repository ID when one can
+  be verified; otherwise ask for an explicitly assigned ID. Treat requested
+  spoken names as aliases, never as identity, then run
+  `python3 scripts/atthis.py register <path> --id <id>` with one `--alias`
+  argument per alias.
+- To continue or resume a named external project or task, extract the smallest
+  intended name and run:
 
 ```text
 python3 scripts/atthis.py resolve <name>
@@ -55,11 +73,12 @@ Skill marketplace, or silently choose another project when resolution fails.
 If the current harness cannot write the returned workspace, state that runtime
 boundary rather than claiming the task has resumed.
 
-If no explicit registration matches and the person has supplied a workspace
-root, run `python3 scripts/atthis.py root add <path>` when the root is first
-given, or `python3 scripts/atthis.py scan` to refresh existing roots, then retry
-resolution. A result marked `discovered` is a verified current location, not a
-stable project identity or durable alias.
+If resolution has no explicit match and the person supplied a new workspace
+root in the same request, add that root and retry. Refresh existing roots with
+`python3 scripts/atthis.py scan` only when stale discovery is plausible. A
+result marked `discovered` is a verified current location, not a stable project
+identity or durable alias. Do not turn a natural-language request into broader
+setup, marketplace search, automatic registration, or inferred task state.
 
 ## Principle Sequence
 

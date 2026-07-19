@@ -30,13 +30,32 @@ specific method.
 - Develop Atthis itself through this repository's full operating and evidence
   system.
 - Install one self-contained Skill into another project for a specific method.
-- Enter this checkout as a workbench and resolve a registered external project
-  with `python3 scripts/atthis.py resolve <name>` before continuing its work.
+- Enter this checkout with a coding agent and use it as a workbench for other
+  projects.
 
-During setup, `python3 scripts/atthis.py init --workspace-root ~/workspaces`
-builds a disposable quick index; the same root can be supplied later with
-`python3 scripts/atthis.py root add ~/workspaces`. Scanning never turns a
-folder or repository name into durable project identity.
+For the workbench path, ask the agent directly:
+
+```text
+Initialize the Atthis workbench. My workspace root is ~/workspaces.
+Add ~/client-work as another workspace root.
+Register ~/workspaces/meowask and keep meowask and survey as spoken aliases.
+Continue survey.
+```
+
+The repository instructions translate those intents into the bounded
+`scripts/atthis.py` operations. When registration needs a stable identity that
+cannot be verified from the repository provider, the agent asks for that one
+missing value. It does not scan an unspecified home directory, auto-register
+discovered repositories, or make the user remember command flags.
+
+For automation, debugging, or an environment without an agent, the equivalent
+manual entry remains available:
+
+```sh
+python3 scripts/atthis.py init --workspace-root ~/workspaces
+python3 scripts/atthis.py root add ~/client-work
+python3 scripts/atthis.py resolve survey
+```
 
 The workbench keeps stable project identity separate from repository names,
 spoken aliases, and machine-local paths. It does not turn this repository into

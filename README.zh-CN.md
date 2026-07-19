@@ -25,13 +25,28 @@ skill 则是在具体语境中对所选条目的表达。
 
 - 在本仓库中完整实践项目的运行、验证与演进体系；
 - 向其他项目独立安装一个 Skill，针对性采用一种方法；
-- 把本仓库作为工作台入口，先用 `python3 scripts/atthis.py resolve <名称>`
-  定位已登记的外部项目，再继续其中的工作。
+- 用 coding agent 打开本仓库，把它作为进入其他项目的工作台。
 
-初始化时可以执行 `python3 scripts/atthis.py init --workspace-root ~/workspaces`
-建立可删除重建的快速索引；中途也可以用
-`python3 scripts/atthis.py root add ~/workspaces` 补充。扫描不会把文件夹名或
-仓库名自动升级为持久项目身份。
+使用工作台时，直接告诉 Agent：
+
+```text
+初始化 Atthis 工作台，我的日常工作区在 ~/workspaces。
+把 ~/client-work 加为另一个工作区根目录。
+登记 ~/workspaces/meowask，并保留 meowask 和 survey 两个口头别名。
+继续 survey。
+```
+
+仓库指引会把这些意图转换为有边界的 `scripts/atthis.py` 操作。登记时如果无法
+从仓库提供方验证稳定身份，Agent 只追问这个缺失值。它不会扫描未明确给出的
+主目录，不会自动登记扫描到的仓库，也不要求使用者记住命令参数。
+
+在自动化、调试或没有 Agent 的环境中，仍可使用等价的手动入口：
+
+```sh
+python3 scripts/atthis.py init --workspace-root ~/workspaces
+python3 scripts/atthis.py root add ~/client-work
+python3 scripts/atthis.py resolve survey
+```
 
 工作台将稳定项目身份与仓库名、口头别名和本机路径分开。它不会把本仓库变成
 全局任务板，也不会仅凭定位结果取得另一个项目的执行权。
