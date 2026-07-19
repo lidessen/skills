@@ -169,6 +169,17 @@ describe("progressive cognition formation", () => {
     })).rejects.toThrow("must change the captured content");
   });
 
+  test("bounds an empty source listing before expanding raw content", async () => {
+    const home = await newHome();
+    const selected = await source(home, "a:selected", "Selected preview");
+    const unselected = await source(home, "z:unselected", "Unselected preview");
+    await writeFile(join(home, "sources", "raw", `${unselected.id}.bin`), "damaged outside the requested window", "utf8");
+
+    const listed = await querySources(home, "", { limit: 1 });
+    expect(listed.results.map((result) => result.id)).toEqual([selected.id]);
+    expect(listed.results[0]?.preview).toBe("Selected preview");
+  });
+
   test("fails closed on forged source locators and damaged admission evidence", async () => {
     const home = await newHome();
     await registerFormationScheme(home, projectScheme, "human:test", "Source integrity probe");
@@ -211,6 +222,57 @@ describe("progressive cognition formation", () => {
 
     await writeFile(join(home, "sources", "raw", `${firstSource.id}.bin`), "tampered", "utf8");
     await expect(admitCognitiveArtifact(home, model.id, "reviewer:test", "Checked lineage")).rejects.toThrow(`source content hash mismatch: ${firstSource.id}`);
+  });
+
+  test("reports cyclic source and artifact lineages as unhealthy", async () => {
+    const home = await newHome();
+    await registerFormationScheme(home, cycleScheme, "human:test", "Integrity-cycle probe");
+    const originalSource = await source(home, "design:cycle", "Version A");
+    const revisedSource = await captureSource(home, {
+      kind: "manual",
+      locator: "design:cycle",
+      content: new TextEncoder().encode("Version B"),
+      predecessorId: originalSource.id,
+      actor: "human:test",
+    });
+    const originalSourcePath = join(home, "sources", "records", `${originalSource.id}.json`);
+    const originalSourceRecord = JSON.parse(await readFile(originalSourcePath, "utf8"));
+    originalSourceRecord.predecessorId = revisedSource.id;
+    await writeFile(originalSourcePath, JSON.stringify(originalSourceRecord), "utf8");
+
+    const seed = await proposeCognitiveArtifact(home, {
+      scheme: { id: "cycle-probe", revision: "1" },
+      moveId: "seed",
+      title: "Seed",
+      body: "Initial node.",
+      rationale: "Direct source formation.",
+      inputs: [{ type: "source", id: originalSource.id }],
+      actor: "agent:test",
+    });
+    await admitCognitiveArtifact(home, seed.id, "reviewer:test", "Checked seed");
+    const linked = await proposeCognitiveArtifact(home, {
+      scheme: { id: "cycle-probe", revision: "1" },
+      moveId: "link",
+      title: "Linked",
+      body: "Derived node.",
+      rationale: "Formed from the seed.",
+      inputs: [{ type: "artifact", id: seed.id }],
+      actor: "agent:test",
+    });
+    await admitCognitiveArtifact(home, linked.id, "reviewer:test", "Checked link");
+    const seedPath = join(home, "artifacts", `${seed.id}.json`);
+    const seedRecord = JSON.parse(await readFile(seedPath, "utf8"));
+    seedRecord.formation = {
+      moveId: "link",
+      rationale: "Externally damaged formation.",
+      inputs: [{ type: "artifact", id: linked.id }],
+    };
+    await writeFile(seedPath, JSON.stringify(seedRecord), "utf8");
+
+    const checked = await checkCognitionHome(home);
+    expect(checked.healthy).toBeFalse();
+    expect(checked.lineageProblems.some((problem) => problem.startsWith("source predecessor cycle:"))).toBeTrue();
+    expect(checked.lineageProblems.some((problem) => problem.startsWith("artifact formation cycle:"))).toBeTrue();
   });
 
   test("keeps the CLI small, detects damaged evidence, and rebuilds its projection", async () => {
@@ -316,6 +378,17 @@ const projectScheme = {
     { id: "synthesize", purpose: "Relate two observations into a bounded model.", inputs: [{ type: "artifact", role: "first determination", stage: "observation" }, { type: "artifact", role: "second determination", stage: "observation" }], outputStage: "model" },
     { id: "guide", purpose: "Express a model as actionable guidance.", inputs: [{ type: "artifact", role: "governing model", stage: "model" }], outputStage: "guidance" },
     { id: "reflect", purpose: "Return an observed practice outcome to cognition.", inputs: [{ type: "artifact", role: "guidance tested in practice", stage: "guidance" }, { type: "source", role: "observed practice outcome" }], outputStage: "observation" },
+  ],
+} as const;
+
+const cycleScheme = {
+  id: "cycle-probe",
+  revision: "1",
+  title: "Lineage-cycle integrity probe",
+  stages: [{ id: "node", purpose: "Retain one node in a formation graph." }],
+  moves: [
+    { id: "seed", purpose: "Create the first node.", inputs: [{ type: "source", role: "material" }], outputStage: "node" },
+    { id: "link", purpose: "Create a node from a prior node.", inputs: [{ type: "artifact", role: "prior", stage: "node" }], outputStage: "node" },
   ],
 } as const;
 

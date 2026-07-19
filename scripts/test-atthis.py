@@ -58,8 +58,11 @@ def main() -> None:
         discovered = pool / "unregistered"
         local_only = pool / "local-only"
         empty = pool / "empty"
+        credentialed = pool / "credentialed"
         late = late_pool / "late"
         remote = "https://example.test/lidessen/meowask.git"
+        credentialed_remote = "https://user:secret@example.test/lidessen/credentialed.git?access_token=hidden#fragment"
+        credential_free_remote = "https://example.test/lidessen/credentialed.git"
 
         create_repo(survey, remote)
         create_repo(other, "https://example.test/lidessen/other.git")
@@ -69,8 +72,28 @@ def main() -> None:
         create_repo(local_only, None)
         empty.mkdir()
         git(empty, "init")
+        create_repo(credentialed, credentialed_remote)
         run(home, "init", "--workspace-root", str(pool))
         run(home, "register", str(survey), "--id", "repository:1304098496", "--alias", "survey")
+
+        indexed_credentialed = json.loads(run(home, "resolve", "credentialed").stdout)
+        assert indexed_credentialed["workspace"]["origin"] == credential_free_remote
+        assert "user:secret" not in (home / "cache" / "workspaces.json").read_text(encoding="utf-8")
+        registered_credentialed = run(
+            home,
+            "register",
+            str(credentialed),
+            "--id",
+            "repository:credentialed",
+            "--alias",
+            "credentialed",
+        )
+        assert "user:secret" not in registered_credentialed.stdout
+        assert "access_token" not in registered_credentialed.stdout
+        credentialed_resolution = json.loads(run(home, "resolve", "credentialed").stdout)
+        assert credentialed_resolution["project"]["repository"] == credential_free_remote
+        assert credentialed_resolution["workspace"]["origin"] == credential_free_remote
+        assert "user:secret" not in (home / "config" / "projects.json").read_text(encoding="utf-8")
 
         rebound = run(home, "register", str(other), "--id", "repository:1304098496", expect=2)
         assert "refusing to rebind stable project id" in rebound.stderr
@@ -120,12 +143,12 @@ def main() -> None:
         late_result = json.loads(run(home, "resolve", "late").stdout)
         assert late_result["workspace"]["path"] == str(late.resolve())
         overlapping = json.loads(run(home, "root", "add", str(discovered)).stdout)
-        assert overlapping["indexedWorkspaces"] == 4
+        assert overlapping["indexedWorkspaces"] == 5
         (home / "cache" / "workspaces.json").unlink()
         rebuilt = json.loads(run(home, "scan").stdout)
-        assert rebuilt["indexedWorkspaces"] == 4
+        assert rebuilt["indexedWorkspaces"] == 5
         projects = json.loads((home / "config" / "projects.json").read_text(encoding="utf-8"))
-        assert [project["id"] for project in projects["projects"]] == ["repository:1304098496"]
+        assert [project["id"] for project in projects["projects"]] == ["repository:1304098496", "repository:credentialed"]
         projects["projects"].append({
             "id": "REPOSITORY:1304098496",
             "repository": "https://example.test/lidessen/other.git",

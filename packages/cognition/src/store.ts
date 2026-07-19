@@ -310,17 +310,29 @@ export async function querySources(home: string, query: string, options: { kind?
   const root = await requireHome(home);
   const files = (await readdir(resolve(root, "sources/records"))).filter((name) => name.endsWith(".json")).sort();
   const terms = searchTerms(query);
-  const results = [];
+  const sources: SourceRecord[] = [];
   for (const file of files) {
     const source = await readSource(root, file.slice(0, -5));
-    if (options.kind && source.kind !== options.kind) continue;
+    if (!options.kind || source.kind === options.kind) sources.push(source);
+  }
+  const limit = options.limit ?? 20;
+  if (terms.length === 0) {
+    const selected = sources.sort((a, b) => a.locator.localeCompare(b.locator)).slice(0, limit);
+    const results = await Promise.all(selected.map(async (source) => {
+      const content = new TextDecoder().decode(await readSourceContent(root, source.id));
+      return { id: source.id, kind: source.kind, locator: source.locator, metadata: source.metadata, score: 0, preview: preview(content) };
+    }));
+    return { query, filters: { kind: options.kind ?? null }, results };
+  }
+  const results = [];
+  for (const source of sources) {
     const content = new TextDecoder().decode(await readSourceContent(root, source.id));
     const searchable = `${source.kind}\n${source.locator}\n${JSON.stringify(source.metadata)}\n${content}`.toLocaleLowerCase();
     const score = terms.reduce((total, term) => total + (searchable.includes(term) ? 1 : 0), 0);
-    if (terms.length > 0 && score === 0) continue;
+    if (score === 0) continue;
     results.push({ id: source.id, kind: source.kind, locator: source.locator, metadata: source.metadata, score, preview: preview(content) });
   }
-  return { query, filters: { kind: options.kind ?? null }, results: results.sort((a, b) => b.score - a.score || a.locator.localeCompare(b.locator)).slice(0, options.limit ?? 20) };
+  return { query, filters: { kind: options.kind ?? null }, results: results.sort((a, b) => b.score - a.score || a.locator.localeCompare(b.locator)).slice(0, limit) };
 }
 
 export async function queryCognition(
@@ -381,8 +393,16 @@ export async function checkCognitionHome(home: string) {
   const sources = await Promise.all(sourceFiles.map((file) => readSource(root, file.slice(0, -5))));
   const artifacts = await Promise.all(artifactFiles.map((file) => readArtifact(root, file.slice(0, -5))));
   const eventProblems = reconcileEvents(events, schemes, sources, artifacts);
+  const lineageProblems = [
+    ...findLineageCycles(sources, (source) => source.predecessorId ? [source.predecessorId] : [], "source predecessor"),
+    ...findLineageCycles(
+      artifacts,
+      (artifact) => artifact.formation.inputs.filter((input) => input.type === "artifact").map((input) => input.id),
+      "artifact formation",
+    ),
+  ];
   const indexFresh = JSON.stringify(current.entries) === JSON.stringify(expected);
-  const healthy = sourceProblems.length === 0 && eventProblems.length === 0 && indexFresh;
+  const healthy = sourceProblems.length === 0 && eventProblems.length === 0 && lineageProblems.length === 0 && indexFresh;
   return {
     healthy,
     home: root,
@@ -392,6 +412,7 @@ export async function checkCognitionHome(home: string) {
     events: events.length,
     sourceProblems,
     eventProblems,
+    lineageProblems,
     indexFresh,
   };
 }
@@ -475,6 +496,37 @@ function reconcileEvents(
     }
   }
   return problems;
+}
+
+function findLineageCycles<T extends { id: string }>(
+  records: T[],
+  dependencies: (record: T) => string[],
+  label: string,
+): string[] {
+  const recordsById = new Map(records.map((record) => [record.id, record]));
+  const states = new Map<string, "visiting" | "visited">();
+  const stack: string[] = [];
+  const problems = new Set<string>();
+
+  function visit(id: string): void {
+    if (states.get(id) === "visited") return;
+    if (states.get(id) === "visiting") {
+      const cycleStart = stack.indexOf(id);
+      const cycle = [...stack.slice(cycleStart), id];
+      problems.add(`${label} cycle: ${cycle.join(" -> ")}`);
+      return;
+    }
+    const record = recordsById.get(id);
+    if (!record) return;
+    states.set(id, "visiting");
+    stack.push(id);
+    for (const dependency of dependencies(record)) visit(dependency);
+    stack.pop();
+    states.set(id, "visited");
+  }
+
+  for (const record of records) visit(record.id);
+  return [...problems].sort();
 }
 
 async function validateInput(

@@ -121,7 +121,9 @@ def validate_projects(value: Any) -> dict[str, Any]:
         if id_owner and id_owner != project_id:
             fail(f"project lookup key {project_id!r} belongs to both {id_owner} and {project_id}")
         lookup_keys[folded_id] = project_id
-        nonempty(project.get("repository"), f"project {project_id}.repository")
+        repository = nonempty(project.get("repository"), f"project {project_id}.repository")
+        if repository_locator(repository) != repository:
+            fail(f"project {project_id}.repository must be a credential-free canonical locator")
         project_aliases = string_list(project.get("aliases"), f"project {project_id}.aliases", 1)
         folded = [alias.casefold() for alias in project_aliases]
         if len(set(folded)) != len(folded):
@@ -178,7 +180,9 @@ def validate_index(value: Any) -> dict[str, Any]:
         paths.add(path)
         repository = entry.get("repository")
         if repository is not None:
-            nonempty(repository, f"indexed workspace {path}.repository")
+            repository = nonempty(repository, f"indexed workspace {path}.repository")
+            if repository_locator(repository) != repository:
+                fail(f"indexed workspace {path}.repository must be a credential-free canonical locator")
         string_list(entry.get("aliases"), f"indexed workspace {path}.aliases", 1)
     return value
 
@@ -222,20 +226,32 @@ def git_root(path: Path) -> Path:
     return Path(run_git(["rev-parse", "--show-toplevel"], path)).resolve()
 
 
-def normalized_repository(value: str) -> str:
+def repository_locator(value: str) -> str:
     normalized = value.strip().removesuffix("/")
     if "://" not in normalized and "@" in normalized and ":" in normalized:
         authority, path = normalized.split(":", 1)
-        normalized = f"ssh://{authority}/{path}"
+        normalized = f"ssh://{authority.rsplit('@', 1)[-1]}/{path}"
     parsed = urlparse(normalized)
+    if parsed.hostname:
+        hostname = f"[{parsed.hostname}]" if ":" in parsed.hostname else parsed.hostname
+        authority = f"{hostname}:{parsed.port}" if parsed.port is not None else hostname
+        return parsed._replace(netloc=authority, params="", query="", fragment="").geturl().removesuffix("/")
+    if parsed.scheme:
+        return parsed._replace(params="", query="", fragment="").geturl().removesuffix("/")
+    return normalized
+
+
+def normalized_repository(value: str) -> str:
+    locator = repository_locator(value)
+    parsed = urlparse(locator)
     if parsed.hostname:
         path = parsed.path.strip("/").removesuffix(".git")
         return f"{parsed.hostname}/{path}".casefold()
-    return normalized.removesuffix(".git").casefold()
+    return locator.removesuffix(".git").casefold()
 
 
 def repository_basename(repository: str) -> str:
-    normalized = repository.rstrip("/").removesuffix(".git")
+    normalized = repository_locator(repository).rstrip("/").removesuffix(".git")
     return normalized.rsplit("/", 1)[-1].rsplit(":", 1)[-1]
 
 
@@ -275,9 +291,10 @@ def indexed_by_query(index: dict[str, Any], query: str) -> dict[str, Any]:
 def observe_workspace(project: dict[str, Any], workspace: dict[str, Any]) -> dict[str, Any]:
     configured_path = Path(workspace["path"]).expanduser().resolve()
     root = git_root(configured_path)
-    if root != configured_path:
+    if not root.samefile(configured_path):
         fail(f"workspace mapping is not the Git root: configured {configured_path}, observed {root}")
-    origin = optional_git(["remote", "get-url", "origin"], root)
+    raw_origin = optional_git(["remote", "get-url", "origin"], root)
+    origin = repository_locator(raw_origin) if raw_origin else None
     expected_repository = project.get("repository")
     if expected_repository and origin is None:
         fail(f"workspace origin missing for {project['id']}: expected {expected_repository}")
@@ -338,7 +355,8 @@ def scan_roots(home: Path, roots: dict[str, Any]) -> dict[str, Any]:
         if not root.is_dir():
             fail(f"workspace root does not exist or is not a directory: {root}")
         for repository_root in discover_git_roots(root):
-            repository = optional_git(["remote", "get-url", "origin"], repository_root)
+            raw_repository = optional_git(["remote", "get-url", "origin"], repository_root)
+            repository = repository_locator(raw_repository) if raw_repository else None
             aliases = {repository_root.name}
             if repository:
                 aliases.add(repository_basename(repository))
@@ -409,7 +427,7 @@ def command_register(args: argparse.Namespace) -> None:
     home = home_path(args.home)
     projects, workspaces = require_home(home)
     root = git_root(Path(args.path).expanduser())
-    repository = run_git(["remote", "get-url", "origin"], root)
+    repository = repository_locator(run_git(["remote", "get-url", "origin"], root))
     aliases = {root.name, repository_basename(repository), *args.alias}
     aliases = {nonempty(alias, "alias") for alias in aliases}
     project = next((item for item in projects["projects"] if item["id"] == args.id), None)
@@ -441,7 +459,7 @@ def command_attach(args: argparse.Namespace) -> None:
     projects, workspaces = require_home(home)
     project = project_by_query(projects, args.query)
     root = git_root(Path(args.path).expanduser())
-    origin = run_git(["remote", "get-url", "origin"], root)
+    origin = repository_locator(run_git(["remote", "get-url", "origin"], root))
     if normalized_repository(origin) != normalized_repository(project["repository"]):
         fail(f"refusing to attach a different repository: expected {project['repository']}, observed {origin}")
     workspace = next((item for item in workspaces["workspaces"] if item["projectId"] == project["id"]), None)
