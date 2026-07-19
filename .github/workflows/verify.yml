@@ -36,6 +36,9 @@ jobs:
         run: python3 scripts/test-atthis.py
       - name: Test skill installation safety
         run: python3 scripts/test-probe-skill-installation.py
+      - name: Install Cognition dependencies
+        working-directory: packages/cognition
+        run: bun install --frozen-lockfile
       - name: Install Work Cell dependencies
         working-directory: packages/work-cell
         run: bun install --frozen-lockfile
@@ -45,9 +48,6 @@ jobs:
       - name: Test Work Cell
         working-directory: packages/work-cell
         run: bun test
-      - name: Install Cognition dependencies
-        working-directory: packages/cognition
-        run: bun install --frozen-lockfile
       - name: Typecheck Cognition
         working-directory: packages/cognition
         run: bun run typecheck
