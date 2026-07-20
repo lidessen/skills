@@ -156,6 +156,19 @@ beyond the human mandate, or automatically close a Mission from Git or PR
 state. At a safe point for an existing Mission, run its `status` and `check`
 commands and surface mismatches for settlement.
 
+## Integration entry
+
+When the human asks to create or operate a branch, worktree, PR, review, or
+merge, load `design/operations/OPERATING-PROTOCOL.md` and preserve
+`.github/PULL_REQUEST_TEMPLATE.md` as the repository-specific handoff; a
+generic publishing tool must not replace it with a simpler body. Before
+recommending or performing a merge, require a named independent review record
+for the current head and present its compact packet through the Principal
+Decision Brief. Do not treat an empty or pending review surface as completed.
+Before settling or pruning the integration Mission, re-read the source PR and
+give every late review observation a traced disposition. A local reversible
+task that does not enter shared integration remains outside this entry.
+
 ## Principle Sequence
 
 `principles/SEQUENCE.md` is the collection's only semantic root of core principles. It contains one stable, unexplained principle per line. `principles/interpretations/P<id>.md` is that P-ID's living, source-bound reading: it reduces agent interpretation drift but cannot redefine or extend the source line. Skills and target-project guidance are downstream expressions.

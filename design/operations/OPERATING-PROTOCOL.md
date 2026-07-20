@@ -66,9 +66,15 @@ queue.
 5. Open a PR into `main`, preserve failed checks and review observations, obtain
    independent AI review evidence, and present its compact packet to the
    Principal for confirmation. A green check is necessary evidence, not
-   acceptance; see [decision 023](../decisions/023-ai-review-evidence-and-principal-confirmation.md).
+   acceptance. The named reviewer must submit an explicit record for the
+   current head; an empty or pending review surface is not completion. Use
+   asynchronous platform review only as supplemental evidence when it lacks a
+   reliable completion signal; see
+   [decision 023](../decisions/023-ai-review-evidence-and-principal-confirmation.md).
 6. After merge, rejection, or explicit abandonment, retain the PR and any
-   promoted evidence, then remove the merged/abandoned worktree:
+   promoted evidence. Before settling or pruning the Mission, re-read the PR
+   for late review observations and record a disposition for each one. Then
+   remove the merged/abandoned worktree:
 
    ```text
    git worktree remove ../skills-worktrees/<slug>
