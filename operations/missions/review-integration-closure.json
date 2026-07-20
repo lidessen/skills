@@ -6,10 +6,11 @@
     "human authorization, 2026-07-20: proceed with the workflow review recommendation",
     "https://github.com/lidessen/skills/pull/39#pullrequestreview-4731961215",
     "design/operations/OPERATING-PROTOCOL.md",
-    ".github/PULL_REQUEST_TEMPLATE.md"
+    ".github/PULL_REQUEST_TEMPLATE.md",
+    "regeneration/evaluations/2026-07-20-review-integration-entry.md"
   ],
   "createdAt": "2026-07-20T04:34:11Z",
-  "updatedAt": "2026-07-20T04:34:11Z",
+  "updatedAt": "2026-07-20T04:42:05Z",
   "mainline": {
     "contradiction": "The accepted operating protocol requires independent review and a principal decision before merge, but the ordinary publish path can treat an absent asynchronous review as completed, bypass the repository PR handoff, merge, and prune its Mission before late findings arrive.",
     "acceptance": [
