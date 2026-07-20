@@ -35,7 +35,7 @@ For the current slice, form a temporary **conformance map**:
 Visual role or consumer:
 Applicable contract relation:
 Current rendered, human, or explicit source evidence:
-Evidence provenance: direct rendering | inspected source | human observation | supplied summary | inference
+Evidence provenance: direct rendering | inspected owning source | explicit human observation | supplied implementation summary | inference
 Implementation owner:
 Affected downstream consumers:
 Action: preserve | normalize | express | localize | leave open
