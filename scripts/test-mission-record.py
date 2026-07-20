@@ -61,6 +61,7 @@ def main() -> None:
             "--return-condition", "State whether a Git-tracked source is needed", "--source", "design/operations/OPERATING-PROTOCOL.md",
         )
         status = json.loads(run(repo, "status", "founding").stdout)
+        assert set(status) == {"id", "mainline", "currentFocus", "openBranches"}
         assert status["currentFocus"] == "research"
         assert status["openBranches"][0]["id"] == "research"
         listing = json.loads(run(repo, "list").stdout)
@@ -83,6 +84,8 @@ def main() -> None:
         invalid.write_text("{}\n", encoding="utf-8")
         failed_listing = run(repo, "list", expect=2)
         assert "version must be mission-record.v1" in failed_listing.stderr
+        missing_root = run(repo, "--root", str(repo / "missing"), "list", expect=2)
+        assert "mission root not found" in missing_root.stderr
 
     print("mission-record tests passed")
 

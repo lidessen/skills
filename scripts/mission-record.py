@@ -330,17 +330,28 @@ def status_projection(record: dict[str, Any]) -> dict[str, Any]:
     ]
     return {
         "id": record["id"],
-        "title": record["title"],
         "mainline": record["mainline"]["status"],
         "currentFocus": record["currentFocus"],
         "openBranches": branches,
-        "updatedAt": record["updatedAt"],
     }
 
 
 def command_list(args: argparse.Namespace) -> None:
+    if not args.root.is_dir():
+        fail(f"mission root not found: {args.root}")
     records = [load(path) for path in sorted(args.root.glob("*.json"))]
-    active = [status_projection(record) for record in records if record["mainline"]["status"] == "active"]
+    active = [
+        {
+            "id": record["id"],
+            "title": record["title"],
+            "mainline": record["mainline"]["status"],
+            "currentFocus": record["currentFocus"],
+            "openBranches": status_projection(record)["openBranches"],
+            "updatedAt": record["updatedAt"],
+        }
+        for record in records
+        if record["mainline"]["status"] == "active"
+    ]
     print(json.dumps({"activeMissions": active}, ensure_ascii=False, indent=2))
 
 
