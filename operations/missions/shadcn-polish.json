@@ -8,7 +8,7 @@
     "regeneration/evaluations/2026-07-20-shadcn-polish-method.md"
   ],
   "createdAt": "2026-07-20T08:07:15Z",
-  "updatedAt": "2026-07-20T08:32:00Z",
+  "updatedAt": "2026-07-20T08:47:11Z",
   "mainline": {
     "contradiction": "The visual-design refine path can diagnose component drift but responds by inventing and uniformly propagating style values, so repeated shadcn polish converges on a coherent but ugly caricature instead of a selected visual relation.",
     "acceptance": [
@@ -17,7 +17,11 @@
       "The method treats a related component ecology as the propagation unit while preserving intentional role differences.",
       "A matched DeepSeek treatment probe replaces uniform-value prescription with comparison-driven planning, and a local-defect boundary probe avoids unnecessary system ceremony."
     ],
-    "status": "active"
+    "status": "settled",
+    "closureSources": [
+      "PR #43 merged at c0966ff88a9b60752253dca4e527241b020bbf84",
+      "All PR #43 review threads received traced dispositions and were resolved"
+    ]
   },
   "branches": [
     {
@@ -30,8 +34,10 @@
         "branch mission/shadcn-polish",
         "independent review run 76a30d5d-b90f-4be8-bc9d-f212540479b5"
       ],
-      "status": "open"
+      "status": "closed",
+      "disposition": "integrate",
+      "mainlineDelta": "PR #43 merged the evidence-gated, comparison-driven shadcn refinement method into main."
     }
   ],
-  "currentFocus": "implementation"
+  "currentFocus": "mainline"
 }
