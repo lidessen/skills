@@ -1,0 +1,25 @@
+{
+  "version": "mission-record.v1",
+  "id": "review-integration-closure",
+  "title": "Make review completion explicit before integration",
+  "sources": [
+    "human authorization, 2026-07-20: proceed with the workflow review recommendation",
+    "https://github.com/lidessen/skills/pull/39#pullrequestreview-4731961215",
+    "design/operations/OPERATING-PROTOCOL.md",
+    ".github/PULL_REQUEST_TEMPLATE.md"
+  ],
+  "createdAt": "2026-07-20T04:34:11Z",
+  "updatedAt": "2026-07-20T04:34:11Z",
+  "mainline": {
+    "contradiction": "The accepted operating protocol requires independent review and a principal decision before merge, but the ordinary publish path can treat an absent asynchronous review as completed, bypass the repository PR handoff, merge, and prune its Mission before late findings arrive.",
+    "acceptance": [
+      "A branch, worktree, PR, or merge request activates the repository operating protocol and PR template without copying that protocol into another source.",
+      "Integration requires explicit named review evidence for the current head; an empty or pending asynchronous review surface cannot satisfy the gate, and late external comments are checked before Mission prune.",
+      "Every late inline comment on PR 39 is source-triaged, with only reproduced or contract-backed defects corrected and rejected suggestions given a concise reason.",
+      "An ordinary publish-path probe preserves the full repository handoff and blocks a deliberately incomplete review, while a local non-publish task remains outside the integration ceremony."
+    ],
+    "status": "active"
+  },
+  "branches": [],
+  "currentFocus": "mainline"
+}
