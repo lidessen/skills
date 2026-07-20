@@ -48,6 +48,8 @@ No new P-ID is required to carry this design:
 - **P04** makes the present principal contradiction select the live formation;
 - **P11 / P13** separate proposal, execution, verification, fact admission, and
   durable commitment; and
+- **P14** keeps rebuildable runtime views and state projections from acquiring
+  source or fact authority merely because they are convenient; and
 - **P15** prevents the generative model from becoming a mandatory hierarchy or
   universal orchestration pipeline.
 
@@ -78,7 +80,7 @@ grant.
 |---|---|---|
 | **道** | objective reality, material conditions, inherited human knowledge, and practice outside the repository | the project does not own reality or truth; it can only encounter, investigate, and revise toward them |
 | **一** | [`principles/SEQUENCE.md`](../../principles/SEQUENCE.md), the compact and fallible semantic root | only explicit human adoption changes it |
-| **一的展开** | source-bound interpretations that make one P-ID usable and less drift-prone | an interpretation is a licensed derivative, not a second canon or an equal semantic source |
+| **Unfolding of One (一的展开)** | source-bound interpretations that make one P-ID usable and less drift-prone | an interpretation is a licensed derivative, not a second canon or an equal semantic source |
 | **二** | domain-general methodology Skills formed by selecting and expressing principles | a Skill teaches a recurring judgment; it does not acquire project facts, execution, or acceptance authority |
 | **三** | a live formation produced by a selected method, concrete domain material, and the present principal contradiction | a domain Skill is reusable professional capacity; the concrete “three” exists only when situation, evidence, actors, bounds, and acceptance are formed for actual work |
 | **万物** | Work Cell and Swarm attempts, code, documents, decisions, products, and effects in practice | outputs remain claims or effects until the owning verifier and acceptance path settle them |
@@ -205,7 +207,7 @@ This design is present when a later reader can distinguish the semantic root,
 method expressions, live formation, execution, empirical return path, and the
 four authority planes without treating them as a single hierarchy.
 
-Reopen it if practice shows that the `道—一—二—三—万物` relation cannot decide a
+Reopen it if practice shows that the `道 → 一 → 二 → 三 → 万物` relation cannot decide a
 real ownership or formation question; if the political analogy causes portable
 interfaces to lose generality; if supervised autonomy cannot operate without a
 central Agent acquiring semantic or acceptance authority; or if actual users
