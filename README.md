@@ -40,6 +40,7 @@ Initialize the Atthis workbench. My workspace root is ~/workspaces.
 Add ~/client-work as another workspace root.
 Register ~/workspaces/meowask and keep meowask and survey as spoken aliases.
 Continue survey.
+Show work in progress across my registered projects.
 ```
 
 The repository instructions translate those intents into the bounded
@@ -54,6 +55,7 @@ manual entry remains available:
 ```sh
 python3 scripts/atthis.py init --workspace-root ~/workspaces
 python3 scripts/atthis.py root add ~/client-work
+python3 scripts/atthis.py project list
 python3 scripts/atthis.py resolve survey
 ```
 

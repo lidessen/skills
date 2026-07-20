@@ -49,7 +49,11 @@ separates:
 - `resolve` prefers an explicit registration, otherwise may use one exact,
   unambiguous indexed candidate marked `discovered`. It fails closed on a
   missing path, wrong Git root, or origin mismatch before returning current Git
-  and context evidence.
+  and context evidence; and
+- `project list` verifies every registered workspace and returns one bounded
+  inventory projection. It preserves available entries when another project is
+  unverified, marks the whole result incomplete, and exits unsuccessfully so
+  automation cannot mistake a partial view for a complete one.
 
 `init --workspace-root <path>` may configure and scan a root during initial
 setup; `root add <path>` provides the same entry when the person supplies it
@@ -86,6 +90,21 @@ not expand the project registry into a global backlog or make resolution an
 authority to execute. Runtime write permission also remains external: if the
 current harness cannot write the returned path, the agent must report that
 boundary or re-enter through a currently documented harness surface.
+
+For a cross-project work query, the ordinary Agent uses `project list` only to
+recover verified registered workspaces and their target instructions. Each
+target project remains responsible for declaring whether and how it exposes
+active obligations. A project without such a declaration is `unsupported`, not
+empty. The Agent reads only instruction filenames returned by the verified
+observation and marks task coverage incomplete for any unverified or
+unsupported project, or invalid task projection. It may aggregate declared task
+projections for presentation, but it must execute each relative query from that
+target's verified workspace root; the workbench current directory cannot stand
+in for target context. Once a declared query returns a valid projection, aggregation
+uses that projection without reopening its underlying task records, and no
+task judgment crosses project identity. Atthis does not embed a universal task
+schema, execute arbitrary target commands, or persist the combined view as
+another task source.
 
 ## Migration boundary
 

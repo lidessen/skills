@@ -95,6 +95,17 @@ def main() -> None:
         assert credentialed_resolution["workspace"]["origin"] == credential_free_remote
         assert "user:secret" not in (home / "config" / "projects.json").read_text(encoding="utf-8")
 
+        project_list = json.loads(run(home, "project", "list").stdout)
+        assert project_list["complete"] is True
+        assert [entry["project"]["id"] for entry in project_list["projects"]] == [
+            "repository:1304098496",
+            "repository:credentialed",
+        ]
+        assert all(entry["status"] == "available" for entry in project_list["projects"])
+        serialized_project_list = json.dumps(project_list)
+        assert "user:secret" not in serialized_project_list
+        assert "access_token" not in serialized_project_list
+
         rebound = run(home, "register", str(other), "--id", "repository:1304098496", expect=2)
         assert "refusing to rebind stable project id" in rebound.stderr
         colliding_id = run(home, "register", str(other), "--id", "survey", expect=2)
@@ -108,6 +119,12 @@ def main() -> None:
         survey.rename(meowask)
         stale = run(home, "resolve", "survey", expect=2)
         assert "workspace path does not exist" in stale.stderr
+        partial = json.loads(run(home, "project", "list", expect=2).stdout)
+        assert partial["complete"] is False
+        assert {entry["status"] for entry in partial["projects"]} == {"available", "unverified"}
+        unverified = next(entry for entry in partial["projects"] if entry["status"] == "unverified")
+        assert unverified["project"]["id"] == "repository:1304098496"
+        assert "workspace path does not exist" in unverified["error"]
 
         wrong = run(home, "attach", "survey", str(other), expect=2)
         assert "refusing to attach a different repository" in wrong.stderr
