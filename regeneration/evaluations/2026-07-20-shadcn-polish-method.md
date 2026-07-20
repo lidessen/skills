@@ -144,7 +144,8 @@ These probes support routing, evidence discipline, ownership choice, and the
 replacement of serial value tuning with comparison-driven planning on one
 Flash-class execution profile. They do not establish that the candidates will
 be aesthetically good, that a selected treatment will survive implementation
-across the whole product, or that every provider will obey the evidence gate.
-The next stronger test is a real browser-backed baseline/candidate comparison
-in a shadcn product followed by human selection and an ordinary downstream
-consumer check.
+across the whole product, that every provider will obey the evidence gate, or
+that an agent can recover registry provenance when the current shadcn CLI is
+unavailable. The next stronger test is a real browser-backed baseline/candidate
+comparison in a shadcn product followed by human selection and an ordinary
+downstream consumer check.
