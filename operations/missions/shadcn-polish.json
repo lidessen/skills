@@ -1,0 +1,23 @@
+{
+  "version": "mission-record.v1",
+  "id": "shadcn-polish",
+  "title": "Make shadcn polish comparison-driven",
+  "sources": [
+    "human report, 2026-07-20: repeated shadcn polish remains ugly",
+    "baseline Work Cell run 4f3d84b5-c253-4c51-8b84-19dd5779ebab"
+  ],
+  "createdAt": "2026-07-20T08:07:15Z",
+  "updatedAt": "2026-07-20T08:07:15Z",
+  "mainline": {
+    "contradiction": "The visual-design refine path can diagnose component drift but responds by inventing and uniformly propagating style values, so repeated shadcn polish converges on a coherent but ugly caricature instead of a selected visual relation.",
+    "acceptance": [
+      "A shadcn polish activation distinguishes system normalization, direction under-expression, direction mismatch, and local defect before selecting an owner.",
+      "Uncertain aesthetic treatment uses a bounded rendered variant comparison rather than serial production tweaks or invented values.",
+      "The method treats a related component ecology as the propagation unit while preserving intentional role differences.",
+      "A matched DeepSeek treatment probe corrects the reproduced baseline failure, and a local-defect boundary probe avoids unnecessary system ceremony."
+    ],
+    "status": "active"
+  },
+  "branches": [],
+  "currentFocus": "mainline"
+}
