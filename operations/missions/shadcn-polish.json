@@ -8,7 +8,7 @@
     "regeneration/evaluations/2026-07-20-shadcn-polish-method.md"
   ],
   "createdAt": "2026-07-20T08:07:15Z",
-  "updatedAt": "2026-07-20T08:22:54Z",
+  "updatedAt": "2026-07-20T08:32:00Z",
   "mainline": {
     "contradiction": "The visual-design refine path can diagnose component drift but responds by inventing and uniformly propagating style values, so repeated shadcn polish converges on a coherent but ugly caricature instead of a selected visual relation.",
     "acceptance": [
@@ -19,6 +19,19 @@
     ],
     "status": "active"
   },
-  "branches": [],
-  "currentFocus": "mainline"
+  "branches": [
+    {
+      "id": "implementation",
+      "parent": "mainline",
+      "kind": "implementation",
+      "purpose": "Revise and behavior-test the visual-design refine method for shadcn polish work.",
+      "returnCondition": "The independently reviewed change is integrated into main or explicitly returned with an abandon or no-change disposition.",
+      "sources": [
+        "branch mission/shadcn-polish",
+        "independent review run 76a30d5d-b90f-4be8-bc9d-f212540479b5"
+      ],
+      "status": "open"
+    }
+  ],
+  "currentFocus": "implementation"
 }
