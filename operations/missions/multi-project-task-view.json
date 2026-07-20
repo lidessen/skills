@@ -8,7 +8,7 @@
     "design/decisions/038-atthis-workbench-entry.md"
   ],
   "createdAt": "2026-07-20T00:50:58Z",
-  "updatedAt": "2026-07-20T00:50:58Z",
+  "updatedAt": "2026-07-20T03:17:17Z",
   "mainline": {
     "contradiction": "Atthis can verify and enter one project while Mission Records can enumerate one project's active obligations, but no source-bounded path can answer which work is active across heterogeneous registered projects without either omitting projects or turning the workbench into a second task authority.",
     "acceptance": [
@@ -16,7 +16,11 @@
       "A multi-project query reports every registered project's support and availability state without silently treating partial results as complete.",
       "An ordinary Agent can recover active work from at least two isolated project fixtures while an unsupported or invalid project remains explicit and no target task source is mutated."
     ],
-    "status": "active"
+    "status": "settled",
+    "closureSources": [
+      "https://github.com/lidessen/skills/pull/38",
+      "regeneration/evaluations/2026-07-20-atthis-multi-project-agent-probe.md"
+    ]
   },
   "branches": [],
   "currentFocus": "mainline"
