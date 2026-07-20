@@ -29,6 +29,7 @@ RESOLUTION_VERSION = "atthis.resolution.v1"
 PREFERENCES_VERSION = "atthis.preferences.v1"
 PREFERENCE_PROJECTION_VERSION = "atthis.preference-projection.v1"
 PREFERENCE_RECEIPT_VERSION = "atthis.preference-receipt.v1"
+PROJECT_LIST_VERSION = "atthis.project-list.v1"
 DEFAULT_HOME = Path("~/.atthis")
 HOME_DIRECTORIES = ("config", "state", "missions", "memory", "cognition", "receipts", "cache")
 
@@ -656,6 +657,36 @@ def command_resolve(args: argparse.Namespace) -> None:
     }, ensure_ascii=False, indent=2))
 
 
+def command_project_list(args: argparse.Namespace) -> int:
+    home = home_path(args.home)
+    projects, workspaces = require_home(home)
+    entries: list[dict[str, Any]] = []
+    complete = True
+    for project in sorted(projects["projects"], key=lambda item: item["id"].casefold()):
+        try:
+            workspace = workspace_for(workspaces, project["id"])
+            observation = observe_workspace(project, workspace)
+            entries.append({"project": project, "status": "available", "workspace": observation})
+        except ValueError as error:
+            complete = False
+            configured = next(
+                (item for item in workspaces["workspaces"] if item["projectId"] == project["id"]),
+                None,
+            )
+            entries.append({
+                "project": project,
+                "status": "unverified",
+                "workspace": {"path": configured["path"]} if configured else None,
+                "error": str(error),
+            })
+    print(json.dumps({
+        "version": PROJECT_LIST_VERSION,
+        "complete": complete,
+        "projects": entries,
+    }, ensure_ascii=False, indent=2))
+    return 0 if complete else 2
+
+
 def command_root_add(args: argparse.Namespace) -> None:
     home = home_path(args.home)
     require_home(home)
@@ -812,6 +843,11 @@ def parser() -> argparse.ArgumentParser:
     resolve.add_argument("query")
     resolve.set_defaults(run=command_resolve)
 
+    project = commands.add_parser("project", help="inspect registered projects")
+    project_commands = project.add_subparsers(dest="project_command", required=True)
+    project_list = project_commands.add_parser("list", help="list registered projects with verified workspace state")
+    project_list.set_defaults(run=command_project_list)
+
     root = commands.add_parser("root", help="manage machine-local workspace roots")
     root_commands = root.add_subparsers(dest="root_command", required=True)
     root_add = root_commands.add_parser("add", help="add and immediately scan one or more roots")
@@ -846,7 +882,9 @@ def parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = parser().parse_args()
     try:
-        args.run(args)
+        result = args.run(args)
+        if isinstance(result, int):
+            raise SystemExit(result)
     except ValueError as error:
         print(f"atthis: {error}", file=sys.stderr)
         raise SystemExit(2)

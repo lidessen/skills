@@ -43,6 +43,7 @@ Remember across projects that stable bounded tasks should prefer Work Cell.
 On this machine, prefer native sub-agents when they provide a required subscription.
 Show the preferences that apply to survey.
 Continue survey.
+Show work in progress across my registered projects.
 ```
 
 The repository instructions translate those intents into the bounded
@@ -57,6 +58,7 @@ manual entry remains available:
 ```sh
 python3 scripts/atthis.py init --workspace-root ~/workspaces
 python3 scripts/atthis.py root add ~/client-work
+python3 scripts/atthis.py project list
 python3 scripts/atthis.py resolve survey
 python3 scripts/atthis.py preference list --project survey
 ```

@@ -114,6 +114,25 @@ one could change the choice. A preference cannot override a current human
 instruction, project constraint, authorization boundary, or contrary runtime
 evidence; state the reason when departing from it.
 
+## Atthis cross-project task entry
+
+When the human asks for work in progress across registered projects, run
+`python3 scripts/atthis.py project list`. Preserve its `complete` flag and each
+project's availability status. For every available project, read its returned
+instruction files—and no conventional filenames that were not returned—before
+using only the task-continuity source that project declares. Run every relative
+target command with its working directory set to the returned workspace path;
+never reuse the Atthis workbench directory for a different project's query.
+Report a project with no declared source as `unsupported`; do not infer
+commitments from Git branches, PRs, Issues, logs, or repository names. Mark the
+combined task view incomplete when the project inventory is incomplete or any
+project is unverified, unsupported, or returns invalid task output. Once a
+declared task query returns a valid projection, aggregate only that output; do
+not open its underlying records merely to elaborate the answer. Keep every task
+judgment scoped to the project that produced it. The combined answer is a
+read-only projection: it neither copies task facts into Atthis nor authorizes
+work in a target project.
+
 ## Mission continuity entry
 
 When the human asks which work is in progress in this project, run

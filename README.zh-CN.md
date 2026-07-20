@@ -37,6 +37,7 @@ skill 则是在具体语境中对所选条目的表达。
 仅在本机，原生 sub-agent 提供必要订阅能力时优先使用它。
 显示适用于 survey 的偏好。
 继续 survey。
+显示所有已登记项目中正在进行的工作。
 ```
 
 仓库指引会把这些意图转换为有边界的 `scripts/atthis.py` 操作。登记时如果无法
@@ -48,6 +49,7 @@ skill 则是在具体语境中对所选条目的表达。
 ```sh
 python3 scripts/atthis.py init --workspace-root ~/workspaces
 python3 scripts/atthis.py root add ~/client-work
+python3 scripts/atthis.py project list
 python3 scripts/atthis.py resolve survey
 python3 scripts/atthis.py preference list --project survey
 ```
