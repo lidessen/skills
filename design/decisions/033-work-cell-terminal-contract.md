@@ -1,7 +1,7 @@
 # 033 — Work Cell Terminal Contract
 
 **Status:** implemented and verified
-**Date:** 2026-07-15; Task system replacement 2026-07-21
+**Date:** 2026-07-15; Task system replacement and read-only host projection 2026-07-21
 **Approved by:** principal
 
 ## Concrete pressure
@@ -132,7 +132,9 @@ must judge it against the evidence before a host or human accepts the result.
   unseeded Cell can create and settle tasks, simple work can omit them, and an
   unsettled task fails mechanical work proof. A restricted execution probe sees
   list/get/update but no create tool, and its update schema cannot mutate task
-  content, owner, or dependencies. A delegate-loop probe creates a Task before
+  content, owner, or dependencies. A read-only review probe sees only list/get,
+  and the `run`/`swarm` CLI can select that host-owned projection without adding
+  authority to the manifest. A delegate-loop probe creates a Task before
   delegation, checkpoints its binding, and completes it after child settlement.
 - A provider-behavior probe repeats an ordinary read despite a terminal-only
   final tool surface. The read is not executed, recovery retains the three

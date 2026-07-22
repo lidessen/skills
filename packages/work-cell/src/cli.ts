@@ -3,7 +3,11 @@ import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
-import { AiSdkValidationDriver } from "./ai-sdk-driver";
+import {
+  AiSdkValidationDriver,
+  TaskToolSetSchema,
+  type TaskToolSet,
+} from "./ai-sdk-driver";
 import { AiSdkValidationSequenceDriver } from "./adapters/sequence/ai-sdk-driver";
 import { CellInputSchema, type CellRunRecord } from "./contracts";
 import { persistDeliberationRecord, runDeliberation } from "./adapters/deliberation/runtime";
@@ -44,14 +48,14 @@ async function main(args: string[]): Promise<void> {
   if (!command) usage();
 
   if (command === "run") {
-    const path = requiredPath(rest, "run");
+    const { path, taskToolSet } = parseExecutionArguments(rest, "run");
     const absolutePath = resolve(path);
     const raw = JSON.parse(await readFile(absolutePath, "utf8"));
     if (raw.workspace?.root && !isAbsolute(raw.workspace.root)) {
       raw.workspace.root = resolve(dirname(absolutePath), raw.workspace.root);
     }
     const input = CellInputSchema.parse(raw);
-    const record = await runCell(input, new AiSdkValidationDriver());
+    const record = await runCell(input, new AiSdkValidationDriver({ taskToolSet }));
     const output = `${absolutePath.replace(/\.json$/, "")}.run.json`;
     await writeFile(output, `${JSON.stringify(record, null, 2)}\n`, "utf8");
     console.log(JSON.stringify({ output, runId: record.runId, status: record.status, usage: record.usage }, null, 2));
@@ -59,7 +63,7 @@ async function main(args: string[]): Promise<void> {
   }
 
   if (command === "swarm") {
-    const path = requiredPath(rest, "swarm");
+    const { path, taskToolSet } = parseExecutionArguments(rest, "swarm");
     const absolutePath = resolve(path);
     const raw = JSON.parse(await readFile(absolutePath, "utf8"));
     if (Array.isArray(raw.cells)) {
@@ -69,7 +73,7 @@ async function main(args: string[]): Promise<void> {
         }
       }
     }
-    const record = await runSwarm(raw, () => new AiSdkValidationDriver());
+    const record = await runSwarm(raw, () => new AiSdkValidationDriver({ taskToolSet }));
     const persisted = await persistSwarmRecord(absolutePath, record);
     console.log(JSON.stringify({
       output: persisted.indexPath,
@@ -368,11 +372,35 @@ function requiredPath(args: string[], command: string): string {
   return path;
 }
 
+function parseExecutionArguments(
+  args: string[],
+  command: "run" | "swarm",
+): { path: string; taskToolSet: TaskToolSet } {
+  const path = requiredPath(args, command);
+  let taskToolSet: TaskToolSet = "manage";
+  let taskToolSetDeclared = false;
+  for (let index = 1; index < args.length; index += 1) {
+    const flag = args[index];
+    const value = args[index + 1];
+    if (!flag || !value) throw new Error(`missing value for ${flag ?? `${command} option`}`);
+    if (flag !== "--task-tools") throw new Error(`unknown ${command} option: ${flag}`);
+    if (taskToolSetDeclared) throw new Error("--task-tools may be declared only once");
+    const parsed = TaskToolSetSchema.safeParse(value);
+    if (!parsed.success) {
+      throw new Error("--task-tools must be manage, read-update, or read-only");
+    }
+    taskToolSet = parsed.data;
+    taskToolSetDeclared = true;
+    index += 1;
+  }
+  return { path, taskToolSet };
+}
+
 function usage(): never {
   console.error([
     "Usage:",
-    "  bun src/cli.ts run <cell.json>",
-    "  bun src/cli.ts swarm <swarm.json>",
+    "  bun src/cli.ts run <cell.json> [--task-tools <manage|read-update|read-only>]",
+    "  bun src/cli.ts swarm <swarm.json> [--task-tools <manage|read-update|read-only>]",
     "  bun src/cli.ts experiment <experiment.json>",
     "  bun src/cli.ts model evaluate <model-evaluation.json>",
     "  bun src/cli.ts deliberate <deliberation.json>",

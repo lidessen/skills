@@ -155,6 +155,21 @@ by a designated Agent against the task, sources, acceptance, and evidence. The
 runtime does not require a generic review pack; use one only when a domain review
 is large enough to need partitioning and reconstruction.
 
+`run` and `swarm` default to the manager Task surface for backward-compatible
+interactive use. A host can narrow that authority without changing the Cell or
+Swarm manifest:
+
+```bash
+bun src/cli.ts run cell.json --task-tools read-update
+bun src/cli.ts swarm review-swarm.json --task-tools read-only
+```
+
+`read-update` removes Task creation and structural mutation; `read-only`
+exposes only `task_list` and `task_get`. This is a host execution choice, not a
+model-authored `CellInput` field. A read-only review that needs a guaranteed
+submission should declare its caller-owned terminal tool; `outputSchema` alone
+validates a logical result but is not a stop action.
+
 The AI SDK driver may change how it obtains `outputSchema` when a selected
 provider does not support native structured responses. It first completes the
 ordinary investigation without response-format pressure, then uses a private

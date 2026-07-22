@@ -26,8 +26,11 @@ import {
 
 export type AiSdkDriverOptions = ValidationModelOptions & {
   /** Host-selected Task authority; it changes the actual tool surface, not only the prompt. */
-  taskToolSet?: "manage" | "read-update";
+  taskToolSet?: TaskToolSet;
 };
+
+export const TaskToolSetSchema = z.enum(["manage", "read-update", "read-only"]);
+export type TaskToolSet = z.infer<typeof TaskToolSetSchema>;
 
 const EXECUTION_TOOL_NAMES = new Set([
   "list_files",
@@ -69,9 +72,7 @@ export class AiSdkValidationDriver implements CellDriver {
     const tasks = TaskStore.fromSeeds(input.tasks, input.id);
     context.emit("task.tools.projected", {
       taskToolSet: this.taskToolSet,
-      tools: this.taskToolSet === "manage"
-        ? ["task_list", "task_get", "task_create", "task_update"]
-        : ["task_list", "task_get", "task_update"],
+      tools: taskToolNames(this.taskToolSet),
     });
     let terminalProtocolError: string | undefined;
     let terminalOnly = false;
@@ -101,7 +102,10 @@ export class AiSdkValidationDriver implements CellDriver {
     const stopAfterAcceptedTerminal = () => terminalSatisfied();
     const executionAgent = new ToolLoopAgent({
       model: this.model,
-      instructions: renderExecutionInstructions(input, { deferStructuredOutput: deferredStructuredOutput }),
+      instructions: renderExecutionInstructions(input, {
+        deferStructuredOutput: deferredStructuredOutput,
+        taskToolSet: this.taskToolSet,
+      }),
       tools,
       stopWhen: terminalNames.length > 0 && !inlineOutputSchema
         ? [isStepCount(input.budget.maxSteps), stopAfterAcceptedTerminal]
@@ -112,7 +116,7 @@ export class AiSdkValidationDriver implements CellDriver {
             prepareStep: ({ stepNumber }) => {
               if (terminalSatisfied()) {
                 terminalOnly = true;
-                return finalOutputStep(input, inlineOutputSchema !== undefined);
+                return finalOutputStep(input, inlineOutputSchema !== undefined, this.taskToolSet);
               }
               // A terminal-only Cell needs one final action turn. When an
               // independent structured output is also required, reserve a
@@ -126,7 +130,10 @@ export class AiSdkValidationDriver implements CellDriver {
                   // tool-set inference.
                   activeTools: terminalNames as never[],
                   toolChoice: terminalToolChoice(terminalNames) as never,
-                  instructions: `${renderExecutionInstructions(input, { deferStructuredOutput: deferredStructuredOutput })}\n\nYou have reached the final action step. Invoke exactly one declared terminal tool now; do not continue analysis.`,
+                  instructions: `${renderExecutionInstructions(input, {
+                    deferStructuredOutput: deferredStructuredOutput,
+                    taskToolSet: this.taskToolSet,
+                  })}\n\nYou have reached the final action step. Invoke exactly one declared terminal tool now; do not continue analysis.`,
                 };
               }
               terminalOnly = false;
@@ -188,7 +195,10 @@ export class AiSdkValidationDriver implements CellDriver {
       const closureAgent = new ToolLoopAgent({
         model: this.model,
         instructions: [
-          renderExecutionInstructions(input, { deferStructuredOutput: deferredStructuredOutput }),
+          renderExecutionInstructions(input, {
+            deferStructuredOutput: deferredStructuredOutput,
+            taskToolSet: this.taskToolSet,
+          }),
           "## Terminal recovery phase",
           "The previous work ended without satisfying its terminal-tool contract. Do not continue investigation.",
           "Only the original task context and a compact projection of successful tool results are present; prior assistant reasoning, prose, rejected calls, and other transcript messages are absent. Retained results remain usable evidence, and a later rejected tool call does not erase them or prove that no files were read.",
@@ -203,7 +213,7 @@ export class AiSdkValidationDriver implements CellDriver {
         prepareStep: () => {
           if (terminalSatisfied()) {
             terminalOnly = true;
-            return finalOutputStep(input, inlineOutputSchema !== undefined);
+            return finalOutputStep(input, inlineOutputSchema !== undefined, this.taskToolSet);
           }
           terminalOnly = true;
           return {
@@ -414,7 +424,9 @@ export class AiSdkValidationDriver implements CellDriver {
       ...createTaskTools(tasks, {
         projection: this.taskToolSet === "manage"
           ? { read: "all", create: true, update: "all", principal: input.id }
-          : { read: "all", create: false, update: "status", updateScope: "owned", principal: input.id },
+          : this.taskToolSet === "read-update"
+            ? { read: "all", create: false, update: "status", updateScope: "owned", principal: input.id }
+            : { read: "all", create: false, update: "none", principal: input.id },
         actionBlocked: () => terminalOnly() ? terminalActionRequired() : undefined,
         emit: (event) => context.emit(event.type, event.data),
       }),
@@ -447,12 +459,17 @@ function terminalActionRequired() {
   };
 }
 
-function finalOutputStep(input: CellInput, inlineStructuredOutput: boolean) {
+function finalOutputStep(
+  input: CellInput,
+  inlineStructuredOutput: boolean,
+  taskToolSet: TaskToolSet,
+) {
   return {
     activeTools: [],
     toolChoice: "none" as const,
     instructions: `${renderExecutionInstructions(input, {
       deferStructuredOutput: input.outputSchema !== undefined && !inlineStructuredOutput,
+      taskToolSet,
     })}\n\nA declared terminal tool has been called. Do not take further actions. Return the final ${inlineStructuredOutput ? "structured output" : "concise report"} now.`,
   };
 }
@@ -500,7 +517,7 @@ function renderRecoveryEvidence(steps: readonly unknown[]): string {
 
 function renderExecutionInstructions(
   input: CellInput,
-  options: { deferStructuredOutput?: boolean } = {},
+  options: { deferStructuredOutput?: boolean; taskToolSet: TaskToolSet },
 ): string {
   const terminalInstruction = input.terminalTools?.length
     ? `Finish by invoking exactly one declared terminal tool: ${input.terminalTools.map((terminal) => terminal.name).join(", ")}.`
@@ -514,9 +531,7 @@ function renderExecutionInstructions(
   const artifactInstruction = input.artifacts?.length
     ? `Create each declared artifact in the workspace write scope. Their paths and instructions are binding:\n${input.artifacts.map((artifact) => `- ${artifact.path}: ${artifact.instructions}`).join("\n")}`
     : undefined;
-  const taskInstruction = input.tasks?.length
-    ? `The host seeded these tasks. Use task_list/task_get for detail and task_update as work advances; leave no task pending or in_progress at completion. Task completion is process evidence, not correctness:\n${input.tasks.map((task) => `- ${task.subject}: ${task.description}`).join("\n")}`
-    : "Use task_create only when several steps or outcomes create real omission risk; skip task tracking for simple work. Use task_list/task_get/task_update to keep created tasks accurate, and complete every created task before finishing. Task completion is process evidence, not correctness.";
+  const taskInstruction = renderTaskInstruction(input, options.taskToolSet);
   return [
     "You are one ephemeral Work Cell. Work only inside the granted tools and workspace.",
     "You own investigation order and local tool choice. You do not own durable acceptance.",
@@ -529,6 +544,29 @@ function renderExecutionInstructions(
     ...input.instructions,
     ...input.context.map((section) => `## ${section.title}\n${section.content}`),
   ].filter((section): section is string => Boolean(section)).join("\n\n");
+}
+
+function taskToolNames(taskToolSet: TaskToolSet): string[] {
+  if (taskToolSet === "manage") return ["task_list", "task_get", "task_create", "task_update"];
+  if (taskToolSet === "read-update") return ["task_list", "task_get", "task_update"];
+  return ["task_list", "task_get"];
+}
+
+function renderTaskInstruction(input: CellInput, taskToolSet: TaskToolSet): string {
+  const seeds = input.tasks?.map((task) => `- ${task.subject}: ${task.description}`).join("\n");
+  if (taskToolSet === "read-only") {
+    return seeds
+      ? `The host supplied read-only task context. Use task_list/task_get for detail; do not claim task mutation authority:\n${seeds}`
+      : "Task access is read-only. Use task_list/task_get only if host task context is relevant; do not create or update tasks.";
+  }
+  if (taskToolSet === "read-update") {
+    return seeds
+      ? `The host seeded these assigned tasks. Use task_list/task_get for detail and task_update only for execution status; leave no assigned task pending or in_progress at completion. Task completion is process evidence, not correctness:\n${seeds}`
+      : "No Task cycle is assigned. The available Task tools cannot create work; do not manufacture a task list.";
+  }
+  return seeds
+    ? `The host seeded these tasks. Use task_list/task_get for detail and task_update as work advances; leave no task pending or in_progress at completion. Task completion is process evidence, not correctness:\n${seeds}`
+    : "Use task_create only when several steps or outcomes create real omission risk; skip task tracking for simple work. Use task_list/task_get/task_update to keep created tasks accurate, and complete every created task before finishing. Task completion is process evidence, not correctness.";
 }
 
 function renderTaskPrompt(input: CellInput): string {

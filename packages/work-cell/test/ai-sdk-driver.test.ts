@@ -266,6 +266,60 @@ test("projects read-update Task authority without exposing creation or structura
   }));
 });
 
+test("projects read-only Task authority without exposing create or update tools", async () => {
+  const root = await fixture();
+  let request: unknown;
+  const model = new MockLanguageModelV3({
+    doGenerate: async (options) => {
+      request = options;
+      return response([{
+        type: "tool-call",
+        toolCallId: "finish-read-only-review",
+        toolName: "finish_read_only_review",
+        input: JSON.stringify({ verdict: "reviewed" }),
+      }], "tool-calls");
+    },
+  });
+  const driver = new AiSdkValidationDriver({
+    route: explicitDeepSeekRoute(),
+    deepSeekApiKey: "not-used",
+    model: "mock-read-only-task-tools",
+    taskToolSet: "read-only",
+  });
+  Object.defineProperty(driver, "model", { value: model });
+
+  const record = await runCell({
+    id: "read-only-reviewer",
+    intent: "Review supplied evidence without mutating task state.",
+    workspace: { root, readPaths: [], writePaths: [], excludePaths: [], allowedCommands: [] },
+    instructions: ["Use only the supplied evidence."],
+    acceptance: ["The reviewer has no task mutation authority."],
+    terminalTools: [{
+      name: "finish_read_only_review",
+      description: "Submit the bounded review.",
+      inputSchema: {
+        type: "object",
+        properties: { verdict: { type: "string", enum: ["reviewed"] } },
+        required: ["verdict"],
+        additionalProperties: false,
+      },
+    }],
+    budget: { maxSteps: 2, maxDurationMs: 10_000, maxCommandOutputBytes: 4_000 },
+  }, driver);
+
+  const encoded = JSON.stringify(request);
+  expect(encoded).toContain("task_list");
+  expect(encoded).toContain("task_get");
+  expect(encoded).not.toContain("task_create");
+  expect(encoded).not.toContain("task_update");
+  expect(encoded).toContain("Task access is read-only");
+  expect(record.status).toBe("passed");
+  expect(record.trace).toContainEqual(expect.objectContaining({
+    type: "task.tools.projected",
+    data: { taskToolSet: "read-only", tools: ["task_list", "task_get"] },
+  }));
+});
+
 test("injects a task seed and records its settled cycle as process proof", async () => {
   const root = await fixture();
   let calls = 0;
