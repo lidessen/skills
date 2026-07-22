@@ -51,3 +51,19 @@ analysis, evidence standards, or false-positive rejection out of the review
 skill. A read-only Cell also cannot settle seeded pending Tasks; callers should
 use this projection for observational review packets, not for Task-backed work
 that must update its own lifecycle.
+
+## Real review follow-up
+
+PR 49 then used the new CLI path for an independent review of this change. Run
+`695126e3-66ad-4c6e-a3a6-7bfc9aa3e899` read the complete bounded packet and all
+named direct relations, projected only `task_list` and `task_get`, submitted one
+accepted review, and returned `ready` with no surviving finding. Host-side source
+checking confirmed its authority, CLI, prompt, trace, compatibility, and
+verification claims.
+
+The run took all 18 investigation steps and terminal recovery, consuming
+717,363 total tokens, including 585,472 cached input tokens. This confirms the
+remaining problem rather than weakening it: a single multi-step reviewer can
+repeatedly carry a large accumulated context even when its packet is bounded.
+Read-only Task authority prevents accidental mutation; it does not control
+review context growth. That carrier-scale problem remains separate work.
