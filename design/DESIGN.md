@@ -157,12 +157,14 @@ boundary. See [decision 043](decisions/043-generative-system-and-human-governed-
   model execution, or admission authority. Domain methods prepare formation;
   Work Cell may execute one move; a host verifies and admits. See
   [decision 039](decisions/039-general-cognition-experiment.md).
-- **Atthis workbench** — Owns relocatable user-level project identity and
+- **Rosso workbench** — Owns relocatable user-level project identity and
   verified machine-local workspace resolution through separately versioned
   portable configuration, local state, and rebuildable discovery cache. Its
   resolution output routes an agent but never owns task state, target-project
   facts, or execution authority. Empty mission, memory, cognition, and receipt
   directories are future ownership boundaries, not inferred schemas. See
+  [decision 044](decisions/044-rosso-identity-and-namespace-migration.md) and
+  its preserved functional predecessor,
   [decision 038](decisions/038-atthis-workbench-entry.md).
 
 ## Data Flow
@@ -471,10 +473,12 @@ caches, generated memories, and machine identity remain outside the portable
 source by default. It reuses existing dotfiles and vendor import mechanisms;
 it is not another configuration manager or cross-vendor runtime.
 
-Vercel is the first hosting target, not a runtime dependency. The public
-`skills.<primary-domain>` subdomain names this repository surface rather than
-the unresolved whole-project identity. Human review retains aesthetic and
-production-alias acceptance.
+Vercel is the first hosting target, not a runtime dependency. The intended
+public origin is `rosso.run` under
+[decision 044](decisions/044-rosso-identity-and-namespace-migration.md); the
+site remains a projection of this methods repository rather than a second
+identity or fact source. Human review retains aesthetic and production-alias
+acceptance.
 
 ## Non-goals
 

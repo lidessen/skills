@@ -1,10 +1,10 @@
 import { z } from "zod";
 
-export const ManifestVersion = "atthis.cognition-home.v1" as const;
-export const SourceVersion = "atthis.cognition-source.v1" as const;
-export const SchemeVersion = "atthis.cognition-scheme.v1" as const;
-export const ArtifactVersion = "atthis.cognitive-artifact.v1" as const;
-export const CatalogVersion = "atthis.cognition-catalog.v1" as const;
+export const ManifestVersion = "rosso.cognition-home.v1" as const;
+export const SourceVersion = "rosso.cognition-source.v1" as const;
+export const SchemeVersion = "rosso.cognition-scheme.v1" as const;
+export const ArtifactVersion = "rosso.cognitive-artifact.v1" as const;
+export const CatalogVersion = "rosso.cognition-catalog.v1" as const;
 
 const Nonempty = z.string().trim().min(1);
 const Sha256 = z.string().regex(/^[a-f0-9]{64}$/, "expected a lowercase SHA-256 digest");
@@ -153,7 +153,7 @@ export const CatalogSchema = z.object({
 });
 
 export const CognitionEventSchema = z.object({
-  version: z.literal("atthis.cognition-event.v1"),
+  version: z.literal("rosso.cognition-event.v1"),
   id: Nonempty,
   at: z.string().datetime({ offset: true }),
   actor: Nonempty,

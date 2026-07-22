@@ -161,7 +161,7 @@ for (const probeCase of cases) {
 }
 
 const summary = {
-  version: "atthis.reconciliation-capability-probe.v1",
+  version: "rosso.reconciliation-capability-probe.v1",
   status: "probe",
   suite: confirmation ? "held-out-confirmation" : "development",
   startedAt,

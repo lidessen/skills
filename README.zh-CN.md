@@ -1,11 +1,11 @@
-# 在此（Atthis）— Skills
+# Rosso — Skills
 
 [English](README.md)
 
-> **在此 / Atthis** 致力于让生产性 AI 成为共同、开放、可替换的能力；
+> **Rosso** 致力于让生产性 AI 成为共同、开放、可替换的能力；
 > 本仓库收录其当前方法。
 
-“在此 / Atthis”是当前采用、仍可修订的项目名称；`skills` 仓库仍只是它的一个
+“Rosso”是[当前采用、仍可修订的项目名称](design/FOUNDING-IDENTITY.md)；`skills` 仓库仍只是它的一个
 工作界面。本仓库包含用于 AI 辅助开发的 [Agent Skills](https://agentskills.io) 和实验性
 Work Cell。它只是项目的一个工作界面，而不是整个项目、模型提供商或不透明的
 AI 平台。它的语义根是单行的[原则序列](principles/SEQUENCE.md)；每个 P-ID
@@ -27,7 +27,7 @@ skill 则是在具体语境中对所选条目的表达。
 [运行协议](design/operations/OPERATING-PROTOCOL.md)，可以了解经人授权的工作
 如何推进；也可以直接从下方活跃 skills 中选择一种具体方法。
 
-## 使用“在此”
+## 使用 Rosso
 
 - 在本仓库中完整实践项目的运行、验证与演进体系；
 - 向其他项目独立安装一个 Skill，针对性采用一种方法；
@@ -36,7 +36,7 @@ skill 则是在具体语境中对所选条目的表达。
 使用工作台时，直接告诉 Agent：
 
 ```text
-初始化 Atthis 工作台，我的日常工作区在 ~/workspaces。
+初始化 Rosso 工作台，我的日常工作区在 ~/workspaces。
 把 ~/client-work 加为另一个工作区根目录。
 登记 ~/workspaces/meowask，并保留 meowask 和 survey 两个口头别名。
 记住：跨项目遇到稳定、有边界的任务时，优先考虑 Work Cell。
@@ -46,18 +46,22 @@ skill 则是在具体语境中对所选条目的表达。
 显示所有已登记项目中正在进行的工作。
 ```
 
-仓库指引会把这些意图转换为有边界的 `scripts/atthis.py` 操作。登记时如果无法
+仓库指引会把这些意图转换为有边界的 `scripts/rosso.py` 操作。登记时如果无法
 从仓库提供方验证稳定身份，Agent 只追问这个缺失值。它不会扫描未明确给出的
 主目录，不会自动登记扫描到的仓库，也不要求使用者记住命令参数。
+
+如果旧版本已初始化 `~/.atthis`，可以直接让 Agent“迁移 Rosso 工作台”，或在
+普通初始化前运行 `python3 scripts/rosso.py migrate`。迁移会保留旧来源并写入
+回执，不会维持两个可写 home。
 
 在自动化、调试或没有 Agent 的环境中，仍可使用等价的手动入口：
 
 ```sh
-python3 scripts/atthis.py init --workspace-root ~/workspaces
-python3 scripts/atthis.py root add ~/client-work
-python3 scripts/atthis.py project list
-python3 scripts/atthis.py resolve survey
-python3 scripts/atthis.py preference list --project survey
+python3 scripts/rosso.py init --workspace-root ~/workspaces
+python3 scripts/rosso.py root add ~/client-work
+python3 scripts/rosso.py project list
+python3 scripts/rosso.py resolve survey
+python3 scripts/rosso.py preference list --project survey
 ```
 
 工作台将稳定项目身份与仓库名、口头别名和本机路径分开。它不会把本仓库变成
@@ -72,7 +76,7 @@ python3 scripts/atthis.py preference list --project survey
 | [`skills/`](skills/) | 当前可安装的方法论与行为表达 | 它们所表达的语义来源 |
 | [`packages/work-cell/`](packages/work-cell/) | 通用的有边界 Agent 运行时、可选适配器与实验性研究实现 | 规划、理论或人的验收 |
 | [`packages/cognition/`](packages/cognition/) | 领域声明的渐进形成、来源与认知工件谱系、采纳证据和可重建检索投影 | 通用固定认知层、领域解释、模型执行或采纳权威 |
-| [`scripts/atthis.py`](scripts/atthis.py) | 可迁移的项目身份、经验证的本机工作区定位与显式分域个人默认 | 任务调度、推断偏好、目标项目事实或执行权 |
+| [`scripts/rosso.py`](scripts/rosso.py) | 可迁移的项目身份、经验证的本机工作区定位与显式分域个人默认 | 任务调度、推断偏好、目标项目事实或执行权 |
 | [`site/`](site/) | 静态公共主页和可复现的文档投影 | 源事实、项目身份或托管权威 |
 | [`design/`](design/) | 已接受的架构、决策、运行设计和保留的设计研究 | 实时任务状态或原始运行证据 |
 | [`regeneration/evaluations/`](regeneration/evaluations/) | 持久的行为与边界评估 | 治理设计或原始运行权威 |
@@ -121,7 +125,7 @@ python3 scripts/atthis.py preference list --project survey
 [`packages/cognition`](packages/cognition/README.md) 是第一版通用渐进认知机制实验。
 领域定义的形成方案把不可变来源材料经过显式、可验证的层次形成认知工件，也能
 让实践结果回到较早层次重新认识。目录只是可重建的检索投影；项目、工作区、
-Git、prompt、模型和任务定位都不进入核心。项目认知和 Atthis 恢复入口是其上的
+Git、prompt、模型和任务定位都不进入核心。项目认知和 Rosso 恢复入口是其上的
 后续领域方法，而不是它的定义性 schema；参见
 [决策 039](design/decisions/039-general-cognition-experiment.md)。
 

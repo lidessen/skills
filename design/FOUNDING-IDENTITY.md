@@ -1,18 +1,22 @@
-# Founding Identity — 在此 / Atthis
+# Founding Identity — Rosso
 
-**Status:** provisionally adopted current project name
-**Date:** 2026-07-18
+**Status:** adopted current project name
+**Date:** 2026-07-22
 **Approved by:** principal
 **Authority:** [founding mandate](FOUNDING-MANDATE.md)
 **Prior inquiry evidence:** [project naming expression study](aesthetics/studies/2026-07-13-project-naming-expression.md)
+**Namespace migration:** [decision 044](decisions/044-rosso-identity-and-namespace-migration.md)
 
 ## Current name
 
-The whole project is currently named **在此 / Atthis**. `Atthis` is the machine
-and URL form; `在此` is the Chinese display name. This is an adopted working
-identity, not a claim that the naming inquiry is permanently closed.
+The whole project is currently named **Rosso**. The name comes from the Italian
+word for red and was selected through the title of Studio Ghibli's
+[*Porco Rosso*](https://www.ghibli.jp/works/porco/). That provenance supplies
+sound, visual character, and a cultural association; it does not make the film
+or its characters project doctrine, imply affiliation, or exhaust what the
+project may become.
 
-Atthis develops open, economical, verifiable AI production capability as a
+Rosso develops open, economical, verifiable AI production capability as a
 common good. It includes the Principle Sequence, independently usable methods,
 Work Cell and orchestration infrastructure, project operations, and future
 working surfaces. It is not identical to this `skills` repository, a personal
@@ -27,19 +31,20 @@ second doctrine.
 
 | Surface | Current form | Authority boundary |
 |---|---|---|
-| Project display name | `在此 / Atthis` | current human-adopted identity |
-| Machine namespace | `atthis` | lowercase technical projection |
+| Project display name | `Rosso` | current human-adopted identity |
+| Machine namespace | `rosso` | lowercase technical projection |
 | Methods repository | `skills` | repository handle, not the whole-project name |
-| Public methods site | `skills.atthis.run` | public projection of this repository |
-| Future user-level home | `~/.atthis` by default | relocatable local carrier, not project identity |
+| Public methods site | `rosso.run` | public projection of this repository |
+| User-level home | `~/.rosso` by default | relocatable local carrier, not project identity |
 
-Repository, package, command, domain, and user-directory changes remain
-separate migrations. Adopting the project name does not silently authorize any
-of them.
+Repository, package, command, domain, and user-directory remain distinct
+carriers even though decision 044 coordinates their present migration. The
+GitHub repository handle remains `skills`; changing it is not required to make
+Rosso the project identity.
 
 ## Rename and relocation contract
 
-The first implementation of the Atthis workbench must make a later project or
+The first implementation of the Rosso workbench must make a later project or
 namespace rename ordinary rather than destructive:
 
 1. **Names and paths are not identity.** Persist an explicit stable project ID.
@@ -49,7 +54,7 @@ namespace rename ordinary rather than destructive:
    repository ID, accompanied by its current canonical locator, or an explicitly
    assigned stable ID over a repository name or folder basename. A renamed
    repository may retain old aliases without retaining its old local path.
-3. **Resolve the home once.** A default such as `~/.atthis` must pass through one
+3. **Resolve the home once.** A default such as `~/.rosso` must pass through one
    home-resolution boundary and support an explicit override. Code and records
    must not scatter or depend on the literal directory name.
 4. **Keep stored references relocatable.** Use stable IDs and paths relative to
@@ -80,16 +85,16 @@ make `继续 survey` unable to find the current worktree.
 
 ## Superseded proposal history
 
-Earlier proposals such as `Gongqi / 公器`, `Gongsheng / 共生`, and
-`Zhongqi / 众器` remain rejected inquiry evidence. They are not aliases or live
-candidates. `skills` remains a useful repository handle but is no longer the
-project's only public label.
+The prior working identity `在此 / Atthis` and earlier proposals such as
+`Gongqi / 公器`, `Gongsheng / 共生`, and `Zhongqi / 众器` remain inquiry and
+migration evidence. They are not live display aliases. `atthis` may appear only
+where a legacy source or historical record must be identified during migration.
 
 ## Reopening observations
 
 Reopen the name when the principal decides its mouth-and-ear fit is wrong, when
-ordinary users consistently mistake Atthis for a proprietary AI platform or a
-task manager, or when another identity grows more naturally from practice.
+ordinary users consistently confuse Rosso with the film or an unrelated brand,
+or when another identity grows more naturally from practice.
 
 Reopen the migration design if a repository rename, local-folder move, user-home
 relocation, or project-name change breaks task recovery; requires editing many

@@ -116,7 +116,7 @@ test("a detached runner loads a trusted runtime module and durably settles its t
   };
   const seedPath = join(root, "anchor-seed.json");
   await writeFile(seedPath, `${JSON.stringify({
-    version: "atthis.mission-anchor-seed.v1",
+    version: "rosso.mission-anchor-seed.v1",
     id: "seed:mission-detached-runtime",
     missionId,
     authorityRef: "principal:test",
@@ -132,7 +132,7 @@ test("a detached runner loads a trusted runtime module and durably settles its t
 
   expect(turn).toEqual({
     start: {
-      version: "atthis.mission-turn.v1",
+      version: "rosso.mission-turn.v1",
       turnId: `deterministic-${missionId}`,
       baselineWatermark: 0,
       anchorDigest: digestAnchor(anchor),
@@ -605,7 +605,7 @@ function reconciliationCommit(
 ): MissionReconciliationCommit {
   const anchor = currentAnchor;
   const proposal: MissionReconciliationProposal = {
-    version: "atthis.mission-reconciliation.v1",
+    version: "rosso.mission-reconciliation.v1",
     id: `proposal:${input.inputId}`,
     missionId,
     anchor,
@@ -631,7 +631,7 @@ function reconciliationCommit(
     reconciledWatermark: input.watermark,
   };
   const verification: MissionReconciliationVerification = {
-    version: "atthis.mission-reconciliation-verification.v1",
+    version: "rosso.mission-reconciliation-verification.v1",
     id: `verification:${input.inputId}`,
     missionId,
     proposalRef: {
@@ -673,7 +673,7 @@ async function seedTimeline(
     reconciledWatermark: 0,
   };
   await timeline.seedAnchor({
-    version: "atthis.mission-anchor-seed.v1",
+    version: "rosso.mission-anchor-seed.v1",
     id: `seed:${missionId}`,
     missionId,
     authorityRef: "principal:test",

@@ -157,7 +157,7 @@ test("an authorized initial anchor is idempotent, conflict-detecting, and preced
   expect(content.match(/mission\.anchor-seeded/g)).toHaveLength(1);
 
   await expect(timeline.seedAnchor({
-    version: "atthis.mission-anchor-seed.v1",
+    version: "rosso.mission-anchor-seed.v1",
     id: "seed:mission-1",
     missionId: "mission-1",
     authorityRef: "principal:test",
@@ -311,7 +311,7 @@ function acceptanceFor(proposal: MissionReconciliationProposal, nextAnchor: Acti
   return {
     authorityRef: "principal:test",
     verification: {
-      version: "atthis.mission-reconciliation-verification.v1" as const,
+      version: "rosso.mission-reconciliation-verification.v1" as const,
       id: `verification:${proposal.id}`,
       missionId: proposal.missionId,
       proposalRef: {
@@ -338,7 +338,7 @@ async function seed(
   initial: ActiveIntentAnchor,
 ): Promise<void> {
   await timeline.seedAnchor({
-    version: "atthis.mission-anchor-seed.v1",
+    version: "rosso.mission-anchor-seed.v1",
     id: `seed:${missionId}`,
     missionId,
     authorityRef: "principal:test",

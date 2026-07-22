@@ -32,7 +32,7 @@ import {
 import type { MissionRuntimeFactory } from "./mission-runtime";
 import { stableStringify } from "./canonical-json";
 
-export const MISSION_RUNNER_PROTOCOL_VERSION = "atthis.mission-runner.v1" as const;
+export const MISSION_RUNNER_PROTOCOL_VERSION = "rosso.mission-runner.v1" as const;
 
 export const MissionRunnerStateSchema = z.enum([
   "running",
@@ -149,7 +149,7 @@ export function missionRunnerSocketPath(root: string, missionId: string): string
   const user = typeof process.getuid === "function" ? process.getuid() : "user";
   return join(
     tmpdir(),
-    `atthis-${user}`,
+    `rosso-${user}`,
     `${hash(`${resolve(root)}\0${missionId}`).slice(0, 24)}.sock`,
   );
 }

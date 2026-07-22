@@ -25,6 +25,8 @@ import {
 } from "./store";
 import { SourceIngressSchema, type FormationInput } from "./contracts";
 
+const COMMAND_NAME = "rosso-cognition";
+
 await main(process.argv.slice(2)).catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 2;
@@ -170,7 +172,7 @@ function print(value: unknown): void { console.log(JSON.stringify(value, null, 2
 
 function extractHome(args: string[]): { args: string[]; home: string } {
   const retained: string[] = [];
-  let home = process.env.ATTHIS_COGNITION_HOME ?? resolve(homedir(), ".atthis/cognition");
+  let home = process.env.ROSSO_COGNITION_HOME ?? resolve(homedir(), ".rosso/cognition");
   for (let index = 0; index < args.length; index += 1) {
     if (args[index] !== "--home") { retained.push(args[index]!); continue; }
     const value = args[index + 1];
@@ -204,7 +206,7 @@ function parse(args: string[], allowedFlags: string[]) {
 
 function requiredPositional(parsed: ReturnType<typeof parse>, index: number, usageText: string): string {
   const value = parsed.positionals[index];
-  if (!value) throw new Error(`usage: cognition ${usageText}`);
+  if (!value) throw new Error(`usage: ${COMMAND_NAME} ${usageText}`);
   return value;
 }
 
@@ -218,21 +220,21 @@ function usage(): never {
 function usageText(): string {
   return [
     "usage:",
-    "  cognition init [--home path]",
-    "  cognition scheme add <file> --by <actor> --basis <reason>",
-    "  cognition scheme get <id> --revision <revision>",
-    "  cognition source add <file> --kind <kind> [--locator <locator>] [--metadata <json>] [--after <source-id>] [--actor <actor>]",
-    "  cognition source ingest < JSON",
-    "  cognition source get|read <id>",
-    "  cognition source query [text] [--kind <kind>] [--limit <n>]",
-    "  cognition source dependents <id>",
-    "  cognition artifact propose --scheme <id> --revision <revision> --move <id> --title <title> --body-file <path> --rationale <reason> --input <source:id|artifact:id>",
-    "  cognition artifact admit <id> --by <actor> --basis <reason>",
-    "  cognition artifact get|trace|dependents <id>",
-    "  cognition artifact use <id> --by <actor> --purpose <decision>",
-    "  cognition artifact supersede <id> --with <replacement-id> --by <actor> --basis <reason>",
-    "  cognition query [text] [--scheme <id>] [--stage <id>] [--status <status>] [--limit <n>]",
-    "  cognition index rebuild",
-    "  cognition check",
+    `  ${COMMAND_NAME} init [--home path]`,
+    `  ${COMMAND_NAME} scheme add <file> --by <actor> --basis <reason>`,
+    `  ${COMMAND_NAME} scheme get <id> --revision <revision>`,
+    `  ${COMMAND_NAME} source add <file> --kind <kind> [--locator <locator>] [--metadata <json>] [--after <source-id>] [--actor <actor>]`,
+    `  ${COMMAND_NAME} source ingest < JSON`,
+    `  ${COMMAND_NAME} source get|read <id>`,
+    `  ${COMMAND_NAME} source query [text] [--kind <kind>] [--limit <n>]`,
+    `  ${COMMAND_NAME} source dependents <id>`,
+    `  ${COMMAND_NAME} artifact propose --scheme <id> --revision <revision> --move <id> --title <title> --body-file <path> --rationale <reason> --input <source:id|artifact:id>`,
+    `  ${COMMAND_NAME} artifact admit <id> --by <actor> --basis <reason>`,
+    `  ${COMMAND_NAME} artifact get|trace|dependents <id>`,
+    `  ${COMMAND_NAME} artifact use <id> --by <actor> --purpose <decision>`,
+    `  ${COMMAND_NAME} artifact supersede <id> --with <replacement-id> --by <actor> --basis <reason>`,
+    `  ${COMMAND_NAME} query [text] [--scheme <id>] [--stage <id>] [--status <status>] [--limit <n>]`,
+    `  ${COMMAND_NAME} index rebuild`,
+    `  ${COMMAND_NAME} check`,
   ].join("\n");
 }

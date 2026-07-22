@@ -30,7 +30,7 @@ const route = [{
 }];
 const outputArgument = process.argv.find((argument, index) => index > 1 && !argument.startsWith("--"));
 const outputPath = resolve(outputArgument ?? `${tmpdir()}/live-mission-input-probe-${Date.now()}.json`);
-const home = await mkdtemp(join(tmpdir(), "atthis-live-mission-input-"));
+const home = await mkdtemp(join(tmpdir(), "rosso-live-mission-input-"));
 const missionId = `live-input-${Date.now()}`;
 const runtimeModule = fileURLToPath(new URL("./flash-readonly-mission-runtime.ts", import.meta.url));
 const seedPath = join(home, "anchor-seed.json");
@@ -164,7 +164,7 @@ try {
     }
   }
   const record = {
-    version: "atthis.live-mission-input-probe.v1",
+    version: "rosso.live-mission-input-probe.v1",
     status: "probe",
     startedAt,
     finishedAt: new Date().toISOString(),

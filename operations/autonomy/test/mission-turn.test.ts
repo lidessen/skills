@@ -78,7 +78,7 @@ test("a seeded Mission rejects a turn that is not bound to its current intent an
     reconciledWatermark: 0,
   };
   await timeline.seedAnchor({
-    version: "atthis.mission-anchor-seed.v1",
+    version: "rosso.mission-anchor-seed.v1",
     id: "seed:mission-anchor-bound-turn",
     missionId,
     authorityRef: "principal:test",

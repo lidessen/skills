@@ -38,31 +38,34 @@ probe proves the current policy solves the actual project problem.
 
 This is a collection of agent skills — reusable methodology plugins for AI-assisted development. Skills are installed into a project and invoked via slash commands (e.g., `/design-driven`).
 
-## Atthis workbench entry
+## Rosso workbench entry
 
 Treat a natural-language request to initialize, extend, register, or use the
-Atthis workbench as an instruction to operate the existing workbench entry. Do
+Rosso workbench as an instruction to operate the existing workbench entry. Do
 not make the human translate the request into CLI syntax. Select only the
 mechanical action their words authorize:
 
-- To initialize the workbench, run `python3 scripts/atthis.py init` and include
+- Before initializing the default home, if `~/.rosso` is absent and the legacy
+  `~/.atthis` exists, run `python3 scripts/rosso.py migrate`. Do not create a
+  second writable home or migrate when the target already exists.
+- To initialize the workbench, run `python3 scripts/rosso.py init` and include
   one `--workspace-root <path>` for each root they explicitly supplied. Do not
   infer or scan `$HOME` when no root was supplied; an empty initialized home is
   valid, and roots can be added later.
 - To add a later workspace root, run
-  `python3 scripts/atthis.py root add <path>`. Discovery remains bounded and
+  `python3 scripts/rosso.py root add <path>`. Discovery remains bounded and
   does not register the repositories it finds.
 - To register a project, require an explicit local Git root and a verified
   stable project ID. Prefer a provider's immutable repository ID when one can
   be verified; otherwise ask for an explicitly assigned ID. Treat requested
   spoken names as aliases, never as identity, then run
-  `python3 scripts/atthis.py register <path> --id <id>` with one `--alias`
+  `python3 scripts/rosso.py register <path> --id <id>` with one `--alias`
   argument per alias.
 - To continue or resume a named external project or task, extract the smallest
   intended name and run:
 
 ```text
-python3 scripts/atthis.py resolve <name>
+python3 scripts/rosso.py resolve <name>
 ```
 
 Treat the result as a verified routing projection, not task authority. Confirm
@@ -75,31 +78,32 @@ boundary rather than claiming the task has resumed.
 
 If resolution has no explicit match and the person supplied a new workspace
 root in the same request, add that root and retry. Refresh existing roots with
-`python3 scripts/atthis.py scan` only when stale discovery is plausible. A
+`python3 scripts/rosso.py scan` only when stale discovery is plausible. A
 result marked `discovered` is a verified current location, not a stable project
 identity or durable alias. Do not turn a natural-language request into broader
 setup, marketplace search, automatic registration, or inferred task state.
 
-## Atthis preference entry
+## Rosso preference entry
 
 Treat an explicit natural-language request to remember, change, inspect, or
 forget a personal default as authority to use the existing preference commands;
 do not require the human to translate it into CLI syntax. Preserve the strength
 of their wording: a preference remains a defeasible default, not a requirement.
-Before a preference operation, run `python3 scripts/atthis.py init` without
-workspace roots. This is an idempotent source migration and does not broaden
-discovery; it lets an existing or new Atthis home acquire the preference files
-without making the human perform setup first.
+Before a preference operation, apply the legacy-home guard above, then run
+`python3 scripts/rosso.py init` without workspace roots. This is an idempotent
+source initialization or completion and does not broaden discovery; it lets an
+existing or new Rosso home acquire the preference files without making the
+human perform setup first.
 
 - Keep a session-only preference in the conversation and do not persist it.
-- Use `python3 scripts/atthis.py preference set <id> --scope user --statement
+- Use `python3 scripts/rosso.py preference set <id> --scope user --statement
   <text>` for a personal default intended to survive this session.
 - Use `--scope machine` only when the person limits the default to this device
   or it depends on machine-local capabilities. Availability and quota remain
   observations, not preferences.
 - Add `--project <registered-name>` for a personal default limited to one
   registered project. Put shared project requirements in that target
-  repository's governing source instead of Atthis.
+  repository's governing source instead of Rosso.
 - Use `preference retire` only when the person explicitly withdraws the exact
   scoped record. Use `preference list [--project <registered-name>]` to inspect
   the compact applicable projection rather than reading raw preference files.
@@ -114,15 +118,15 @@ one could change the choice. A preference cannot override a current human
 instruction, project constraint, authorization boundary, or contrary runtime
 evidence; state the reason when departing from it.
 
-## Atthis cross-project task entry
+## Rosso cross-project task entry
 
 When the human asks for work in progress across registered projects, run
-`python3 scripts/atthis.py project list`. Preserve its `complete` flag and each
+`python3 scripts/rosso.py project list`. Preserve its `complete` flag and each
 project's availability status. For every available project, read its returned
 instruction files—and no conventional filenames that were not returned—before
 using only the task-continuity source that project declares. Run every relative
 target command with its working directory set to the returned workspace path;
-never reuse the Atthis workbench directory for a different project's query.
+never reuse the Rosso workbench directory for a different project's query.
 Report a project with no declared source as `unsupported`; do not infer
 commitments from Git branches, PRs, Issues, logs, or repository names. Mark the
 combined task view incomplete when the project inventory is incomplete or any
@@ -130,7 +134,7 @@ project is unverified, unsupported, or returns invalid task output. Once a
 declared task query returns a valid projection, aggregate only that output; do
 not open its underlying records merely to elaborate the answer. Keep every task
 judgment scoped to the project that produced it. The combined answer is a
-read-only projection: it neither copies task facts into Atthis nor authorizes
+read-only projection: it neither copies task facts into Rosso nor authorizes
 work in a target project.
 
 ## Mission continuity entry

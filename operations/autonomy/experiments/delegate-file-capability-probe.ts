@@ -85,7 +85,7 @@ try {
   const packet = packetContent === undefined ? undefined : JSON.parse(packetContent) as unknown;
   const parentMessages = JSON.stringify(run.messages);
   const record = {
-    version: "atthis.delegate-file-capability-probe.v1",
+    version: "rosso.delegate-file-capability-probe.v1",
     status: "probe",
     observedAt: new Date().toISOString(),
     profile: {

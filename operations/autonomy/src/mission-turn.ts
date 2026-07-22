@@ -2,8 +2,8 @@ import { z } from "zod";
 import { TaskSchema, UsageSchema } from "../../../packages/work-cell/src/contracts";
 import type { MissionExecutionOutcome } from "./mission-execution-host";
 
-export const MISSION_TURN_VERSION = "atthis.mission-turn.v1" as const;
-export const MISSION_TURN_RECOVERY_VERSION = "atthis.mission-turn-recovery.v1" as const;
+export const MISSION_TURN_VERSION = "rosso.mission-turn.v1" as const;
+export const MISSION_TURN_RECOVERY_VERSION = "rosso.mission-turn-recovery.v1" as const;
 
 export const MissionTurnStartSchema = z.object({
   version: z.literal(MISSION_TURN_VERSION),

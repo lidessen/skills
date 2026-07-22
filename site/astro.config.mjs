@@ -2,7 +2,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import { readFileSync } from 'node:fs';
 
-const publicSite = process.env.SITE_URL ?? 'https://skills.atthis.run';
+const publicSite = process.env.SITE_URL ?? 'https://rosso.run';
 const contentManifest = JSON.parse(
   readFileSync(new URL('./content-manifest.json', import.meta.url), 'utf8'),
 );
@@ -19,7 +19,7 @@ export default defineConfig({
   integrations: [
     starlight({
       disable404Route: true,
-      title: 'Atthis',
+      title: 'Rosso',
       description: '让可验证、可替换的 AI 生产方法成为公共能力。',
       defaultLocale: 'root',
       locales: {
