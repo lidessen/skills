@@ -104,10 +104,10 @@ describe("progressive cognition formation", () => {
     await registerFormationScheme(home, projectScheme, "human:test", "Cell boundary probe");
     const material = await source(home, "design:cell", "A Cell executes a prepared move but cannot admit it.");
     expect(await retainFormationProposals(home, {
-      version: "atthis.cognition-formation.v1", disposition: "no-proposal", rationale: "Material is insufficient.", proposals: [],
+      version: "rosso.cognition-formation.v1", disposition: "no-proposal", rationale: "Material is insufficient.", proposals: [],
     }, { scheme: { id: "project", revision: "1" }, moveId: "observe", inputs: [{ type: "source", id: material.id }], actor: "cell:test" })).toEqual([]);
     const retained = await retainFormationProposals(home, {
-      version: "atthis.cognition-formation.v1",
+      version: "rosso.cognition-formation.v1",
       disposition: "propose",
       rationale: "One bounded observation is supported.",
       proposals: [{ title: "Cell boundary", body: "The Cell prepares but does not admit cognition.", limitations: ["Host authority remains external."], tags: ["authority"], formationRationale: "Directly stated by the source." }],
@@ -276,7 +276,7 @@ describe("progressive cognition formation", () => {
   });
 
   test("keeps the CLI small, detects damaged evidence, and rebuilds its projection", async () => {
-    const home = await mkdtemp(join(tmpdir(), "atthis-cognition-cli-"));
+    const home = await mkdtemp(join(tmpdir(), "rosso-cognition-cli-"));
     homes.push(home);
     const sourceFile = join(home, "input.txt");
     const schemeFile = join(home, "scheme.json");
@@ -319,7 +319,7 @@ describe("progressive cognition formation", () => {
     expect(typo.exitCode).toBe(2);
     expect(typo.stderr.toString()).toContain("unknown option: --stgae");
 
-    await writeFile(join(home, "indexes", "catalog.json"), JSON.stringify({ version: "atthis.cognition-catalog.v1", generatedAt: new Date().toISOString(), entries: [] }), "utf8");
+    await writeFile(join(home, "indexes", "catalog.json"), JSON.stringify({ version: "rosso.cognition-catalog.v1", generatedAt: new Date().toISOString(), entries: [] }), "utf8");
     const staleCheck = runCli("check", "--home", home);
     expect(staleCheck.exitCode).toBe(1);
     expect(JSON.parse(staleCheck.stdout.toString())).toMatchObject({ healthy: false, indexFresh: false });
@@ -331,7 +331,7 @@ describe("progressive cognition formation", () => {
     expect(JSON.parse(damagedCheck.stdout.toString())).toMatchObject({ healthy: false, sourceProblems: [`${captured.id}: content hash mismatch`] });
     await expect(readSourceContent(home, captured.id)).rejects.toThrow("source content hash mismatch");
     expect((await queryCognition(home, "cooperative")).results.map((item) => item.id)).toEqual([proposed.id]);
-    await writeFile(join(home, "indexes", "catalog.json"), JSON.stringify({ version: "atthis.cognition-catalog.v1", generatedAt: new Date().toISOString(), entries: [{ bad: true }] }), "utf8");
+    await writeFile(join(home, "indexes", "catalog.json"), JSON.stringify({ version: "rosso.cognition-catalog.v1", generatedAt: new Date().toISOString(), entries: [{ bad: true }] }), "utf8");
     await expect(queryCognition(home, "cooperative")).rejects.toThrow();
     await expect(checkCognitionHome(home)).rejects.toThrow();
     await rebuildCatalog(home);
@@ -393,7 +393,7 @@ const cycleScheme = {
 } as const;
 
 async function newHome(): Promise<string> {
-  const home = await mkdtemp(join(tmpdir(), "atthis-cognition-"));
+  const home = await mkdtemp(join(tmpdir(), "rosso-cognition-"));
   homes.push(home);
   await initializeCognitionHome(home);
   return home;

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CognitionFormationResultSchema } from "@atthis/cognition";
+import { CognitionFormationResultSchema } from "@rosso/cognition";
 import { prepareCognitionFormation } from "../src/adapters/cognition/formation";
 
 describe("cognition formation adapter", () => {
@@ -40,7 +40,7 @@ describe("cognition formation adapter", () => {
 
   test("permits a justified no-proposal", () => {
     expect(CognitionFormationResultSchema.parse({
-      version: "atthis.cognition-formation.v1",
+      version: "rosso.cognition-formation.v1",
       disposition: "no-proposal",
       rationale: "The supplied observations conflict and the move lacks a resolving source.",
       proposals: [],

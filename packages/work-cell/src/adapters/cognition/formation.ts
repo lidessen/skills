@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CognitionFormationJsonSchema } from "@atthis/cognition";
+import { CognitionFormationJsonSchema } from "@rosso/cognition";
 import { CellInputSchema, type CellInput } from "../../contracts";
 
 const SlotSchema = z.discriminatedUnion("type", [

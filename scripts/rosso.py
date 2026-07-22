@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve an Atthis project alias to a verified local Git workspace.
+"""Resolve a Rosso project alias to a verified local Git workspace.
 
 The portable project registry and machine-local workspace mapping are separate
 sources.  Generated resolution output is only a read-only projection over them
@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -20,17 +21,19 @@ from typing import Any
 from urllib.parse import urlparse
 
 
-HOME_VERSION = "atthis.home.v1"
-PROJECTS_VERSION = "atthis.projects.v1"
-WORKSPACES_VERSION = "atthis.workspaces.v1"
-ROOTS_VERSION = "atthis.roots.v1"
-INDEX_VERSION = "atthis.workspace-index.v1"
-RESOLUTION_VERSION = "atthis.resolution.v1"
-PREFERENCES_VERSION = "atthis.preferences.v1"
-PREFERENCE_PROJECTION_VERSION = "atthis.preference-projection.v1"
-PREFERENCE_RECEIPT_VERSION = "atthis.preference-receipt.v1"
-PROJECT_LIST_VERSION = "atthis.project-list.v1"
-DEFAULT_HOME = Path("~/.atthis")
+HOME_VERSION = "rosso.home.v1"
+PROJECTS_VERSION = "rosso.projects.v1"
+WORKSPACES_VERSION = "rosso.workspaces.v1"
+ROOTS_VERSION = "rosso.roots.v1"
+INDEX_VERSION = "rosso.workspace-index.v1"
+RESOLUTION_VERSION = "rosso.resolution.v1"
+PREFERENCES_VERSION = "rosso.preferences.v1"
+PREFERENCE_PROJECTION_VERSION = "rosso.preference-projection.v1"
+PREFERENCE_RECEIPT_VERSION = "rosso.preference-receipt.v1"
+PROJECT_LIST_VERSION = "rosso.project-list.v1"
+MIGRATION_RECEIPT_VERSION = "rosso.namespace-migration-receipt.v1"
+DEFAULT_HOME = Path("~/.rosso")
+LEGACY_DEFAULT_HOME = Path("~/.atthis")
 HOME_DIRECTORIES = ("config", "state", "missions", "memory", "cognition", "receipts", "cache")
 
 
@@ -57,7 +60,7 @@ def string_list(value: Any, label: str, minimum: int = 0) -> list[str]:
 
 
 def home_path(argument: str | None) -> Path:
-    raw = argument or os.environ.get("ATTHIS_HOME") or str(DEFAULT_HOME)
+    raw = argument or os.environ.get("ROSSO_HOME") or str(DEFAULT_HOME)
     return Path(raw).expanduser().resolve()
 
 
@@ -93,9 +96,13 @@ def index_path(home: Path) -> Path:
     return home / "cache" / "workspaces.json"
 
 
+def migration_receipts_path(home: Path) -> Path:
+    return home / "receipts" / "namespace-migrations.jsonl"
+
+
 def load_json(path: Path) -> Any:
     if not path.is_file():
-        fail(f"required Atthis source not found: {path}")
+        fail(f"required Rosso source not found: {path}")
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
@@ -109,11 +116,61 @@ def save_json(path: Path, value: Any) -> None:
     temporary.replace(path)
 
 
+def file_digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def migrate_namespace_record(value: Any) -> Any:
+    if not isinstance(value, dict):
+        return value
+    migrated = dict(value)
+    if migrated.get("namespace") == "atthis":
+        migrated["namespace"] = "rosso"
+    version = migrated.get("version")
+    if isinstance(version, str) and version.startswith("atthis."):
+        migrated["version"] = "rosso." + version.removeprefix("atthis.")
+    return migrated
+
+
+def migrate_namespace_files(home: Path) -> None:
+    for path in sorted(home.rglob("*")):
+        if not path.is_file() or path.is_symlink():
+            continue
+        if path.suffix == ".json":
+            current = load_json(path)
+            migrated = migrate_namespace_record(current)
+            if migrated != current:
+                save_json(path, migrated)
+        elif path.suffix == ".jsonl":
+            original = path.read_text(encoding="utf-8")
+            migrated_lines = []
+            changed = False
+            for line_number, line in enumerate(original.splitlines(), start=1):
+                if not line.strip():
+                    migrated_lines.append(line)
+                    continue
+                try:
+                    current = json.loads(line)
+                    migrated = migrate_namespace_record(current)
+                    if migrated == current:
+                        migrated_lines.append(line)
+                    else:
+                        changed = True
+                        migrated_lines.append(json.dumps(migrated, ensure_ascii=False, sort_keys=True))
+                except json.JSONDecodeError as error:
+                    fail(f"invalid JSONL in {path} at line {line_number}: {error}")
+            if changed:
+                path.write_text(
+                    "\n".join(migrated_lines) + ("\n" if original.endswith("\n") else ""),
+                    encoding="utf-8",
+                )
+
+
 def validate_manifest(value: Any) -> dict[str, Any]:
     if not isinstance(value, dict) or value.get("version") != HOME_VERSION:
         fail(f"manifest version must be {HOME_VERSION}")
-    if value.get("namespace") != "atthis":
-        fail("manifest namespace must be atthis")
+    if value.get("namespace") != "rosso":
+        fail("manifest namespace must be rosso")
     nonempty(value.get("createdAt"), "manifest.createdAt")
     return value
 
@@ -536,14 +593,13 @@ def add_roots(home: Path, paths: list[str]) -> dict[str, Any]:
     return roots
 
 
-def command_init(args: argparse.Namespace) -> None:
-    home = home_path(args.home)
+def initialize_home(home: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     for directory in HOME_DIRECTORIES:
         (home / directory).mkdir(parents=True, exist_ok=True)
     if manifest_path(home).exists():
         validate_manifest(load_json(manifest_path(home)))
     else:
-        save_json(manifest_path(home), {"version": HOME_VERSION, "namespace": "atthis", "createdAt": now()})
+        save_json(manifest_path(home), {"version": HOME_VERSION, "namespace": "rosso", "createdAt": now()})
     if projects_path(home).exists():
         validate_projects(load_json(projects_path(home)))
     else:
@@ -568,13 +624,89 @@ def command_init(args: argparse.Namespace) -> None:
         validate_index(load_json(index_path(home)))
     else:
         save_json(index_path(home), {"version": INDEX_VERSION, "generatedAt": now(), "entries": []})
-    roots = add_roots(home, args.workspace_root) if args.workspace_root else validate_roots(load_json(roots_path(home)))
-    index = scan_roots(home, roots) if args.workspace_root else validate_index(load_json(index_path(home)))
+    return validate_roots(load_json(roots_path(home))), validate_index(load_json(index_path(home)))
+
+
+def command_init(args: argparse.Namespace) -> None:
+    home = home_path(args.home)
+    roots, index = initialize_home(home)
+    if args.workspace_root:
+        roots = add_roots(home, args.workspace_root)
+        index = scan_roots(home, roots)
     print(json.dumps({
         "home": str(home),
         "initialized": True,
         "workspaceRoots": roots["roots"],
         "indexedWorkspaces": len(index["entries"]),
+    }, ensure_ascii=False, indent=2))
+
+
+def command_migrate(args: argparse.Namespace) -> None:
+    source = Path(args.from_home or LEGACY_DEFAULT_HOME).expanduser().resolve()
+    target = home_path(args.home)
+    if source == target:
+        fail("legacy source and Rosso target home must differ")
+    if not source.is_dir():
+        fail(f"legacy Atthis home does not exist: {source}")
+    if target.exists():
+        fail(f"Rosso target home already exists: {target}")
+
+    for required_source in (manifest_path(source), projects_path(source)):
+        if not required_source.is_file():
+            fail(f"required legacy Atthis source not found: {required_source}")
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f"{target.name}.namespace-migration.tmp")
+    if temporary.exists():
+        fail(f"stale namespace migration workspace exists: {temporary}")
+
+    source_manifest_digest = file_digest(manifest_path(source))
+    source_projects_digest = file_digest(projects_path(source))
+    try:
+        shutil.copytree(source, temporary, symlinks=True)
+        migrate_namespace_files(temporary)
+        initialize_home(temporary)
+        projects, workspaces = require_home(temporary)
+        verified_project_id = None
+        verification_errors = []
+        for project in projects["projects"]:
+            try:
+                query = project["aliases"][0]
+                resolved = project_by_query(projects, query)
+                observe_workspace(resolved, workspace_for(workspaces, resolved["id"]))
+                verified_project_id = resolved["id"]
+                break
+            except ValueError as error:
+                verification_errors.append(f"{project['id']}: {error}")
+        if projects["projects"] and verified_project_id is None:
+            fail("no migrated project could be verified: " + "; ".join(verification_errors))
+
+        receipt = {
+            "version": MIGRATION_RECEIPT_VERSION,
+            "at": now(),
+            "fromNamespace": "atthis",
+            "toNamespace": "rosso",
+            "sourceHome": str(source),
+            "targetHome": str(target),
+            "sourceManifestDigest": source_manifest_digest,
+            "sourceProjectsDigest": source_projects_digest,
+            "verifiedProjectId": verified_project_id,
+        }
+        migration_receipts_path(temporary).write_text(
+            json.dumps(receipt, ensure_ascii=False, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        temporary.replace(target)
+    except Exception:
+        shutil.rmtree(temporary, ignore_errors=True)
+        raise
+
+    print(json.dumps({
+        "migrated": True,
+        "sourceHome": str(source),
+        "targetHome": str(target),
+        "verifiedProjectId": verified_project_id,
+        "receipt": str(migration_receipts_path(target)),
     }, ensure_ascii=False, indent=2))
 
 
@@ -821,12 +953,16 @@ def command_preference_retire(args: argparse.Namespace) -> None:
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
-    result.add_argument("--home", help="Atthis home; defaults to ATTHIS_HOME or ~/.atthis")
+    result.add_argument("--home", help="Rosso home; defaults to ROSSO_HOME or ~/.rosso")
     commands = result.add_subparsers(dest="command", required=True)
 
-    init = commands.add_parser("init", help="initialize the relocatable Atthis home")
+    init = commands.add_parser("init", help="initialize the relocatable Rosso home")
     init.add_argument("--workspace-root", action="append", default=[], help="machine-local root to index; repeatable")
     init.set_defaults(run=command_init)
+
+    migrate = commands.add_parser("migrate", help="reconcile a legacy Atthis home into the Rosso namespace")
+    migrate.add_argument("--from-home", help="legacy source; defaults to ~/.atthis")
+    migrate.set_defaults(run=command_migrate)
 
     register = commands.add_parser("register", help="register one project and its current local Git root")
     register.add_argument("path")
@@ -886,7 +1022,7 @@ def main() -> None:
         if isinstance(result, int):
             raise SystemExit(result)
     except ValueError as error:
-        print(f"atthis: {error}", file=sys.stderr)
+        print(f"rosso: {error}", file=sys.stderr)
         raise SystemExit(2)
 
 

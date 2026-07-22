@@ -1,6 +1,6 @@
 # Cognition
 
-`@atthis/cognition` is an experimental mechanism for progressive cognition
+`@rosso/cognition` is an experimental mechanism for progressive cognition
 formation. It is not a workspace index, one-layer knowledge graph, transcript
 memory, universal ontology, or model runtime.
 

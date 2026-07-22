@@ -1,11 +1,11 @@
 {
-  "name": "@atthis/cognition",
+  "name": "@rosso/cognition",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": "./src/index.ts",
   "bin": {
-    "atthis-cognition": "./src/cli.ts"
+    "rosso-cognition": "./src/cli.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@atthis/cognition",
+      "name": "@rosso/cognition",
       "dependencies": {
         "zod": "4.4.3",
       },

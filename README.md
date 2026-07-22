@@ -1,11 +1,11 @@
-# Atthis — Skills
+# Rosso — Skills
 
 [简体中文](README.zh-CN.md)
 
-> The current methods repository for **Atthis / 在此**, a project that makes
+> The current methods repository for **Rosso**, a project that makes
 > productive AI a common, open, replaceable capability.
 
-Atthis is the current, revisable project name; this `skills` repository remains
+Rosso is the [current, revisable project name](design/FOUNDING-IDENTITY.md); this `skills` repository remains
 one of its working surfaces. It contains [agent skills](https://agentskills.io) and an
 experimental Work Cell for AI-assisted development. It is one working surface,
 not the whole project, a model provider, or an opaque AI platform. Its semantic
@@ -33,9 +33,9 @@ the project exists, the [operating protocol](design/operations/OPERATING-PROTOCO
 to see how human-authorized work proceeds, or the active skills below to use a
 specific method.
 
-## Ways to use Atthis
+## Ways to use Rosso
 
-- Develop Atthis itself through this repository's full operating and evidence
+- Develop Rosso itself through this repository's full operating and evidence
   system.
 - Install one self-contained Skill into another project for a specific method.
 - Enter this checkout with a coding agent and use it as a workbench for other
@@ -44,7 +44,7 @@ specific method.
 For the workbench path, ask the agent directly:
 
 ```text
-Initialize the Atthis workbench. My workspace root is ~/workspaces.
+Initialize the Rosso workbench. My workspace root is ~/workspaces.
 Add ~/client-work as another workspace root.
 Register ~/workspaces/meowask and keep meowask and survey as spoken aliases.
 Remember across projects that stable bounded tasks should prefer Work Cell.
@@ -55,20 +55,25 @@ Show work in progress across my registered projects.
 ```
 
 The repository instructions translate those intents into the bounded
-`scripts/atthis.py` operations. When registration needs a stable identity that
+`scripts/rosso.py` operations. When registration needs a stable identity that
 cannot be verified from the repository provider, the agent asks for that one
 missing value. It does not scan an unspecified home directory, auto-register
 discovered repositories, or make the user remember command flags.
+
+If a previous checkout initialized `~/.atthis`, ask the agent to migrate the
+workbench, or run `python3 scripts/rosso.py migrate`, before ordinary Rosso
+initialization. The migration preserves the old source and records a receipt;
+it does not keep two writable homes.
 
 For automation, debugging, or an environment without an agent, the equivalent
 manual entry remains available:
 
 ```sh
-python3 scripts/atthis.py init --workspace-root ~/workspaces
-python3 scripts/atthis.py root add ~/client-work
-python3 scripts/atthis.py project list
-python3 scripts/atthis.py resolve survey
-python3 scripts/atthis.py preference list --project survey
+python3 scripts/rosso.py init --workspace-root ~/workspaces
+python3 scripts/rosso.py root add ~/client-work
+python3 scripts/rosso.py project list
+python3 scripts/rosso.py resolve survey
+python3 scripts/rosso.py preference list --project survey
 ```
 
 The workbench keeps stable project identity separate from repository names,
@@ -86,7 +91,7 @@ confirmation.
 | [`skills/`](skills/) | the current installable methodology and behavioral expressions | the semantic source they express |
 | [`packages/work-cell/`](packages/work-cell/) | a general bounded agent runtime, optional adapters, and experimental research implementations | planning, doctrine, or human acceptance |
 | [`packages/cognition/`](packages/cognition/) | domain-declared progressive formation, source and artifact lineage, admission evidence, and rebuildable retrieval projections | universal cognition stages, domain interpretation, model execution, or admission authority |
-| [`scripts/atthis.py`](scripts/atthis.py) | relocatable project identity, verified machine-local workspace resolution, and explicit scoped personal defaults | task scheduling, inferred preference, target-project facts, or execution authority |
+| [`scripts/rosso.py`](scripts/rosso.py) | relocatable project identity, verified machine-local workspace resolution, and explicit scoped personal defaults | task scheduling, inferred preference, target-project facts, or execution authority |
 | [`site/`](site/) | the static public home page and reproducible documentation projection | source facts, project identity, or hosting authority |
 | [`design/`](design/) | accepted architecture, decisions, operations design, and retained design studies | live task state or raw runtime evidence |
 | [`regeneration/evaluations/`](regeneration/evaluations/) | durable behavior and boundary evaluations | governing design or raw run authority |
@@ -141,7 +146,7 @@ progressive-cognition mechanism experiment. Domain-defined formation schemes
 turn immutable source material through explicit, verified stages into cognitive
 artifacts and can return practice outcomes to an earlier stage. A catalog is
 only a rebuildable retrieval projection; projects, workspaces, Git, prompts,
-models, and task routing stay outside the core. Project cognition and Atthis
+models, and task routing stay outside the core. Project cognition and Rosso
 resume are future domain methods over this mechanism, not its defining schema; see
 [decision 039](design/decisions/039-general-cognition-experiment.md).
 

@@ -25,7 +25,7 @@ test("a verifier receives only source material and submits evidence without adva
   const root = await fixture();
   const timeline = new FileMissionTimeline(join(root, ".mission"));
   await timeline.seedAnchor({
-    version: "atthis.mission-anchor-seed.v1",
+    version: "rosso.mission-anchor-seed.v1",
     id: "seed:mission-1",
     missionId: "mission-1",
     authorityRef: "principal:test",

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@atthis/autonomy",
+      "name": "@rosso/autonomy",
       "dependencies": {
         "ai": "7.0.28",
         "zod": "4.4.3",

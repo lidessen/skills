@@ -27,7 +27,7 @@ const route = [{
 }];
 const outputArgument = process.argv.find((argument, index) => index > 1 && !argument.startsWith("--"));
 const outputPath = resolve(outputArgument ?? `${tmpdir()}/live-mission-queue-recovery-${Date.now()}.json`);
-const home = await mkdtemp(join(tmpdir(), "atthis-live-mission-queue-recovery-"));
+const home = await mkdtemp(join(tmpdir(), "rosso-live-mission-queue-recovery-"));
 const missionId = `live-queue-recovery-${Date.now()}`;
 const runtimeModule = fileURLToPath(new URL("./flash-readonly-mission-runtime.ts", import.meta.url));
 const seedPath = join(home, "anchor-seed.json");
@@ -124,7 +124,7 @@ try {
     }
   }
   await writeFile(outputPath, `${JSON.stringify({
-    version: "atthis.live-mission-queue-recovery-probe.v1",
+    version: "rosso.live-mission-queue-recovery-probe.v1",
     status: "probe",
     startedAt,
     finishedAt: new Date().toISOString(),

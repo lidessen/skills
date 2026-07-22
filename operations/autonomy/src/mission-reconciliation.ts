@@ -12,8 +12,8 @@ import {
 } from "./mission-input";
 import { digest } from "./canonical-json";
 
-export const MISSION_RECONCILIATION_VERSION = "atthis.mission-reconciliation.v1" as const;
-export const MISSION_ANCHOR_SEED_VERSION = "atthis.mission-anchor-seed.v1" as const;
+export const MISSION_RECONCILIATION_VERSION = "rosso.mission-reconciliation.v1" as const;
+export const MISSION_ANCHOR_SEED_VERSION = "rosso.mission-anchor-seed.v1" as const;
 
 export const ActiveIntentAnchorSchema = z.object({
   id: z.string().min(1),

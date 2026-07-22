@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Integration probe for relocatable Atthis project resolution."""
+"""Integration probe for relocatable Rosso project resolution."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "scripts" / "atthis.py"
+SCRIPT = ROOT / "scripts" / "rosso.py"
 
 
 def run(home: Path, *arguments: str, expect: int = 0) -> subprocess.CompletedProcess[str]:
@@ -36,8 +36,8 @@ def git(cwd: Path, *arguments: str) -> None:
 def create_repo(path: Path, remote: str | None) -> None:
     path.mkdir()
     git(path, "init")
-    git(path, "config", "user.name", "Atthis Test")
-    git(path, "config", "user.email", "atthis@example.test")
+    git(path, "config", "user.name", "Rosso Test")
+    git(path, "config", "user.email", "rosso@example.test")
     (path / "README.md").write_text("# Test\n", encoding="utf-8")
     git(path, "add", "README.md")
     git(path, "commit", "-m", "initial")
@@ -45,8 +45,13 @@ def create_repo(path: Path, remote: str | None) -> None:
         git(path, "remote", "add", "origin", remote)
 
 
+def write_json(path: Path, value: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
 def main() -> None:
-    with tempfile.TemporaryDirectory(prefix="atthis-test-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="rosso-test-") as temporary:
         root = Path(temporary)
         home = root / "home"
         survey = root / "survey"
@@ -60,6 +65,9 @@ def main() -> None:
         empty = pool / "empty"
         credentialed = pool / "credentialed"
         late = late_pool / "late"
+        migration_repo = root / "migration-repo"
+        legacy_home = root / "legacy-atthis"
+        migrated_home = root / "migrated-rosso"
         remote = "https://example.test/lidessen/meowask.git"
         credentialed_remote = "https://user:secret@example.test/lidessen/credentialed.git?access_token=hidden#fragment"
         credential_free_remote = "https://example.test/lidessen/credentialed.git"
@@ -73,6 +81,59 @@ def main() -> None:
         empty.mkdir()
         git(empty, "init")
         create_repo(credentialed, credentialed_remote)
+        create_repo(migration_repo, "https://example.test/lidessen/migration.git")
+
+        write_json(legacy_home / "manifest.json", {
+            "version": "atthis.home.v1",
+            "namespace": "atthis",
+            "createdAt": "2026-07-18T00:00:00Z",
+        })
+        write_json(legacy_home / "config" / "projects.json", {
+            "version": "atthis.projects.v1",
+            "projects": [{
+                "id": "repository:migration",
+                "repository": "https://example.test/lidessen/migration.git",
+                "aliases": ["migration"],
+            }],
+        })
+        write_json(legacy_home / "state" / "workspaces.json", {
+            "version": "atthis.workspaces.v1",
+            "workspaces": [{"projectId": "repository:migration", "path": str(migration_repo)}],
+        })
+        write_json(legacy_home / "state" / "roots.json", {"version": "atthis.roots.v1", "roots": []})
+        write_json(legacy_home / "cache" / "workspaces.json", {
+            "version": "atthis.workspace-index.v1",
+            "generatedAt": "2026-07-18T00:00:00Z",
+            "entries": [],
+        })
+        write_json(legacy_home / "cognition" / "artifact.json", {
+            "version": "atthis.cognitive-artifact.v1",
+            "metadata": {"version": "atthis.user-content.v1"},
+        })
+        migrated = json.loads(run(
+            migrated_home,
+            "migrate",
+            "--from-home",
+            str(legacy_home),
+        ).stdout)
+        assert migrated["migrated"] is True
+        assert migrated["verifiedProjectId"] == "repository:migration"
+        assert json.loads((migrated_home / "manifest.json").read_text(encoding="utf-8"))["namespace"] == "rosso"
+        assert json.loads((legacy_home / "manifest.json").read_text(encoding="utf-8"))["namespace"] == "atthis"
+        migrated_artifact = json.loads((migrated_home / "cognition" / "artifact.json").read_text(encoding="utf-8"))
+        assert migrated_artifact["version"] == "rosso.cognitive-artifact.v1"
+        assert migrated_artifact["metadata"]["version"] == "atthis.user-content.v1"
+        assert json.loads(run(migrated_home, "resolve", "migration").stdout)["version"] == "rosso.resolution.v1"
+        assert (migrated_home / "receipts" / "namespace-migrations.jsonl").is_file()
+        rerun_migration = run(
+            migrated_home,
+            "migrate",
+            "--from-home",
+            str(legacy_home),
+            expect=2,
+        )
+        assert "target home already exists" in rerun_migration.stderr
+
         run(home, "init", "--workspace-root", str(pool))
         assert json.loads((home / "config" / "preferences.json").read_text(encoding="utf-8"))["preferences"] == []
         assert json.loads((home / "state" / "preferences.json").read_text(encoding="utf-8"))["preferences"] == []
@@ -101,7 +162,7 @@ def main() -> None:
             "Prefer the native sub-agent when this machine provides a required subscription.",
         )
         global_preferences = json.loads(run(home, "preference", "list").stdout)
-        assert global_preferences["version"] == "atthis.preference-projection.v1"
+        assert global_preferences["version"] == "rosso.preference-projection.v1"
         assert global_preferences["projectId"] is None
         assert global_preferences["preferences"] == [{
             "id": "execution-carrier",
@@ -149,7 +210,7 @@ def main() -> None:
         source_before_failed_receipt = (home / "config" / "preferences.json").read_text(encoding="utf-8")
         receipts_before_failed_receipt = receipt_path.read_text(encoding="utf-8")
         receipt_path.write_text(
-            json.dumps({"version": "atthis.preference-receipt.v1", "statement": "TOKEN=secret"}) + "\n",
+            json.dumps({"version": "rosso.preference-receipt.v1", "statement": "TOKEN=secret"}) + "\n",
             encoding="utf-8",
         )
         rejected_receipt = run(
@@ -331,7 +392,7 @@ def main() -> None:
         duplicate_id = run(home, "resolve", "survey", expect=2)
         assert "duplicate project id" in duplicate_id.stderr
 
-    print("atthis resolver tests passed")
+    print("rosso resolver tests passed")
 
 
 if __name__ == "__main__":

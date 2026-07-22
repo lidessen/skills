@@ -17,7 +17,7 @@ import {
 } from "./mission-reconciliation";
 
 export const MISSION_RECONCILIATION_VERIFICATION_VERSION =
-  "atthis.mission-reconciliation-verification.v1" as const;
+  "rosso.mission-reconciliation-verification.v1" as const;
 
 const VerifiedContinueSubmissionSchema = z.object({
   assessment: z.string().min(1),

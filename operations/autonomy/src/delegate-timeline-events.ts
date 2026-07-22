@@ -10,7 +10,7 @@ import {
   MissionTurnStartedEventDataSchema,
 } from "./mission-turn";
 
-export const TIMELINE_EVENT_VERSION = "atthis.delegate-timeline-event.v1" as const;
+export const TIMELINE_EVENT_VERSION = "rosso.delegate-timeline-event.v1" as const;
 
 export const CompactOutcomeSchema = z.object({
   key: z.string().min(1),

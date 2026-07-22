@@ -240,7 +240,7 @@ function requireSuccess(response: MissionRunnerResponse): Extract<MissionRunnerR
 
 function parseArguments(args: readonly string[]): CliArguments {
   const positionals: string[] = [];
-  let home = process.env.ATTHIS_HOME ?? join(homedir(), ".atthis");
+  let home = process.env.ROSSO_HOME ?? join(homedir(), ".rosso");
   let id: string = randomUUID();
   let actorRef = "operator";
   let sourceRef = "cli";

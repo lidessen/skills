@@ -615,7 +615,7 @@ function score(entry: CatalogEntry, terms: string[]): number {
 }
 
 async function appendEvent(root: string, type: EventType, actor: string, targetId: string, data: Record<string, unknown>) {
-  const event = { version: "atthis.cognition-event.v1", id: `event_${randomUUID()}`, at: now(), actor, type, targetId, data };
+  const event = { version: "rosso.cognition-event.v1", id: `event_${randomUUID()}`, at: now(), actor, type, targetId, data };
   await appendFile(resolve(root, "state/events.jsonl"), `${JSON.stringify(event)}\n`, "utf8");
 }
 

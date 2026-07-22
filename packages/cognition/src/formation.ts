@@ -2,7 +2,7 @@ import { z } from "zod";
 import { proposeCognitiveArtifact } from "./store";
 import type { FormationInput } from "./contracts";
 
-export const CognitionFormationVersion = "atthis.cognition-formation.v1" as const;
+export const CognitionFormationVersion = "rosso.cognition-formation.v1" as const;
 
 export const CognitionFormationResultSchema = z.object({
   version: z.literal(CognitionFormationVersion),
