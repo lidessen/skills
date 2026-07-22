@@ -1,7 +1,7 @@
 # Portable Sequence
 
 **Role:** read-only standalone lineage baseline for project-cognition.
-**Canonical upstream:** https://github.com/lidessen/rosso.git
+**Canonical upstream:** https://github.com/lidessen/rossovia.git
 **Refresh ref:** main
 **Snapshot date:** 2026-07-22
 **Sequence SHA-256:** fdea44b25578e57577956dac29b75888f20d61e3f41ccb0e93503936667db780
