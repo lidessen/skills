@@ -77,8 +77,8 @@ manual entry remains available:
 ```
 
 A successful `init` reports `writeAccess: "verified"` after exercising and
-cleaning up a real write under the resolved Rossovia home. Existing readable
-state is not enough: if this observation is absent, reconcile the exact
+cleaning up a real write on every write-bearing surface under the resolved
+Rossovia home. Existing readable state is not enough: if this observation is absent, reconcile the exact
 user-level harness permission and start a fresh session. Initialization does not
 install project hooks or move shared state into the current repository.
 

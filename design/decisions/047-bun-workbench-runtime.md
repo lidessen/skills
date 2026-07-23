@@ -39,7 +39,7 @@ owns:
 - project registration, attachment, resolution, and verified listing;
 - corrected user/project preference operations from
   [Decision 046](046-user-project-preference-boundary.md); and
-- atomic legacy `~/.atthis` namespace migration;
+- restartable in-home legacy `~/.atthis` namespace migration;
 - Git-tracked Mission Record lifecycle and validation; and
 - privacy-preserving intervention observation, correction receipts, and the
   thin project-local Codex hook adapter.
@@ -61,11 +61,13 @@ maintenance scripts to move.
 - registered, discovered, partial-failure, and stale-workspace projections
   match retained Python fixtures;
 - initialization, roots, register, and attach preserve their state contracts;
-- initialization verifies a real no-residue write through the current runtime
-  even when the Rossovia home is already structurally complete;
+- initialization verifies a real no-residue write on every write-bearing home
+  surface through the current runtime even when the Rossovia home is already
+  structurally complete;
 - preferences satisfy Decision 046 without a machine preference source;
-- legacy migration preserves its source, verifies a migrated workspace, writes
-  a receipt, and rejects nonempty obsolete machine preferences;
+- legacy migration preserves its source, stays within the exact target home,
+  restarts an interrupted marked transaction, verifies a migrated workspace,
+  writes a receipt, and rejects nonempty obsolete machine preferences;
 - Bun type checking and tests run in repository CI; and
 - ordinary instructions and README commands use the Bun carrier, and no
   superseded Python runtime command remains.

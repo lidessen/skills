@@ -10,7 +10,8 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
+import { z } from "zod";
 import { PreferenceReceiptSchema, PreferencesSchema } from "./contracts";
 import { initializeHome, loadHome, workspaceFor } from "./home";
 import { expandPath } from "./paths";
@@ -155,6 +156,49 @@ function sortedJson(value: Record<string, unknown>): string {
   return JSON.stringify(Object.fromEntries(Object.entries(value).sort(([left], [right]) => left.localeCompare(right))));
 }
 
+const migrationMarkerName = ".rossovia-namespace-migration.json";
+const MigrationMarkerSchema = z.object({
+  version: z.literal("rosso.namespace-migration.v1"),
+  sourceHome: z.string().min(1),
+  targetHome: z.string().min(1),
+}).strict();
+
+function clearMigrationTarget(target: string): void {
+  for (const entry of readdirSync(target, { withFileTypes: true })) {
+    if (entry.name === migrationMarkerName) continue;
+    rmSync(join(target, entry.name), { recursive: true, force: true });
+  }
+}
+
+function prepareMigrationTarget(source: string, target: string): string {
+  const marker = join(target, migrationMarkerName);
+  if (existsSync(target)) {
+    if (!existsSync(marker)) throw new Error(`rossovia workbench target home already exists: ${target}`);
+    const interrupted = MigrationMarkerSchema.parse(JSON.parse(readFileSync(marker, "utf8")));
+    if (interrupted.sourceHome !== source || interrupted.targetHome !== target) {
+      throw new Error(`rossovia workbench target contains an unrelated migration transaction: ${target}`);
+    }
+    clearMigrationTarget(target);
+  } else {
+    mkdirSync(target, { recursive: true });
+  }
+  writeFileSync(marker, `${JSON.stringify({
+    version: "rosso.namespace-migration.v1",
+    sourceHome: source,
+    targetHome: target,
+  }, null, 2)}\n`, "utf8");
+  return marker;
+}
+
+function copyLegacyHome(source: string, target: string): void {
+  if (existsSync(join(source, migrationMarkerName))) {
+    throw new Error(`legacy source contains reserved migration marker: ${migrationMarkerName}`);
+  }
+  for (const entry of readdirSync(source, { withFileTypes: true })) {
+    cpSync(join(source, entry.name), join(target, entry.name), { recursive: true, dereference: false });
+  }
+}
+
 export function migrateLegacyHome(homeArgument?: string, fromHomeArgument?: string): {
   migrated: true;
   sourceHome: string;
@@ -168,7 +212,6 @@ export function migrateLegacyHome(homeArgument?: string, fromHomeArgument?: stri
   if (!existsSync(source) || !statSync(source).isDirectory()) {
     throw new Error(`legacy Atthis home does not exist: ${source}`);
   }
-  if (existsSync(target)) throw new Error(`rossovia workbench target home already exists: ${target}`);
   const sourceManifest = join(source, "manifest.json");
   const sourceProjects = join(source, "config", "projects.json");
   for (const required of [sourceManifest, sourceProjects]) {
@@ -177,19 +220,17 @@ export function migrateLegacyHome(homeArgument?: string, fromHomeArgument?: stri
     }
   }
   validateLegacySource(source);
-  mkdirSync(dirname(target), { recursive: true });
-  const temporary = `${target}.namespace-migration.tmp`;
-  if (existsSync(temporary)) throw new Error(`stale namespace migration workspace exists: ${temporary}`);
   const sourceManifestDigest = digest(sourceManifest);
   const sourceProjectsDigest = digest(sourceProjects);
   let verifiedProjectId: string | null = null;
+  const marker = prepareMigrationTarget(source, target);
   try {
-    cpSync(source, temporary, { recursive: true, dereference: false });
-    migrateNamespaceFiles(temporary);
-    reconcileLegacyPreferenceReceipts(temporary);
-    reconcileObsoleteMachinePreferences(temporary);
-    initializeHome(temporary);
-    const current = loadHome(temporary);
+    copyLegacyHome(source, target);
+    migrateNamespaceFiles(target);
+    reconcileLegacyPreferenceReceipts(target);
+    reconcileObsoleteMachinePreferences(target);
+    initializeHome(target);
+    const current = loadHome(target);
     const verificationErrors: string[] = [];
     for (const project of current.projects.projects) {
       try {
@@ -214,10 +255,14 @@ export function migrateLegacyHome(homeArgument?: string, fromHomeArgument?: stri
       sourceProjectsDigest,
       verifiedProjectId,
     };
-    writeFileSync(join(temporary, "receipts", "namespace-migrations.jsonl"), `${sortedJson(receipt)}\n`, "utf8");
-    renameSync(temporary, target);
+    writeFileSync(join(target, "receipts", "namespace-migrations.jsonl"), `${sortedJson(receipt)}\n`, "utf8");
+    rmSync(marker);
   } catch (error: unknown) {
-    rmSync(temporary, { recursive: true, force: true });
+    try {
+      clearMigrationTarget(target);
+    } catch {
+      // Preserve the migration failure. The marker keeps the target retryable.
+    }
     throw error;
   }
   return {
