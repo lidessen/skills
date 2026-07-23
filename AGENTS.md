@@ -275,37 +275,3 @@ working tree. Stage or commit any validated work—especially untracked artifact
 that would be costly to reconstruct—before the probe. A staged checkpoint makes
 recovery possible; it does not make an unsafe source/target relation safe, so
 the disposable probe remains mandatory.
-
-## Cursor Cloud specific instructions
-
-This is a polyglot monorepo with no root manifest. The canonical build/test
-recipe lives in `.github/workflows/verify.yml`; the per-package commands are in
-each `package.json`. Toolchain: **Bun 1.3.9** (installed at `~/.bun/bin`, on
-`PATH` via `~/.bashrc`), **Node** (site engines require `>=22.12 <27`), and
-**Python 3** (stdlib only — no pip install needed).
-
-Components and how to work on them:
-
-- Four Bun packages — `packages/cognition`, `packages/work-cell`,
-  `operations/autonomy`, `operations/workbench`. In each: `bun run typecheck`
-  and `bun test`. `packages/work-cell` depends on `packages/cognition` via
-  `file:../cognition`, so keep cognition's deps installed. There is no ESLint/
-  Prettier — "lint" is effectively `typecheck` (+ `astro check` for the site).
-- Docs site — `site/` uses **npm** (not Bun). `npm run dev` serves at
-  `http://localhost:4321`; `npm run build` runs `astro check` + build into
-  `site/dist`; `npm run verify:links` checks the built output. The `sync:content`
-  step (run automatically by `dev`/`build`) projects skill Markdown into the site.
-- Python checks run directly from repo root, e.g.
-  `python3 scripts/sync-sequence-snapshot.py --all --check`. Do not hand-edit the
-  generated `references/sequence*.md` snapshots — regenerate with
-  `python3 scripts/sync-sequence-snapshot.py`.
-
-Non-obvious gotchas:
-
-- `bun install` uses `--frozen-lockfile` in CI; each package has its own
-  `bun.lock`, so run installs per-package (there are no Bun/npm workspaces).
-- `rossovia register <path>` requires the target repo to have an `origin` git
-  remote, or it fails with `No such remote 'origin'`. Use `--home <dir>` to
-  avoid touching the real `~/.rosso` workbench home when experimenting.
-- The live `work-cell`/`autonomy` LLM experiments (`live:*`/`probe:*` scripts)
-  need external provider API keys, but unit tests, typecheck, and CI do not.
