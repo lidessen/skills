@@ -47,7 +47,8 @@ project's meaning.
 `python3 scripts/rosso.py migrate` reconciles the default legacy `~/.atthis`
 source into `~/.rosso`. It:
 
-1. copies the source into a temporary target rather than mutating it;
+1. copies the source into a marked transaction inside the exact target home
+   rather than mutating it or writing a sibling path;
 2. changes only top-level structured `namespace` and `version` carrier fields
    from `atthis` to `rosso` while preserving project IDs, aliases, paths,
    nested user metadata, records, and content;
@@ -55,12 +56,15 @@ source into `~/.rosso`. It:
    boundary;
 4. validates the migrated sources and resolves one registered alias against its
    current Git workspace when one exists;
-5. commits the target atomically and writes a source-digest migration receipt.
+5. writes a source-digest migration receipt and removes the transaction marker
+   as the completion point. An interrupted marked target has its incomplete
+   contents discarded and is rebuilt from the preserved source on retry.
 
-The command refuses an existing target. The old home remains recovery evidence,
-not a second writable source. An agent that observes `~/.atthis` without
-`~/.rosso` must migrate before ordinary initialization rather than silently
-creating two homes.
+The command refuses an existing completed or unrelated target and resumes only
+a matching marked transaction. The old home remains recovery evidence, not a
+second writable source. An agent that observes `~/.atthis` without `~/.rosso`
+must migrate before ordinary initialization rather than silently creating two
+homes.
 
 ## Domain boundary
 

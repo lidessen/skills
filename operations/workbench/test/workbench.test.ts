@@ -99,22 +99,25 @@ describe("Rossovia workbench", () => {
     expect(readdirSync(join(home, "state")).some((entry) => entry.startsWith(".rossovia-write-probe-"))).toBe(false);
   });
 
-  test("rejects an existing readable home when the current runtime cannot update its state", () => {
+  test("rejects an existing readable home when any required write surface is read-only", () => {
     if (process.platform === "win32") return;
-    const root = mkdtempSync(join(tmpdir(), "rossovia-workbench-read-only-"));
-    temporaryRoots.push(root);
-    const home = join(root, "home");
-    expect(workbench(home, "init").exitCode).toBe(0);
-    const state = join(home, "state");
-    chmodSync(state, 0o555);
-    try {
-      const result = workbench(home, "init");
-      expect(result.exitCode).toBe(2);
-      expect(result.stderr).toContain("Rossovia home is readable but not writable by the current runtime");
-      expect(result.stderr).toContain("Grant write access to the exact ROSSO_HOME");
-      expect(result.stderr).not.toContain("initialized\": true");
-    } finally {
-      chmodSync(state, 0o755);
+    for (const surface of ["", "config", "state", "receipts", "cache"]) {
+      const root = mkdtempSync(join(tmpdir(), "rossovia-workbench-read-only-"));
+      temporaryRoots.push(root);
+      const home = join(root, "home");
+      expect(workbench(home, "init").exitCode).toBe(0);
+      const directory = surface ? join(home, surface) : home;
+      chmodSync(directory, 0o555);
+      try {
+        const result = workbench(home, "init");
+        expect(result.exitCode).toBe(2);
+        expect(result.stderr).toContain("a required write surface is not writable by the current runtime");
+        expect(result.stderr).toContain(directory);
+        expect(result.stderr).toContain("Grant write access to the exact ROSSO_HOME");
+        expect(result.stderr).not.toContain("initialized\": true");
+      } finally {
+        chmodSync(directory, 0o755);
+      }
     }
   });
 

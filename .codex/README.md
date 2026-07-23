@@ -47,8 +47,9 @@ grants do not retrofit a resumed session's frozen permission snapshot. A custom
 to a vendor directory.
 
 Workbench `init` does not install hooks or grant harness permissions. It does
-perform a no-residue create–rename–remove probe under the resolved home on every
-run, including when the home is already complete. Success reports
+perform a no-residue create–rename–remove probe on every write-bearing surface
+under the resolved home on every run, including when the home is already
+complete. Success reports
 `writeAccess: "verified"`; a readable existing home without that observation is
 not a usable state surface for preferences, receipts, timelines, or later
 updates.

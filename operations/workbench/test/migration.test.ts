@@ -129,6 +129,8 @@ describe("legacy namespace migration", () => {
     expect(artifact.metadata.version).toBe("atthis.user-content.v1");
     expect(workbench(target, "resolve", "migration").exitCode).toBe(0);
     expect(existsSync(join(target, "receipts", "namespace-migrations.jsonl"))).toBe(true);
+    expect(existsSync(join(target, ".rossovia-namespace-migration.json"))).toBe(false);
+    expect(existsSync(`${target}.namespace-migration.tmp`)).toBe(false);
     const applicable = JSON.parse(workbench(target, "preference", "list").stdout);
     expect(applicable.preferences[0].statement).toBe("Prefer Work Cell for bounded work.");
     const preferenceReceipt = JSON.parse(readFileSync(join(target, "receipts", "preferences.jsonl"), "utf8").trim());
@@ -138,6 +140,30 @@ describe("legacy namespace migration", () => {
     const rerun = workbench(target, "migrate", "--from-home", source);
     expect(rerun.exitCode).toBe(2);
     expect(rerun.stderr).toContain("target home already exists");
+  });
+
+  test("restarts an interrupted migration inside the exact target home", () => {
+    const root = mkdtempSync(join(tmpdir(), "rossovia-interrupted-migration-"));
+    temporaryRoots.push(root);
+    const repository = join(root, "repository");
+    const source = join(root, "legacy-atthis");
+    const target = join(root, "rossovia");
+    createRepository(repository);
+    createLegacyHome(source, repository);
+    mkdirSync(target);
+    writeJson(join(target, ".rossovia-namespace-migration.json"), {
+      version: "rosso.namespace-migration.v1",
+      sourceHome: realpathSync(source),
+      targetHome: realpathSync(target),
+    });
+    writeFileSync(join(target, "partial"), "incomplete");
+
+    const migrated = workbench(target, "migrate", "--from-home", source);
+    expect(migrated.exitCode).toBe(0);
+    expect(existsSync(join(target, "partial"))).toBe(false);
+    expect(existsSync(join(target, ".rossovia-namespace-migration.json"))).toBe(false);
+    expect(existsSync(`${target}.namespace-migration.tmp`)).toBe(false);
+    expect(workbench(target, "resolve", "migration").exitCode).toBe(0);
   });
 
   test("refuses to reinterpret nonempty machine preferences", () => {
@@ -157,7 +183,8 @@ describe("legacy namespace migration", () => {
     const rejected = workbench(target, "migrate", "--from-home", source);
     expect(rejected.exitCode).toBe(2);
     expect(rejected.stderr).toContain("require explicit environment reconciliation");
-    expect(existsSync(target)).toBe(false);
+    expect(existsSync(join(target, ".rossovia-namespace-migration.json"))).toBe(true);
+    expect(existsSync(join(target, "manifest.json"))).toBe(false);
   });
 
   test("refuses to reinterpret machine-scoped receipt history", () => {
@@ -175,6 +202,7 @@ describe("legacy namespace migration", () => {
     const rejected = workbench(target, "migrate", "--from-home", source);
     expect(rejected.exitCode).toBe(2);
     expect(rejected.stderr).toContain("machine preference receipts require explicit environment reconciliation");
-    expect(existsSync(target)).toBe(false);
+    expect(existsSync(join(target, ".rossovia-namespace-migration.json"))).toBe(true);
+    expect(existsSync(join(target, "manifest.json"))).toBe(false);
   });
 });

@@ -64,8 +64,8 @@ export function saveJson(path: string, value: unknown): void {
   }
 }
 
-function verifyHomeWrite(home: string): void {
-  const temporary = join(home, "state", `.rossovia-write-probe-${randomUUID()}.tmp`);
+function verifyDirectoryWrite(directory: string): void {
+  const temporary = join(directory, `.rossovia-write-probe-${randomUUID()}.tmp`);
   const renamed = `${temporary}.renamed`;
   try {
     writeFileSync(temporary, "", { encoding: "utf8", flag: "wx" });
@@ -75,10 +75,16 @@ function verifyHomeWrite(home: string): void {
     removeProbe(temporary);
     removeProbe(renamed);
     throw new Error(
-      `Rossovia home is readable but not writable by the current runtime: ${home}: `
+      `Rossovia home is readable but a required write surface is not writable by the current runtime: ${directory}: `
       + `${error instanceof Error ? error.message : String(error)}. `
       + "Grant write access to the exact ROSSO_HOME and start a fresh agent session before retrying.",
     );
+  }
+}
+
+function verifyHomeWrite(home: string): void {
+  for (const directory of [home, ...homeDirectories.map((entry) => join(home, entry))]) {
+    verifyDirectoryWrite(directory);
   }
 }
 

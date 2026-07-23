@@ -53,7 +53,8 @@ mechanical action their words authorize:
   infer or scan `$HOME` when no root was supplied; an empty initialized home is
   valid, and roots can be added later. Initialization is complete only when the
   result reports `writeAccess: "verified"`: the command performs a
-  create–rename–remove probe even when every home file already exists. If the
+  create–rename–remove probe on every write-bearing home surface even when
+  every home file already exists. If the
   home is readable but this probe fails, treat the selected Workbench capability
   as an incomplete user-level environment projection. Do not retry `init`,
   inspect hooks, or move state into the current project. Reconcile write access
