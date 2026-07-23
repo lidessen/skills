@@ -18,7 +18,11 @@ Review the whole in-scope experience before diagnosing an isolated page.
    density, missing data, or user-generated material can change the judgment.
    Include neighboring surfaces that establish continuity and downstream
    surfaces where page-specific polish can become an island. For motion,
-   inspect initial, transition, settled, and reduced-motion states.
+   inspect initial, transition, settled, and reduced-motion states. When the
+   supplied representation is partial—a diff, crop, excerpt, or isolated
+   screenshot—inspect the surrounding owner and affected consumers before
+   treating an absence as evidence; otherwise keep the claim labeled as an
+   inference.
 3. Separate three kinds of evidence:
    - mechanical observations: rendering, overflow, interaction, accessibility,
      performance, and source integrity;
@@ -29,17 +33,30 @@ Review the whole in-scope experience before diagnosing an isolated page.
    change the interpretation or priority of the other visible defects. Rank no
    more than three decision-changing findings. For each, form one conformance
    trace from the applicable project-contract relation to observed evidence,
-   the real owning layer, affected consumers, and verification. Owners may be
-   content structure, attention allocation, hierarchy, layout, semantic
-   tokens, shared identity, component treatment, implementation mechanics, or
-   the direction itself. Do not turn a complete inventory into an unprioritized
-   redesign backlog or reduce conformance to token differences.
+   its provenance, the real owning layer, affected consumers, and verification.
+   Admit a finding only when the cited artifact directly demonstrates it or a
+   capable probe verifies it in the real owner and affected consumers. A
+   missing declaration in a partial source does not prove that no inherited or
+   global declaration exists, and a hypothetical consumer is not an affected
+   consumer. Keep such claims, and perceptual claims without rendered evidence,
+   outside the ranked findings as unresolved. Owners may be content structure,
+   attention allocation, hierarchy, layout, semantic tokens, shared identity,
+   component treatment, implementation mechanics, or the direction itself. Do
+   not turn a complete inventory into an unprioritized redesign backlog or
+   reduce conformance to token differences.
 5. Name what should remain invariant and what should be allowed to vary. Do not
    call differentiated page forms inconsistent merely because they are not
    visually identical.
 6. Recommend the smallest change capable of testing the leading diagnosis,
-   plus an observation that would disconfirm it. Aesthetic acceptance remains
-   a human decision.
+   plus an observation that would disconfirm it. Make the human acceptance
+   question concrete enough to answer from the artifact. For a subtle or
+   metaphorical direction, do not ask the person to certify that the named
+   atmosphere was "hit." Ask whether the revision is preferable to the current
+   artifact, whether it creates a clear wrong reading or aversion, and whether
+   it is fit for the present use. Comparative preference plus an explicit
+   fit-for-use decision can accept the revision without proving why it works or
+   promoting the direction. Missing articulation and silence are not
+   acceptance. Aesthetic acceptance remains a human decision.
 7. When designated human feedback rejects a visual assumption, classify the
    feedback as `local treatment`, `shared system invariant`, or `project
    direction reopening`. For the latter two, record the rejected assumption,
@@ -56,7 +73,7 @@ Direct perceptual observations:
 Observed attention order versus intended path:
 Inferred preference or unresolved judgment:
 Highest-leverage visual mismatch:
-Risk-ranked findings, maximum three:
+Risk-ranked findings with evidence provenance, maximum three:
 Conformance traces and affected consumers:
 System layer that owns the main defect:
 Invariant to preserve:
