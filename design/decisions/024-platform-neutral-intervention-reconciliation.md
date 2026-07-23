@@ -1,6 +1,8 @@
 # Decision 024 — Platform-neutral intervention reconciliation
 
-**Status:** first shadow/assist binding implemented; guarded-write remains proposed
+**Status:** Codex and Claude shadow/assist bindings implemented; Cursor remains
+conversation-only for intervention reconciliation; guarded-write remains
+proposed
 **Date:** 2026-07-12
 
 ## Context
@@ -25,11 +27,12 @@ The needed design is not a Codex configuration recipe. It is a portable
 contract bound to a current tool only after consulting that tool's official
 documentation.
 
-The first binding is project-local and intentionally limited to
-`prompt_observation` and `context_injection`. Its portable state commands live in
-[`operations/workbench`](../../operations/workbench/src/interventions.ts); the
-Codex projection at [`.codex/hooks.json`](../../.codex/hooks.json) and its thin
-Bun adapter retain the current platform-specific lifecycle shape. The binding
+The implemented bindings are project-local and intentionally limited to
+`prompt_observation` and `context_injection`. Their portable state commands live
+in [`operations/workbench`](../../operations/workbench/src/interventions.ts);
+the Codex and Claude projections retain the current platform-specific lifecycle
+shape while sharing the portable Node runtime selected by
+[Decision 048](048-portable-workbench-and-hook-bindings.md). The binding
 stores a prompt SHA-256 and byte count, not prompt text, under session-local
 state outside the repository. Its direct tests cover state, receipt shape, and
 adapter context injection; they do not claim that Codex has yet trusted or run
@@ -141,6 +144,13 @@ the same lifecycle surface. The current binding requires an accepted user-level
 `sandbox_workspace_write.writable_roots` grant or a per-session `--add-dir`
 launch option for the Rossovia home. The repository projection does not grant
 access to a user home on the user's behalf.
+
+The current Claude binding uses its documented `UserPromptSubmit` context
+injection. Cursor's documented `beforeSubmitPrompt` output cannot add context,
+so no Cursor intervention projection is installed; its ordinary conversation
+context remains the fallback. The separate artifact-consistency assist uses
+Cursor's path-bearing `afterFileEdit` and bounded `stop` follow-up without
+claiming intervention parity.
 
 An environment that claims this personal capability is configured must pass an
 actual no-residue write probe through the ordinary Agent runtime. A readable

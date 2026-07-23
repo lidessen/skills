@@ -1,6 +1,8 @@
 # Decision 047 — Bun Workbench Runtime
 
-**Status:** accepted direction; first migration slice implemented
+**Status:** superseded in target-runtime scope by
+[Decision 048](048-portable-workbench-and-hook-bindings.md); retained as the
+TypeScript/Bun development-carrier decision
 **Date:** 2026-07-22
 **Approved by:** principal continuation mandate
 **Supersedes in part:** the Python carrier in

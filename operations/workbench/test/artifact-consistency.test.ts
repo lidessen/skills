@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const repositoryRoot = resolve(import.meta.dir, "../../..");
-const hook = join(repositoryRoot, ".codex", "hooks", "artifact-consistency.ts");
+const cli = join(repositoryRoot, "operations", "workbench", "dist", "rossovia.mjs");
 const temporaryRoots: string[] = [];
 
 afterEach(() => {
@@ -13,39 +14,48 @@ afterEach(() => {
 
 function runHook(
   temporary: string,
+  platform: "codex" | "claude" | "cursor",
+  event: "post-tool-use" | "after-file-edit" | "stop",
   payload: Record<string, unknown>,
 ): { exitCode: number; stdout: string; stderr: string } {
-  const result = Bun.spawnSync([process.execPath, hook], {
+  const result = spawnSync("node", [cli, "hook", "artifact", platform, event], {
     cwd: repositoryRoot,
     env: { ...process.env, TMPDIR: temporary },
-    stdin: Buffer.from(JSON.stringify(payload)),
-    stdout: "pipe",
-    stderr: "pipe",
+    input: JSON.stringify(payload),
+    encoding: "utf8",
   });
   return {
-    exitCode: result.exitCode,
-    stdout: result.stdout.toString(),
-    stderr: result.stderr.toString(),
+    exitCode: result.status ?? 1,
+    stdout: result.stdout,
+    stderr: result.stderr,
   };
 }
 
 async function runHookAsync(
   temporary: string,
+  platform: "codex" | "claude" | "cursor",
+  event: "post-tool-use" | "after-file-edit" | "stop",
   payload: Record<string, unknown>,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-  const result = Bun.spawn([process.execPath, hook], {
-    cwd: repositoryRoot,
-    env: { ...process.env, TMPDIR: temporary },
-    stdin: new Blob([JSON.stringify(payload)]),
-    stdout: "pipe",
-    stderr: "pipe",
+  return await new Promise((resolvePromise) => {
+    const child = spawn("node", [cli, "hook", "artifact", platform, event], {
+      cwd: repositoryRoot,
+      env: { ...process.env, TMPDIR: temporary },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on("close", (exitCode) => {
+      resolvePromise({ exitCode: exitCode ?? 1, stdout, stderr });
+    });
+    child.stdin.end(JSON.stringify(payload));
   });
-  const [exitCode, stdout, stderr] = await Promise.all([
-    result.exited,
-    new Response(result.stdout).text(),
-    new Response(result.stderr).text(),
-  ]);
-  return { exitCode, stdout, stderr };
 }
 
 function postPayload(sessionId: string, command: string): Record<string, unknown> {
@@ -75,7 +85,7 @@ describe("Codex artifact-consistency hook", () => {
       "*** End Patch",
     ].join("\n");
 
-    const observed = runHook(temporary, postPayload("session-a", patch));
+    const observed = runHook(temporary, "codex", "post-tool-use", postPayload("session-a", patch));
     expect(observed.exitCode).toBe(0);
     expect(observed.stderr).toBe("");
     const context = JSON.parse(observed.stdout).hookSpecificOutput.additionalContext as string;
@@ -84,18 +94,18 @@ describe("Codex artifact-consistency hook", () => {
     expect(context).not.toContain("operations/workbench/src/home.ts");
     expect(context).not.toContain("skills-other");
 
-    const repeated = runHook(temporary, postPayload("session-a", patch));
+    const repeated = runHook(temporary, "codex", "post-tool-use", postPayload("session-a", patch));
     expect(repeated.exitCode).toBe(0);
     expect(repeated.stdout).toBe("");
 
-    const otherSession = runHook(temporary, {
+    const otherSession = runHook(temporary, "codex", "stop", {
       hook_event_name: "Stop",
       session_id: "session-b",
       stop_hook_active: false,
     });
     expect(otherSession.stdout).toBe("");
 
-    const stop = runHook(temporary, {
+    const stop = runHook(temporary, "codex", "stop", {
       hook_event_name: "Stop",
       session_id: "session-a",
       stop_hook_active: false,
@@ -106,13 +116,13 @@ describe("Codex artifact-consistency hook", () => {
       reason: expect.stringContaining("skills/visual-design/SKILL.md"),
     }));
 
-    const continuation = runHook(temporary, {
+    const continuation = runHook(temporary, "codex", "stop", {
       hook_event_name: "Stop",
       session_id: "session-a",
       stop_hook_active: true,
     });
     expect(continuation.stdout).toBe("");
-    const settled = runHook(temporary, {
+    const settled = runHook(temporary, "codex", "stop", {
       hook_event_name: "Stop",
       session_id: "session-a",
       stop_hook_active: false,
@@ -123,7 +133,7 @@ describe("Codex artifact-consistency hook", () => {
   test("fails open with a visible warning when the runtime payload is invalid", () => {
     const temporary = mkdtempSync(join(tmpdir(), "rossovia-artifact-hook-"));
     temporaryRoots.push(temporary);
-    const result = runHook(temporary, { hook_event_name: "PostToolUse" });
+    const result = runHook(temporary, "codex", "post-tool-use", { hook_event_name: "PostToolUse" });
     expect(result.exitCode).toBe(0);
     expect(JSON.parse(result.stdout).systemMessage).toContain("session_id is required");
   });
@@ -134,6 +144,8 @@ describe("Codex artifact-consistency hook", () => {
     const paths = Array.from({ length: 24 }, (_, index) => `skills/parallel-${index}/SKILL.md`);
     const observations = await Promise.all(paths.map((path) => runHookAsync(
       temporary,
+      "codex",
+      "post-tool-use",
       postPayload(
         "shared-parent-session",
         `*** Begin Patch\n*** Update File: ${join(repositoryRoot, path)}\n*** End Patch`,
@@ -141,7 +153,7 @@ describe("Codex artifact-consistency hook", () => {
     )));
     expect(observations.every((result) => result.exitCode === 0)).toBe(true);
 
-    const stop = runHook(temporary, {
+    const stop = runHook(temporary, "codex", "stop", {
       hook_event_name: "Stop",
       session_id: "shared-parent-session",
       stop_hook_active: false,
@@ -150,5 +162,41 @@ describe("Codex artifact-consistency hook", () => {
     const reason = JSON.parse(stop.stdout).reason as string;
     expect(reason).toContain("24 artifact(s)");
     expect(reason).toContain("(+4 more)");
+  });
+
+  test("normalizes Claude edits and Cursor file events without pretending output parity", () => {
+    const temporary = mkdtempSync(join(tmpdir(), "rossovia-artifact-hook-"));
+    temporaryRoots.push(temporary);
+    const skill = join(repositoryRoot, "skills", "visual-design", "SKILL.md");
+
+    const claude = runHook(temporary, "claude", "post-tool-use", {
+      session_id: "claude-session",
+      cwd: repositoryRoot,
+      tool_name: "Edit",
+      tool_input: { file_path: skill },
+    });
+    expect(JSON.parse(claude.stdout).hookSpecificOutput.additionalContext).toContain("skills/visual-design/SKILL.md");
+    const claudeStop = runHook(temporary, "claude", "stop", {
+      session_id: "claude-session",
+      stop_hook_active: false,
+    });
+    expect(JSON.parse(claudeStop.stdout).decision).toBe("block");
+
+    const cursor = runHook(temporary, "cursor", "after-file-edit", {
+      conversation_id: "cursor-conversation",
+      cwd: repositoryRoot,
+      file_path: skill,
+    });
+    expect(cursor.stdout).toBe("");
+    const cursorStop = runHook(temporary, "cursor", "stop", {
+      conversation_id: "cursor-conversation",
+      loop_count: 0,
+    });
+    expect(JSON.parse(cursorStop.stdout).followup_message).toContain("skills/visual-design/SKILL.md");
+    const cursorContinuation = runHook(temporary, "cursor", "stop", {
+      conversation_id: "cursor-conversation",
+      loop_count: 1,
+    });
+    expect(cursorContinuation.stdout).toBe("");
   });
 });

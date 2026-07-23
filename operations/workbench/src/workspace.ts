@@ -2,8 +2,7 @@ import { existsSync, realpathSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { Project, Workspace, WorkspaceObservation } from "./contracts";
 import { expandPath } from "./paths";
-
-const decoder = new TextDecoder();
+import { runCommand } from "./process";
 
 export function repositoryLocator(value: string): string {
   let normalized = value.trim().replace(/\/+$/, "");
@@ -35,11 +34,11 @@ export function normalizedRepository(value: string): string {
 }
 
 function runGit(arguments_: string[], cwd: string, optional = false): string | null {
-  const result = Bun.spawnSync(["git", "-C", cwd, ...arguments_], { stdout: "pipe", stderr: "pipe" });
-  const output = decoder.decode(result.stdout).trim();
+  const result = runCommand("git", ["-C", cwd, ...arguments_]);
+  const output = result.stdout.trim();
   if (result.exitCode !== 0) {
     if (optional) return null;
-    const error = decoder.decode(result.stderr).trim();
+    const error = result.stderr.trim();
     throw new Error(error || `git ${arguments_.join(" ")} failed in ${cwd}`);
   }
   return output || null;

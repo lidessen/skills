@@ -1,7 +1,8 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 import { attachWorkspace } from "./attach";
 import { initializeHome, loadHome } from "./home";
+import { runHookCommand } from "./hooks";
 import { runCorrectionCommand, runInterventionCommand } from "./interventions";
 import { migrateLegacyHome } from "./migration";
 import { runMissionCommand } from "./missions";
@@ -75,6 +76,9 @@ try {
     console.log(JSON.stringify(runInterventionCommand(args.slice(1), "", home), null, 2));
   } else if (args[0] === "correct") {
     console.log(JSON.stringify(runCorrectionCommand(args.slice(1)), null, 2));
+  } else if (args[0] === "hook") {
+    const result = runHookCommand(args.slice(1), "", home);
+    if (result !== undefined) console.log(JSON.stringify(result));
   } else {
     throw new Error("invalid command; run rossovia --help");
   }
@@ -100,6 +104,7 @@ function printUsage(): void {
   console.log("  intervention observe [--state-root <path>]");
   console.log("  intervention status (--state-file <path> | --session-id <id> [--state-root <path>])");
   console.log("  correct --state-file <path> --rejected-assumption <text> --new-invariant <text> --affected-surface <name>... --next-probe <text>");
+  console.log("  hook <intervention|artifact> <codex|claude|cursor> [post-tool-use|after-file-edit|stop]");
   console.log("  root list");
   console.log("  root add <path>...");
   console.log("  scan");

@@ -29,8 +29,8 @@ The Agent applies the continuity gate in `AGENTS.md` and invokes the commands
 below. Direct commands remain useful for automation and debugging.
 
 ```bash
-./operations/workbench/src/cli.ts mission list
-./operations/workbench/src/cli.ts mission init <id> \
+./operations/workbench/rossovia mission list
+./operations/workbench/rossovia mission init <id> \
   --title "…" \
   --mainline "…" \
   --accept "…" \
@@ -39,17 +39,17 @@ below. Direct commands remain useful for automation and debugging.
 git add operations/missions/<id>.json
 git commit -m "ops: open <id> mission"
 
-./operations/workbench/src/cli.ts mission add-branch <id> <branch-id> \
+./operations/workbench/rossovia mission add-branch <id> <branch-id> \
   --kind investigation \
   --purpose "…" \
   --return-condition "…" \
   --source "…"
 
-./operations/workbench/src/cli.ts mission status <id>
-./operations/workbench/src/cli.ts mission settle <id> <branch-id> \
+./operations/workbench/rossovia mission status <id>
+./operations/workbench/rossovia mission settle <id> <branch-id> \
   --disposition no-change \
   --mainline-delta "…"
-./operations/workbench/src/cli.ts mission check <id> --git
+./operations/workbench/rossovia mission check <id> --git
 ```
 
 Every branch begins with a source, purpose, parent, and return condition. It

@@ -100,7 +100,7 @@ function createLegacyHome(home: string, repository: string, machinePreferences: 
 }
 
 describe("legacy namespace migration", () => {
-  test("moves the retained source into the corrected Bun workbench contract", () => {
+  test("moves the retained source into the portable Workbench contract", () => {
     const root = mkdtempSync(join(tmpdir(), "rossovia-migration-"));
     temporaryRoots.push(root);
     const repository = join(root, "repository");
