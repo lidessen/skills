@@ -3,13 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.12 <27"
+  },
   "bin": {
-    "rossovia": "./src/cli.ts"
+    "rossovia": "./dist/rossovia.mjs"
   },
   "scripts": {
+    "build": "node scripts/build-portable.mjs",
+    "build:docker": "node scripts/build-portable.mjs --docker",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "bun test",
-    "workbench": "bun src/cli.ts"
+    "test": "node scripts/build-portable.mjs && bun test",
+    "workbench": "node dist/rossovia.mjs"
   },
   "dependencies": {
     "zod": "4.4.3"

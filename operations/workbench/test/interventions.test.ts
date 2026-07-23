@@ -4,8 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
 const repositoryRoot = resolve(import.meta.dir, "../../..");
-const bunCli = join(repositoryRoot, "operations", "workbench", "src", "cli.ts");
-const adapter = join(repositoryRoot, ".codex", "hooks", "intervention-reconciliation.ts");
+const cli = join(repositoryRoot, "operations", "workbench", "dist", "rossovia.mjs");
 const temporaryRoots: string[] = [];
 
 afterEach(() => {
@@ -31,7 +30,7 @@ function command(
 }
 
 function workbench(...args: string[]) {
-  return command([process.execPath, bunCli, ...args]);
+  return command(["node", cli, ...args]);
 }
 
 describe("intervention reconciliation", () => {
@@ -41,7 +40,7 @@ describe("intervention reconciliation", () => {
     const stateRoot = join(temporary, "state");
     const prompt = "Do not retain this secret correction text";
     const observation = command(
-      [process.execPath, bunCli, "intervention", "observe", "--state-root", stateRoot],
+      ["node", cli, "intervention", "observe", "--state-root", stateRoot],
       { stdin: JSON.stringify({ session_id: "session-1", turn_id: "turn-1", cwd: repositoryRoot, prompt }) },
     );
     expect(observation.exitCode).toBe(0);
@@ -73,7 +72,7 @@ describe("intervention reconciliation", () => {
     }));
 
     const otherSession = command(
-      [process.execPath, bunCli, "intervention", "observe", "--state-root", stateRoot],
+      ["node", cli, "intervention", "observe", "--state-root", stateRoot],
       { stdin: JSON.stringify({ session_id: "session-2", cwd: repositoryRoot, prompt: "parallel" }) },
     );
     expect(otherSession.exitCode).toBe(0);
@@ -106,7 +105,7 @@ describe("intervention reconciliation", () => {
     expect(unselected.stderr).toContain("requires --state-file or --session-id");
 
     const duplicateIdentity = command(
-      [process.execPath, bunCli, "intervention", "observe", "--state-root", stateRoot],
+      ["node", cli, "intervention", "observe", "--state-root", stateRoot],
       { stdin: JSON.stringify({ session_id: "session-1", cwd: join(temporary, "other-workspace"), prompt: "parallel" }) },
     );
     expect(duplicateIdentity.exitCode).toBe(0);
@@ -122,7 +121,7 @@ describe("intervention reconciliation", () => {
     expect(ambiguousSession.stderr).toContain("intervention session is ambiguous");
   });
 
-  test("Codex adapter uses the Rossovia home across target switches", () => {
+  test("Codex and Claude adapters use the Rossovia home across target switches", () => {
     const home = mkdtempSync(join(tmpdir(), "rossovia-hook-"));
     temporaryRoots.push(home);
     const rossoviaHome = join(home, "rossovia-home");
@@ -133,50 +132,57 @@ describe("intervention reconciliation", () => {
       cwd: repositoryRoot,
       prompt: "The previous boundary was wrong",
     };
-    const result = command([process.execPath, adapter], {
-      stdin: JSON.stringify(payload),
-      env: environment,
-    });
-    expect(result.exitCode).toBe(0);
-    const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext as string;
-    expect(context).toContain("compare it with the active task");
-    expect(context).toContain("advisory, not a mutation or authorization gate");
-    expect(context).toContain("do not request broader filesystem permission");
+    const statePaths = ["codex", "claude"].map((platform) => {
+      const result = command(["node", cli, "hook", "intervention", platform], {
+        stdin: JSON.stringify(payload),
+        env: environment,
+      });
+      expect(result.exitCode).toBe(0);
+      const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext as string;
+      expect(context).toContain("compare it with the active task");
+      expect(context).toContain("advisory, not a mutation or authorization gate");
+      expect(context).toContain("do not request broader filesystem permission");
+      expect(context).toContain("dist/rossovia.mjs");
 
-    const marker = "session-local `correct` command prefix `";
-    const endpoint = context.split(marker, 2)[1]?.split("`", 1)[0];
-    expect(endpoint).toBeDefined();
-    const statePath = endpoint!.match(/--state-file '([^']+)'$/)?.[1];
-    expect(statePath).toBeDefined();
+      const marker = "session-local `correct` command prefix `";
+      const endpoint = context.split(marker, 2)[1]?.split("`", 1)[0];
+      expect(endpoint).toBeDefined();
+      const statePath = endpoint!.match(/'--state-file' '([^']+)'$/)?.[1];
+      expect(statePath).toBeDefined();
+      return statePath!;
+    });
+    expect(new Set(statePaths).size).toBe(2);
 
     const targets = [join(home, "second-repository"), join(home, "third-repository"), join(home, "second-repository")];
-    const paths: string[] = [];
-    for (const target of targets) {
-      const correction = command([
-        process.execPath,
-        bunCli,
-        "correct",
-        "--state-file",
-        statePath!,
-        "--rejected-assumption",
-        "the last repository remains the active target",
-        "--new-invariant",
-        "bind the receipt to the observed session across target switches",
-        "--affected-surface",
-        target,
-        "--next-probe",
-        "switch target repositories and return",
-      ], { env: environment });
-      expect(correction.exitCode).toBe(0);
-      paths.push(JSON.parse(correction.stdout).statePath);
+    for (const statePath of statePaths) {
+      const paths: string[] = [];
+      for (const target of targets) {
+        const correction = command([
+          "node",
+          cli,
+          "correct",
+          "--state-file",
+          statePath,
+          "--rejected-assumption",
+          "the last repository remains the active target",
+          "--new-invariant",
+          "bind the receipt to the observed session across target switches",
+          "--affected-surface",
+          target,
+          "--next-probe",
+          "switch target repositories and return",
+        ], { env: environment });
+        expect(correction.exitCode).toBe(0);
+        paths.push(JSON.parse(correction.stdout).statePath);
+      }
+      expect(new Set(paths).size).toBe(1);
+      expect(statePath).toStartWith(join(realpathSync(home), "rossovia-home", "state", "interventions"));
+      const state = JSON.parse(readFileSync(statePath, "utf8"));
+      expect(state.receipts.map((receipt: { affectedSurfaces: string[] }) => receipt.affectedSurfaces)).toEqual(
+        targets.map((target) => [target]),
+      );
     }
-    expect(new Set(paths).size).toBe(1);
-    expect(statePath).toStartWith(join(realpathSync(home), "rossovia-home", "state", "interventions"));
     expect(existsSync(join(home, ".codex", "intervention-reconciliation"))).toBe(false);
-    const state = JSON.parse(readFileSync(statePath!, "utf8"));
-    expect(state.receipts.map((receipt: { affectedSurfaces: string[] }) => receipt.affectedSurfaces)).toEqual(
-      targets.map((target) => [target]),
-    );
   });
 
   test("reports the exact state capability when a correction receipt cannot be persisted", () => {
@@ -185,7 +191,7 @@ describe("intervention reconciliation", () => {
     temporaryRoots.push(temporary);
     const stateRoot = join(temporary, "state");
     const observation = command(
-      [process.execPath, bunCli, "intervention", "observe", "--state-root", stateRoot],
+      ["node", cli, "intervention", "observe", "--state-root", stateRoot],
       { stdin: JSON.stringify({ session_id: "read-only", cwd: repositoryRoot, prompt: "Change the invariant" }) },
     );
     expect(observation.exitCode).toBe(0);

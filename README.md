@@ -54,14 +54,14 @@ Continue survey.
 Show work in progress across my registered projects.
 ```
 
-The repository instructions translate those intents into the bounded Bun
-workbench operations. When registration needs a stable identity that
+The repository instructions translate those intents into bounded Workbench
+operations through the portable Node launcher. When registration needs a stable identity that
 cannot be verified from the repository provider, the agent asks for that one
 missing value. It does not scan an unspecified home directory, auto-register
 discovered repositories, or make the user remember command flags.
 
 If a previous checkout initialized `~/.atthis`, ask the agent to migrate the
-workbench, or run `./operations/workbench/src/cli.ts migrate`, before ordinary Rossovia
+workbench, or run `./operations/workbench/rossovia migrate`, before ordinary Rossovia
 initialization. The migration preserves the old source and records a receipt;
 it does not keep two writable homes.
 
@@ -69,11 +69,11 @@ For automation, debugging, or an environment without an agent, the equivalent
 manual entry remains available:
 
 ```sh
-./operations/workbench/src/cli.ts init --workspace-root ~/workspaces
-./operations/workbench/src/cli.ts root add ~/client-work
-./operations/workbench/src/cli.ts project list
-./operations/workbench/src/cli.ts resolve survey
-./operations/workbench/src/cli.ts preference list --project survey
+./operations/workbench/rossovia init --workspace-root ~/workspaces
+./operations/workbench/rossovia root add ~/client-work
+./operations/workbench/rossovia project list
+./operations/workbench/rossovia resolve survey
+./operations/workbench/rossovia preference list --project survey
 ```
 
 A successful `init` reports `writeAccess: "verified"` after exercising and

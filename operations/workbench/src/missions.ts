@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { saveJson } from "./home";
+import { runCommand } from "./process";
 
 type BranchKind = "implementation" | "investigation" | "review" | "correction";
 type BranchStatus = "open" | "integrating" | "suspended" | "closed";
@@ -198,15 +199,11 @@ function returnFocus(record: MissionRecord, branch: MissionBranch): string {
 }
 
 function runGit(arguments_: string[], cwd: string, quiet = false): { exitCode: number; output: string; error: string } {
-  const result = Bun.spawnSync(["git", "-C", cwd, ...arguments_], {
-    stdout: quiet ? "ignore" : "pipe",
-    stderr: quiet ? "ignore" : "pipe",
-  });
-  const decoder = new TextDecoder();
+  const result = runCommand("git", ["-C", cwd, ...arguments_], { quiet });
   return {
     exitCode: result.exitCode,
-    output: quiet ? "" : decoder.decode(result.stdout),
-    error: quiet ? "" : decoder.decode(result.stderr),
+    output: result.stdout,
+    error: result.stderr,
   };
 }
 

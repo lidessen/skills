@@ -46,22 +46,22 @@ skill 则是在具体语境中对所选条目的表达。
 显示所有已登记项目中正在进行的工作。
 ```
 
-仓库指引会把这些意图转换为有边界的 Bun 工作台操作。登记时如果无法
+仓库指引会通过可移植的 Node 入口把这些意图转换为有边界的工作台操作。登记时如果无法
 从仓库提供方验证稳定身份，Agent 只追问这个缺失值。它不会扫描未明确给出的
 主目录，不会自动登记扫描到的仓库，也不要求使用者记住命令参数。
 
 如果旧版本已初始化 `~/.atthis`，可以直接让 Agent“迁移 Rossovia 工作台”，或在
-普通初始化前运行 `./operations/workbench/src/cli.ts migrate`。迁移会保留旧来源并写入
+普通初始化前运行 `./operations/workbench/rossovia migrate`。迁移会保留旧来源并写入
 回执，不会维持两个可写 home。
 
 在自动化、调试或没有 Agent 的环境中，仍可使用等价的手动入口：
 
 ```sh
-./operations/workbench/src/cli.ts init --workspace-root ~/workspaces
-./operations/workbench/src/cli.ts root add ~/client-work
-./operations/workbench/src/cli.ts project list
-./operations/workbench/src/cli.ts resolve survey
-./operations/workbench/src/cli.ts preference list --project survey
+./operations/workbench/rossovia init --workspace-root ~/workspaces
+./operations/workbench/rossovia root add ~/client-work
+./operations/workbench/rossovia project list
+./operations/workbench/rossovia resolve survey
+./operations/workbench/rossovia preference list --project survey
 ```
 
 成功的 `init` 会在 Rossovia home 的每个可写载体中实际执行并清理一次写入探针，

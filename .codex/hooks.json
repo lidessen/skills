@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"$(git rev-parse --show-toplevel)/.codex/hooks/intervention-reconciliation.ts\"",
+            "command": "./operations/workbench/rossovia hook intervention codex",
             "timeout": 10,
             "statusMessage": "Checking for a changed task constraint"
           }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"$(git rev-parse --show-toplevel)/.codex/hooks/artifact-consistency.ts\""
+            "command": "./operations/workbench/rossovia hook artifact codex post-tool-use"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"$(git rev-parse --show-toplevel)/.codex/hooks/artifact-consistency.ts\""
+            "command": "./operations/workbench/rossovia hook artifact codex stop"
           }
         ]
       }

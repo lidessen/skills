@@ -46,9 +46,9 @@ not make the human translate the request into CLI syntax. Select only the
 mechanical action their words authorize:
 
 - Before initializing the default home, if `~/.rosso` is absent and the legacy
-  `~/.atthis` exists, run `./operations/workbench/src/cli.ts migrate`. Do not create a
+  `~/.atthis` exists, run `./operations/workbench/rossovia migrate`. Do not create a
   second writable home or migrate when the target already exists.
-- To initialize the workbench, run `./operations/workbench/src/cli.ts init` and include
+- To initialize the workbench, run `./operations/workbench/rossovia init` and include
   one `--workspace-root <path>` for each root they explicitly supplied. Do not
   infer or scan `$HOME` when no root was supplied; an empty initialized home is
   valid, and roots can be added later. Initialization is complete only when the
@@ -61,19 +61,19 @@ mechanical action their words authorize:
   for the exact `ROSSO_HOME` through the selected harness's user-level setup,
   then verify it from a fresh session.
 - To add a later workspace root, run
-  `./operations/workbench/src/cli.ts root add <path>`. Discovery remains bounded and
+  `./operations/workbench/rossovia root add <path>`. Discovery remains bounded and
   does not register the repositories it finds.
 - To register a project, require an explicit local Git root and a verified
   stable project ID. Prefer a provider's immutable repository ID when one can
   be verified; otherwise ask for an explicitly assigned ID. Treat requested
   spoken names as aliases, never as identity, then run
-  `./operations/workbench/src/cli.ts register <path> --id <id>` with one `--alias`
+  `./operations/workbench/rossovia register <path> --id <id>` with one `--alias`
   argument per alias.
 - To continue or resume a named external project or task, extract the smallest
   intended name and run:
 
 ```text
-./operations/workbench/src/cli.ts resolve <name>
+./operations/workbench/rossovia resolve <name>
 ```
 
 Treat the result as a verified routing projection, not task authority. Confirm
@@ -86,7 +86,7 @@ boundary rather than claiming the task has resumed.
 
 If resolution has no explicit match and the person supplied a new workspace
 root in the same request, add that root and retry. Refresh existing roots with
-`./operations/workbench/src/cli.ts scan` only when stale discovery is plausible. A
+`./operations/workbench/rossovia scan` only when stale discovery is plausible. A
 result marked `discovered` is a verified current location, not a stable project
 identity or durable alias. Do not turn a natural-language request into broader
 setup, marketplace search, automatic registration, or inferred task state.
@@ -98,13 +98,13 @@ forget a personal default as authority to use the existing preference commands;
 do not require the human to translate it into CLI syntax. Preserve the strength
 of their wording: a preference remains a defeasible default, not a requirement.
 Before a preference operation, apply the legacy-home guard above, then run
-`./operations/workbench/src/cli.ts init` without workspace roots. This is an idempotent
+`./operations/workbench/rossovia init` without workspace roots. This is an idempotent
 source initialization or completion and does not broaden discovery; it lets an
 existing or new Rossovia workbench home acquire the preference files without making the
 human perform setup first.
 
 - Keep a session-only preference in the conversation and do not persist it.
-- Use `./operations/workbench/src/cli.ts preference set <id> --statement
+- Use `./operations/workbench/rossovia preference set <id> --statement
   <text>` for a personal default intended to survive this session.
 - Add `--project <registered-name>` for a personal default limited to one
   registered project. Put shared project requirements in that target
@@ -129,7 +129,7 @@ evidence; state the reason when departing from it.
 ## Rossovia cross-project task entry
 
 When the human asks for work in progress across registered projects, run
-`./operations/workbench/src/cli.ts project list`. Preserve its `complete` flag and each
+`./operations/workbench/rossovia project list`. Preserve its `complete` flag and each
 project's availability status. For every available project, read its returned
 instruction files—and no conventional filenames that were not returned—before
 using only the task-continuity source that project declares. Run every relative
@@ -148,7 +148,7 @@ work in a target project.
 ## Mission continuity entry
 
 When the human asks which work is in progress in this project, run
-`./operations/workbench/src/cli.ts mission list`. Treat its output as a projection over
+`./operations/workbench/rossovia mission list`. Treat its output as a projection over
 the Git-tracked Mission Records, not as a backlog or authority to start work.
 
 At a continuity safe point—before opening a branch, worktree, or PR; switching

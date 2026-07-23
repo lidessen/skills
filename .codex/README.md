@@ -1,6 +1,6 @@
 # Codex hook bindings
 
-The intervention adapter in this directory is a **local Codex projection** of the portable
+The hook configuration in this directory is a **local Codex projection** of the portable
 intervention-reconciliation contract in
 [Decision 024](../design/decisions/024-platform-neutral-intervention-reconciliation.md).
 It is not part of the portable method and must be checked against current Codex
@@ -18,7 +18,7 @@ State is session-local under `$ROSSO_HOME/state/interventions/` (default
 never prompt text. Rossovia Workbench owns both the location and the generic
 state commands and receipt format in
 [`operations/workbench`](../operations/workbench/src/interventions.ts).
-The Codex adapter supplies session identity but does not choose a separate
+The Codex projection supplies session identity but does not choose a separate
 platform-owned state root. After observing a prompt, it injects a receipt
 endpoint bound to that exact session-state file. It does not rediscover state
 from the target repository path, so a session opened in this repository may
@@ -56,7 +56,7 @@ updates.
 
 ## Enable and verify in a fresh Codex session
 
-1. Run `./operations/workbench/src/cli.ts init` through the ordinary agent
+1. Run `./operations/workbench/rossovia init` through the ordinary agent
    session and require `writeAccess: "verified"`. If it fails, reconcile the
    exact user-level grant above and start another fresh session; repeated init
    attempts cannot change a frozen sandbox.
@@ -71,18 +71,18 @@ updates.
 5. Inspect the resulting state:
 
    ```sh
-   ./operations/workbench/src/cli.ts intervention status --session-id "$CODEX_THREAD_ID"
+   ./operations/workbench/rossovia intervention status --session-id "codex:$CODEX_THREAD_ID"
    ```
 
    Set `ROSSO_HOME` or pass Workbench's top-level `--home PATH` when using a
-   non-default Rossovia home. Session identity, rather than the current target
+   non-default Rossovia home. The platform-qualified session identity, rather than the current target
    repository, keeps this lookup exact when several Codex sessions share the
    workbench or one session switches among target repositories.
 
 The current lifecycle names, command-handler limitation, and project-hook
 trust model come from the [Codex Hooks guide](https://learn.chatgpt.com/docs/hooks)
 and [Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference),
-checked on 2026-07-22. The configuration reference also documents
+checked on 2026-07-23. The configuration reference also documents
 `sandbox_workspace_write.writable_roots`; re-check these sources before changing
 the user-level capability grant, adding a mutation gate, or adding stop
 continuation.
