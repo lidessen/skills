@@ -1,6 +1,6 @@
 # Aesthetic Study — Kimi K3 Design Distillation
 
-**Status:** controlled distillation completed; site treatment remains subject to Principal acceptance
+**Status:** controlled distillation completed; current site treatment accepted for release while the abstract relation remains provisional
 **Case:** [Project Site Pilot](../cases/2026-07-14-project-site-pilot.md)
 **Method:** [`visual-design`](../../../skills/visual-design/SKILL.md)
 **Execution profile:** Kimi K3 through Kimi Code 0.28.1
@@ -134,7 +134,24 @@ returns a compact implementation account.
 No experiment arm is automatically promoted into the site. The native arm is
 more inventive but too literal; the skill arms are better bounded but still
 produce different aesthetic judgments. The main worktree remains the
-synthesized project treatment and awaits human review.
+synthesized project treatment.
+
+## Human acceptance observation
+
+The Principal observed that the revised artifact was more detailed than the
+previous version, then identified a flaw in the review question: a faint
+historical or communal afterimage is difficult to evaluate directly and is not
+something a person can reliably certify by naming its cause. The acceptance
+surface was therefore corrected from “did the abstract atmosphere land?” to a
+concrete decision: whether the revision is preferable to the current artifact,
+whether it creates a clear wrong reading, and whether it is fit for the present
+release.
+
+The Principal accepted the current revision under that practical standard. The
+decision admits this treatment for release; it does not prove that the original
+metaphorical phrase was precisely realized or promote the treatment into a
+portable style. The direction remains a project-local hypothesis that later
+practice may revise.
 
 ## Limits and reopening conditions
 

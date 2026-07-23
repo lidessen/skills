@@ -8,15 +8,19 @@
     "site/src/pages/index.astro"
   ],
   "createdAt": "2026-07-22T18:23:45Z",
-  "updatedAt": "2026-07-23T01:47:59Z",
+  "updatedAt": "2026-07-23T03:05:41Z",
   "mainline": {
     "contradiction": "Use one real Rossovia site redesign to distinguish Kimi K3 aesthetic judgments that are reproducible and transferable from one-off styling, then retain only the former in visual-design.",
     "acceptance": [
-      "The site embodies the Principal's subtle historical communal direction without direct symbolism or heavy retro costume.",
+      "The Principal accepts the site as a preferable, fit-for-use current treatment without direct symbolism or heavy retro costume; the subtle historical communal relation remains provisional.",
       "A baseline and Kimi-informed implementation are compared through rendered evidence.",
       "Only behavior-changing, cross-context visual judgment is added to visual-design, with a boundary probe and synchronized Sequence snapshot."
     ],
-    "status": "active"
+    "status": "settled",
+    "closureSources": [
+      "design/aesthetics/studies/2026-07-22-kimi-k3-site-refinement.md",
+      "regeneration/evaluations/2026-07-22-kimi-k3-visual-distillation.md"
+    ]
   },
   "branches": [
     {

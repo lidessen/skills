@@ -136,6 +136,12 @@ inside a clear system remains ordinary development work.
 - Ask only for a decision that materially blocks safe progress. Present the
   relevant options, tradeoff, and recommendation rather than asking the user to
   discover the choice space.
+- Make human aesthetic acceptance answerable from the artifact. A person may
+  accept a revision as preferable to the current artifact and fit for use
+  without being able to explain which subtle perceptual relation caused that
+  preference. Do not ask them to certify an abstract style phrase directly.
+  Retain the explicit decision, any clear wrong reading or veto, and what remains
+  a provisional interpretation; silence or missing articulation is not consent.
 - Use the production, browser, rendering, accessibility, and image capabilities
   supplied by the host agent. State a missing capability instead of replacing
   real inspection or implementation with prose.

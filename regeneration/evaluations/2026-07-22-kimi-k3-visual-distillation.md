@@ -88,3 +88,12 @@ Repeat on a held-out product surface and at least one conservative Flash-class
 model before claiming cross-model generality. Reopen immediately if the next
 redesign again degenerates into preflight prose, palette-only work without
 evidence, unbounded visual costume, or incomplete consumer coverage.
+
+## Human outcome
+
+The Principal accepted the current site revision as a preferable, fit-for-use
+release after observing greater implementation detail and no explicit wrong
+reading. They could not reliably certify the intended subtle atmosphere as an
+abstract label. This is evidence for the artifact decision and for a simpler
+human acceptance surface; it is not evidence that the metaphor was precisely
+realized or that the treatment should become a reusable style.

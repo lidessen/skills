@@ -48,8 +48,15 @@ Review the whole in-scope experience before diagnosing an isolated page.
    call differentiated page forms inconsistent merely because they are not
    visually identical.
 6. Recommend the smallest change capable of testing the leading diagnosis,
-   plus an observation that would disconfirm it. Aesthetic acceptance remains
-   a human decision.
+   plus an observation that would disconfirm it. Make the human acceptance
+   question concrete enough to answer from the artifact. For a subtle or
+   metaphorical direction, do not ask the person to certify that the named
+   atmosphere was "hit." Ask whether the revision is preferable to the current
+   artifact, whether it creates a clear wrong reading or aversion, and whether
+   it is fit for the present use. Comparative preference plus an explicit
+   fit-for-use decision can accept the revision without proving why it works or
+   promoting the direction. Missing articulation and silence are not
+   acceptance. Aesthetic acceptance remains a human decision.
 7. When designated human feedback rejects a visual assumption, classify the
    feedback as `local treatment`, `shared system invariant`, or `project
    direction reopening`. For the latter two, record the rejected assumption,
