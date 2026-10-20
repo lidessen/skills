@@ -29,4 +29,20 @@ Blog 引擎和部署仍归 Rossovia。构建时从本仓库 checkout 读取 `blo
 
 新仓库最初以私有方式准备，公开前建立仅含审查后内容的干净历史。此前完整迁入快照只在本机私有备份分支保留，不推送该分支。此次只公开 `lidessen/skills`，其他仓库可见性不变。
 
-部分旧资料提到的三份早期 theory 文件尚未找回，不能称为已迁移；没有用内部记录代替它们。外部文献网页的持续在线可用性不作保证。
+首次迁移时尚未定位三份早期 theory 文件，后续只读追查已在旧仓库的未合并分支找到原文，见下节。外部文献网页的持续在线可用性不作保证。
+
+## 补迁：三份历史理论原文
+
+2026-10-20，将旧仓库 `lidessen/rossovia-old` 的 `cursor/incubate-theory-068c` 分支中三份文稿原样迁入本仓库。固定来源提交为 `e205d09f036a134864d336978ced0a7ec9c10f91`；旧仓来源保留。
+
+| 目标文件 | 固定来源 |
+| --- | --- |
+| `theory/theory.md` | [旧仓原文](https://github.com/lidessen/rossovia-old/blob/e205d09f036a134864d336978ced0a7ec9c10f91/theory/theory.md) |
+| `theory/thoughts/information.md` | [旧仓原文](https://github.com/lidessen/rossovia-old/blob/e205d09f036a134864d336978ced0a7ec9c10f91/theory/thoughts/information.md) |
+| `theory/skills.md` | [旧仓原文](https://github.com/lidessen/rossovia-old/blob/e205d09f036a134864d336978ced0a7ec9c10f91/theory/skills.md) |
+
+三文件均在该提交新建，至分支顶端 `c7ba0f90d80850a9b92e2d53ac12af5d5fba34e0` 内容未变。旧 `main` 未合入这段历史，最初只查主分支导致漏检；本次不是重建或猜测正文。
+
+三份原文保留全部字节及当时的候选、原话和方法边界。公开内容核查未发现密钥、私密个人或业务事实、账号配置或运行数据。另增[理论阅读入口](theory/README.md)，说明全文与现有两篇后续摘编的部分重叠，以及未随迁的归档和 `harness.md` 的历史引用；未把它们改写成当前技能的安装依赖。
+
+正式 README 仅调整理论导航，保留已完成的文案改写。两篇现有摘编仅补阅读入口，正文未重写。逐文件来源、Git blob 和 SHA-256 已补入 `migration-manifest.json`。

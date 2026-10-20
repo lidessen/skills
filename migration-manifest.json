@@ -9,7 +9,9 @@
     "notes": 6,
     "blog_drafts": 4,
     "blog_assets": 3,
-    "content_files": 101
+    "content_files": 105,
+    "theory_originals": 3,
+    "theory_indexes": 1
   },
   "rename": {
     "meow-design": "interface-design"
@@ -913,8 +915,14 @@
       "adaptation": "Byte-for-byte copy."
     },
     {
+      "target": "theory/README.md",
+      "public_sha256": "94881ce5070739a75701b9af36522e18d32cc8251e16417a21181a3b4a1596f1",
+      "kind": "reading_index",
+      "adaptation": "New navigation distinguishing historical originals from later excerpts and resolving historical source references."
+    },
+    {
       "target": "theory/architecture-and-defrag.md",
-      "public_sha256": "948ad94f167b5fab5b125632c1b8bc12cd426f10ca583c1316eecc2e96724e46",
+      "public_sha256": "6bd37a4c739d478c0ce8346903f45c9e5ed43d6483875bc807db0574001ba0d9",
       "adaptation": "Public edited excerpt; full internal formation records remain in the source repository.",
       "source_repository": "lidessen/rossovia",
       "source_commit": "0ce3ef5c8c99893d64c3cd94df5fc4eac822c9de",
@@ -952,11 +960,12 @@
           ],
           "reason": "保留来源缺失时不误删及证据充分时收束的判断，排除人格生成与内部观察。"
         }
-      ]
+      ],
+      "navigation_update": "Added a link to theory/README.md; excerpt body retained."
     },
     {
       "target": "theory/skill-development.md",
-      "public_sha256": "d01115bd8aead3e23d40300ac332d396e4622d0e046539fae3c31f97dd38e90b",
+      "public_sha256": "d816ce506367133116424614c8f5372a2090023b07c7a07f4b254e3044300eb0",
       "adaptation": "Public edited excerpt; full internal formation records remain in the source repository.",
       "source_repository": "lidessen/rossovia",
       "source_commit": "0ce3ef5c8c99893d64c3cd94df5fc4eac822c9de",
@@ -972,7 +981,47 @@
           ],
           "reason": "将技能作用关系、分层验证、匹配比较、评审偏差与效度未知整理为公开方法；排除项目理论吸收、内部试评及提取过程。"
         }
-      ]
+      ],
+      "navigation_update": "Added a link to theory/README.md; excerpt body retained."
+    },
+    {
+      "target": "theory/skills.md",
+      "source_repository": "lidessen/rossovia-old",
+      "source_ref": "cursor/incubate-theory-068c",
+      "source_commit": "e205d09f036a134864d336978ced0a7ec9c10f91",
+      "source_path": "theory/skills.md",
+      "source_git_blob": "423650bc916ed575c88d9207b7ea848e81595402",
+      "source_sha256": "d784ac21ba85a007fb3cab2e776b7217039db54ee4efd44c352a7ed2a311952e",
+      "public_sha256": "d784ac21ba85a007fb3cab2e776b7217039db54ee4efd44c352a7ed2a311952e",
+      "kind": "historical_original",
+      "adaptation": "Copied byte-for-byte; historical references and relationship to later excerpts are documented in theory/README.md.",
+      "migration_status": "Imported historical original; source retained."
+    },
+    {
+      "target": "theory/theory.md",
+      "source_repository": "lidessen/rossovia-old",
+      "source_ref": "cursor/incubate-theory-068c",
+      "source_commit": "e205d09f036a134864d336978ced0a7ec9c10f91",
+      "source_path": "theory/theory.md",
+      "source_git_blob": "f1b73be67cff3bac48406998aec446347ce28cff",
+      "source_sha256": "760f499b5de44585cf8c2730a7a39d16ed3431d77104d3f8d9632a6c02a8225a",
+      "public_sha256": "760f499b5de44585cf8c2730a7a39d16ed3431d77104d3f8d9632a6c02a8225a",
+      "kind": "historical_original",
+      "adaptation": "Copied byte-for-byte; historical references and relationship to later excerpts are documented in theory/README.md.",
+      "migration_status": "Imported historical original; source retained."
+    },
+    {
+      "target": "theory/thoughts/information.md",
+      "source_repository": "lidessen/rossovia-old",
+      "source_ref": "cursor/incubate-theory-068c",
+      "source_commit": "e205d09f036a134864d336978ced0a7ec9c10f91",
+      "source_path": "theory/thoughts/information.md",
+      "source_git_blob": "0744679d7fd53c5b7dc38f1430ca3477cb352132",
+      "source_sha256": "5fbfd19bd3a8b393da45cfd8295577001237b2e7bc971fb966bbf7d95739db9f",
+      "public_sha256": "5fbfd19bd3a8b393da45cfd8295577001237b2e7bc971fb966bbf7d95739db9f",
+      "kind": "historical_original",
+      "adaptation": "Copied byte-for-byte; historical references and relationship to later excerpts are documented in theory/README.md.",
+      "migration_status": "Imported historical original; source retained."
     }
   ]
 }
