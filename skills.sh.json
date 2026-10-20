@@ -2,36 +2,34 @@
   "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
   "groupings": [
     {
-      "title": "设计与维护",
-      "description": "理解职责与概念，形成设计，并持续检查和整理结构。",
+      "title": "agent",
+      "description": "孵化技能，组织 Agent 指引、角色与分治协作。",
       "skills": [
-        "architecture",
-        "concept-naming",
-        "design-forge",
-        "design-steward",
-        "assurance-review",
-        "defrag"
-      ]
-    },
-    {
-      "title": "界面设计",
-      "description": "设计和改进界面的视觉表达与交互。",
-      "skills": ["interface-design", "ui-improvement"]
-    },
-    {
-      "title": "Agent 方法",
-      "description": "组织 Agent 指引、角色、分治协作与技能提炼。",
-      "skills": [
+        "skill-incubator",
         "agent-guidance",
         "agent-personality",
-        "divide-and-conquer",
-        "skill-incubator"
+        "divide-and-conquer"
       ]
     },
     {
-      "title": "写作与调研",
-      "description": "整理研究材料，形成清楚、可用的文档。",
-      "skills": ["doc-writing", "research-synthesis"]
+      "title": "development",
+      "description": "设计架构与界面，维护代码结构，撰写项目文档。",
+      "skills": [
+        "architecture",
+        "assurance-review",
+        "concept-naming",
+        "defrag",
+        "design-forge",
+        "design-steward",
+        "doc-writing",
+        "interface-design",
+        "ui-improvement"
+      ]
+    },
+    {
+      "title": "workflow",
+      "description": "围绕个人目标调研材料与想法，形成有依据的取舍。",
+      "skills": ["research-synthesis"]
     }
   ]
 }
