@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>表面与动效配方 · 试作样片</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7f9;
+        --surface: #fff;
+        --subtle: #eef1f5;
+        --border: #dce1e8;
+        --text: #202630;
+        --muted: #596574;
+        --accent: #2458b5;
+        --tint: #e8effb;
+        --on-accent: #fff;
+        --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 6px 16px rgb(0 0 0 / 0.05);
+        --overlay: 0 2px 6px rgb(0 0 0 / 0.08), 0 20px 48px rgb(0 0 0 / 0.14);
+      }
+      :root[data-palette="paper"] {
+        --bg: #f6f3ed;
+        --surface: #fffdf8;
+        --subtle: #eee8dd;
+        --border: #ded6c8;
+        --text: #302c27;
+        --muted: #6b6256;
+        --accent: #496346;
+        --tint: #e7eee1;
+      }
+      :root[data-palette="dark"] {
+        color-scheme: dark;
+        --bg: #14161a;
+        --surface: #1e2127;
+        --subtle: #282d35;
+        --border: #424955;
+        --text: #eef1f5;
+        --muted: #adb7c5;
+        --accent: #a8c7ff;
+        --tint: #243650;
+        --on-accent: #14161a;
+        --shadow: 0 1px 2px rgb(0 0 0 / 0.2), 0 6px 16px rgb(0 0 0 / 0.18);
+        --overlay: 0 2px 6px rgb(0 0 0 / 0.24), 0 20px 48px rgb(0 0 0 / 0.4);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          15px/1.6 system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 1040px;
+        margin: auto;
+        padding: 40px 24px 64px;
+      }
+      header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 32px;
+      }
+      h1 {
+        font-size: 26px;
+        line-height: 1.3;
+        margin: 0 0 8px;
+        letter-spacing: -0.02em;
+      }
+      h2 {
+        font-size: 16px;
+        margin: 0 0 4px;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .intro {
+        max-width: 42em;
+      }
+      select,
+      button {
+        font: inherit;
+        color: inherit;
+      }
+      select {
+        border: 1px solid var(--border);
+        background: var(--surface);
+        border-radius: 8px;
+        padding: 8px;
+        max-width: 100%;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 28px;
+      }
+      .stage {
+        min-height: 212px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--subtle);
+        padding: 28px;
+        margin-top: 12px;
+        border-radius: 16px;
+      }
+      .sample {
+        width: 100%;
+        max-width: 340px;
+        padding: 20px;
+        background: var(--surface);
+        border-radius: 12px;
+      }
+      .flat {
+        border: 1px solid var(--border);
+      }
+      .raised {
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
+      }
+      .overlay {
+        border: 1px solid var(--border);
+        box-shadow: var(--overlay);
+      }
+      .sample strong {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+      }
+      .note {
+        font-size: 13px;
+        margin-top: 10px;
+      }
+      .tint {
+        background: var(--tint);
+        color: var(--accent);
+        border-left: 3px solid var(--accent);
+        padding: 16px 18px;
+        border-radius: 0 10px 10px 0;
+      }
+      .tint p {
+        color: inherit;
+      }
+      button {
+        cursor: pointer;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        border-radius: 8px;
+        padding: 8px 14px;
+        transition:
+          background-color 120ms,
+          border-color 120ms,
+          transform 100ms;
+      }
+      button:hover {
+        background: var(--subtle);
+      }
+      button:active {
+        transform: scale(0.99);
+      }
+      button:focus-visible,
+      select:focus-visible,
+      summary:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+      }
+      .primary {
+        background: var(--accent);
+        color: var(--on-accent);
+        border-color: var(--accent);
+      }
+      .primary:hover {
+        background: var(--accent);
+        border-color: var(--text);
+      }
+      .add {
+        width: 100%;
+        border: 1px dashed var(--border);
+        padding: 24px 16px;
+        background: var(--surface);
+      }
+      .add:hover {
+        background: var(--tint);
+        border-color: var(--accent);
+      }
+      .line {
+        border-bottom: 1px solid var(--border);
+        padding: 10px 0;
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .line span {
+        color: var(--muted);
+      }
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 18px;
+      }
+      .motion-stage {
+        flex-direction: column;
+        gap: 14px;
+        justify-content: flex-start;
+      }
+      .feedback {
+        margin-top: 12px;
+        padding: 12px 16px;
+        background: var(--tint);
+        color: var(--accent);
+        border-radius: 8px;
+        animation: arrive 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      [hidden] {
+        display: none !important;
+      }
+      @keyframes arrive {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      details {
+        margin-top: 16px;
+        width: 100%;
+      }
+      summary {
+        cursor: pointer;
+        list-style: none;
+        padding: 4px 0;
+      }
+      summary::before {
+        content: "›";
+        display: inline-block;
+        width: 20px;
+        transform: rotate(0);
+        transition: transform 140ms;
+      }
+      details[open] summary::before {
+        transform: rotate(90deg);
+      }
+      details[open] .detail {
+        animation: arrive 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .detail {
+        padding: 12px 20px 0;
+        color: var(--muted);
+      }
+      .swatches {
+        display: flex;
+        gap: 6px;
+        margin-top: 12px;
+      }
+      .swatches span {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+      }
+      output {
+        display: block;
+        font-size: 13px;
+        margin-top: 10px;
+        color: var(--muted);
+      }
+      @media (max-width: 640px) {
+        main {
+          padding: 24px 16px 40px;
+        }
+        header {
+          flex-direction: column;
+          gap: 16px;
+        }
+        .grid {
+          grid-template-columns: 1fr;
+          gap: 24px;
+        }
+        .stage {
+          padding: 20px;
+        }
+        h1 {
+          font-size: 23px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        button,
+        summary::before {
+          transition: none;
+        }
+        button:active {
+          transform: none;
+        }
+        .feedback,
+        details[open] .detail {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="intro">
+          <h1>表面与动效配方</h1>
+          <p>
+            原创试作样片：比较同一内容的材料组合。具体数值是起点，采用前映射项目主题并带回真实页面。
+          </p>
+        </div>
+        <label
+          >配色
+          <select id="palette">
+            <option value="neutral">冷静中性</option>
+            <option value="paper">温和纸面</option>
+            <option value="dark">暗色工具面</option>
+          </select></label
+        >
+      </header>
+      <div class="grid">
+        <section>
+          <h2>01 · 平面边界</h2>
+          <p>实线与留白勾勒对象，留在页面中。</p>
+          <div class="stage">
+            <div class="sample flat">
+              <strong>连接信息</strong>
+              <div class="line">默认模型<span>model-a</span></div>
+              <div class="line">连接方式<span>兼容 API</span></div>
+            </div>
+          </div>
+        </section>
+        <section>
+          <h2>02 · 轻抬起</h2>
+          <p>小接触阴影 + 大扩散阴影。</p>
+          <div class="stage">
+            <div class="sample raised">
+              <strong>连接信息</strong>
+              <div class="line">默认模型<span>model-a</span></div>
+              <div class="line">连接方式<span>兼容 API</span></div>
+            </div>
+          </div>
+        </section>
+        <section>
+          <h2>03 · 浮层材料</h2>
+          <p>独立表面、柔边和更宽的扩散层。</p>
+          <div class="stage">
+            <div class="sample overlay">
+              <strong>连接信息</strong>
+              <div class="line">默认模型<span>model-a</span></div>
+              <div class="line">连接方式<span>兼容 API</span></div>
+            </div>
+          </div>
+          <p class="note">这里只展示材料，未模拟模态权限或焦点管理。</p>
+        </section>
+        <section>
+          <h2>04 · 同色系浅底</h2>
+          <p>淡色面 + 深色文字 + 局部侧线。</p>
+          <div class="stage">
+            <div class="sample tint">
+              <strong>当前选中的连接</strong>
+              <p>色相集中表达当前对象，正文仍保持中性。</p>
+              <div class="swatches" aria-label="配色样本">
+                <span style="background: var(--bg)"></span
+                ><span style="background: var(--surface)"></span
+                ><span style="background: var(--tint)"></span
+                ><span style="background: var(--accent)"></span>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section>
+          <h2>05 · 虚线空位</h2>
+          <p>期待添加的区域，与已完成内容区别。</p>
+          <div class="stage">
+            <div style="width: 100%; max-width: 340px">
+              <button class="add" id="add">＋ 添加连接</button
+              ><output id="add-result" aria-live="polite"></output>
+            </div>
+          </div>
+          <p class="note">样片演示添加回应；不支持文件拖放。</p>
+        </section>
+        <section>
+          <h2>06 · 动作与展开</h2>
+          <p>快速颜色回应，短距离入场与箭头转向。</p>
+          <div class="stage motion-stage">
+            <div class="sample flat">
+              <strong>修改连接</strong>
+              <p>点击演示局部反馈，或展开辅助说明。</p>
+              <div class="actions">
+                <button id="reset">清除</button><button class="primary" id="save">演示保存</button>
+              </div>
+              <div id="feedback" class="feedback" role="status" hidden>
+                样片已保存。真实产品需收到成功回执后呈现。
+              </div>
+              <details>
+                <summary>辅助说明</summary>
+                <div class="detail">
+                  内容在原对象内展开；减少动态偏好下保留内容，关闭位移和旋转过渡。
+                </div>
+              </details>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+    <script>
+      document.querySelector("#palette").addEventListener("change", (event) => {
+        document.documentElement.dataset.palette = event.target.value;
+      });
+      document.querySelector("#add").addEventListener("click", () => {
+        document.querySelector("#add-result").textContent = "添加入口已触发；此样片没有连接存储。";
+      });
+      document.querySelector("#save").addEventListener("click", () => {
+        const feedback = document.querySelector("#feedback");
+        feedback.hidden = false;
+        feedback.getAnimations().forEach((animation) => {
+          animation.cancel();
+          animation.play();
+        });
+      });
+      document.querySelector("#reset").addEventListener("click", () => {
+        document.querySelector("#feedback").hidden = true;
+      });
+    </script>
+  </body>
+</html>

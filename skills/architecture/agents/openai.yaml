@@ -1,0 +1,4 @@
+interface:
+  display_name: "Architecture"
+  short_description: "Design coherent systems, responsibilities, and collaboration"
+  default_prompt: "Use $architecture to review this system's purpose, responsibilities, relationships, and evolution."
