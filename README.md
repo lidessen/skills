@@ -13,13 +13,13 @@
 
 ### 按任务选择技能
 
-14 个技能按用途组成下面几组。Pack 提供分组浏览和安装入口，技能源码仍统一维护在本仓库的 `skills/` 中。
+15 个技能按用途组成下面几组。Pack 提供分组浏览和安装入口，技能源码仍统一维护在本仓库的 `skills/` 中。
 
 | Pack | 技能数 | 包含的技能 |
 | --- | ---: | --- |
-| [lidessen](https://skills.sh/p/VwNOI0FZ0EAGV7Hy) | 14 | 以下各组去重后的全部技能 |
+| [lidessen](https://skills.sh/p/VwNOI0FZ0EAGV7Hy) | 15 | 以下各组去重后的全部技能 |
 | [agent](https://skills.sh/p/djYQ0UTttmOpfna4) | 4 | [skill-incubator](skills/skill-incubator/SKILL.md)、[agent-guidance](skills/agent-guidance/SKILL.md)、[agent-personality](skills/agent-personality/SKILL.md)、[divide-and-conquer](skills/divide-and-conquer/SKILL.md) |
-| [development](https://skills.sh/p/SazSJU8yDLRSqIF5) | 10 | [architecture](skills/architecture/SKILL.md)、[assurance-review](skills/assurance-review/SKILL.md)、[concept-naming](skills/concept-naming/SKILL.md)、[defrag](skills/defrag/SKILL.md)、[design-forge](skills/design-forge/SKILL.md)、[design-steward](skills/design-steward/SKILL.md)、[doc-writing](skills/doc-writing/SKILL.md)、[interface-design](skills/interface-design/SKILL.md)、[ui-improvement](skills/ui-improvement/SKILL.md)、[research-synthesis](skills/research-synthesis/SKILL.md) |
+| [development](https://skills.sh/p/SazSJU8yDLRSqIF5) | 11 | [architecture](skills/architecture/SKILL.md)、[assurance-review](skills/assurance-review/SKILL.md)、[concept-naming](skills/concept-naming/SKILL.md)、[defrag](skills/defrag/SKILL.md)、[design-forge](skills/design-forge/SKILL.md)、[design-steward](skills/design-steward/SKILL.md)、[doc-writing](skills/doc-writing/SKILL.md)、[interface-design](skills/interface-design/SKILL.md)、[oneshot](skills/oneshot/SKILL.md)、[ui-improvement](skills/ui-improvement/SKILL.md)、[research-synthesis](skills/research-synthesis/SKILL.md) |
 | [workflow](https://skills.sh/p/id3m9AGDJSzskEsP) | 1 | [research-synthesis](skills/research-synthesis/SKILL.md) |
 
 Pack 可以交叉包含技能。例如 `research-synthesis` 同时属于 `development` 和 `workflow`，两处使用同一份技能源码；项目按任务选择所需技能即可。
@@ -44,7 +44,7 @@ npx --yes skills@1.7.4 add lidessen/skills --skill interface-design -a codex --c
 
 ## 使用
 
-从当前任务选择方法：[architecture](skills/architecture/SKILL.md) 用于职责、依赖与整体结构设计，[interface-design](skills/interface-design/SKILL.md) 用于界面视觉与交互，[doc-writing](skills/doc-writing/SKILL.md) 用于项目文档。
+从当前任务选择方法：[architecture](skills/architecture/SKILL.md) 用于职责、依赖与整体结构设计，[interface-design](skills/interface-design/SKILL.md) 用于界面视觉与交互，[doc-writing](skills/doc-writing/SKILL.md) 用于项目文档，[oneshot](skills/oneshot/SKILL.md) 用于一次明确请求直接落地并验收。
 
 安装后，在 Agent 任务中明确所需技能和要解决的问题，例如“使用 interface-design 检查这个页面的视觉层级与交互，并说明改进建议”。技能的发现与调用方式以所用 Agent 为准。
 
