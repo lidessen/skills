@@ -23,4 +23,6 @@
 
 ## 公开测量发现入口
 
-可从可复核的 [原始 usage/meter 记录示例](https://github.com/Fei2411/real-api-pricing/issues/96)、[另一档位的原始测量](https://github.com/Fei2411/real-api-pricing/issues/98)、[单账户方法说明](https://mulletiq.com/blog/claude-max-20x-vs-5x) 和 [多账户方法说明](https://wokey.ai/claude-max-limits) 寻找当次仍适用的观测；也可检索公开 X 原帖。它们都不是官方承诺额度，发布日期、观测日期、套餐/模型版本、cache、meter 外推、账户数及商业利益关系须逐项核对；原帖打不开或只有二手转述时，不能标成已核验第一手证据。对同一套餐的不同技术负载保留并列场景，不把差异样本机械平均。记录与估计规则见[证据参考](evidence.md)。
+[Real API Pricing 的 allowance 视图](https://real-api-pricing.vercel.app/#lang=en&view=allowance) 对应公开的 [Fei2411/real-api-pricing 仓库](https://github.com/Fei2411/real-api-pricing)。优先查看其 [采用值与逐行理由](https://github.com/Fei2411/real-api-pricing/blob/main/data/adopted.csv)、[派生点数据](https://github.com/Fei2411/real-api-pricing/blob/main/derived/points.json) 和 [换算约定](https://github.com/Fei2411/real-api-pricing/blob/main/CONVENTIONS.md)，追到原始证据；[Max 20x 测量](https://github.com/Fei2411/real-api-pricing/issues/96)与 [Max 5x 测量](https://github.com/Fei2411/real-api-pricing/issues/98)属于同一项目。该站的月额度默认按四周满额，并可能按固定 cache/token 负载换算；逐行检查 `data_date`、`served_model`、`workload`、`confidence`、`source` 与 `decision_note`，区分实测 token、meter 外推、官方额度和派生等值。把适用的公开数据作为**有标签的估计锚点**，不要当作官方保证或将不同模型、窗口和负载的数值合并。
+
+还可从 [单账户方法说明](https://mulletiq.com/blog/claude-max-20x-vs-5x)、[多账户方法说明](https://wokey.ai/claude-max-limits) 或公开 X 原帖寻找并列观测。发布日期、观测日期、套餐/模型版本、cache、meter 外推、账户数及商业利益关系须逐项核对；原帖打不开或只有二手转述时，不能标成已核验第一手证据。对同一套餐的不同技术负载保留并列场景，不把差异样本机械平均。记录与估计规则见[证据参考](evidence.md)。
