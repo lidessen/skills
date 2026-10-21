@@ -517,6 +517,20 @@ class PlanValueTests(unittest.TestCase):
         self.assertEqual(len(calculator.analyze(data)["rankings"]
                              ["listed_price_own_api_value"]), 1)
 
+    def test_valued_entitlement_with_unknown_renewal_is_visible_in_diagnostics(self):
+        data = base()
+        data["plans"][0]["price"].update(initial=None, renewal=None,
+                                           tax_rate=None, tax_included=None)
+        result = calculator.analyze(data)
+        found = result["evaluations"][0]
+        self.assertEqual(found["monthly_api_value_usd"], Decimal("1"))
+        self.assertIsNone(found["roi_renewal_listed"])
+        self.assertEqual(result["rankings"]["listed_price_own_api_value"], [])
+        diagnostics = calculator.markdown(result).split("## Bounded and unranked diagnostics", 1)[1]
+        self.assertIn("basic", diagnostics)
+        self.assertIn("| valued | 1.0000 | unknown |", diagnostics)
+        self.assertIn("renewal_cost_unknown", diagnostics)
+
     def test_live_tax_unknown_keeps_only_conditional_rank_and_excludes_bad_price(self):
         data = base()
         mark_live(data)

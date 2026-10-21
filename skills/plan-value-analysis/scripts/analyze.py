@@ -965,15 +965,18 @@ def markdown(result):
         rows.append("| — | No conditional monthly rank | — | — | — | — | — | — |")
     rows.extend(("", "## Bounded and unranked diagnostics", "",
                  "Short-window upper bounds are not part of the sorted rankings.", "",
-                 "| Plan | Model | Status | Monthly upper USD | Listed-price ROI upper | Window USD by pool | Reason |",
-                 "| --- | --- | --- | ---: | ---: | --- | --- |"))
+                 "| Plan | Model | Status | Monthly API USD | Monthly upper USD | Listed-price ROI upper | Window USD by pool | Reason |",
+                 "| --- | --- | --- | ---: | ---: | ---: | --- | --- |"))
     for row in result["evaluations"]:
-        if row["status"] == "valued":
+        if row["status"] == "valued" and (
+            row["roi_renewal"] is not None or row["roi_renewal_listed"] is not None
+        ):
             continue
         windows = ", ".join(f"{key}: {fmt(value)}" for key, value in
                             row["window_api_value_usd_by_pool"].items()) or "unknown"
         rows.append("| " + " | ".join((
             row["plan_id"], row["model_id"], row["status"],
+            fmt(row["monthly_api_value_usd"]),
             fmt(row["monthly_api_value_upper_usd"]),
             fmt(row["roi_renewal_listed_upper"]), windows,
             ", ".join(row["reasons"]) or "none",
