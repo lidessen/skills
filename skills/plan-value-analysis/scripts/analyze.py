@@ -7,13 +7,19 @@ import argparse
 import json
 import re
 import sys
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_FLOOR, getcontext
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 getcontext().prec = 40
 
 BUCKETS = ("input", "output", "cache_read", "cache_write")
+LEVELS = ("low", "base", "high")
+ESTIMATE_CLASSES = (
+    "official_current", "empirical_current", "stale_empirical",
+    "explicit_assumption", "theoretical_window",
+)
 MODEL_ID = re.compile(
     r"^[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*@[a-z0-9][a-z0-9._-]*#[a-z0-9][a-z0-9._-]*$"
 )
@@ -170,7 +176,33 @@ def quota_amount(quota, unit):
 
 
 def is_direct_entitlement(pool, rule):
-    return pool["unit"] in ("token_buckets", "currency")
+    return pool["unit"] in ("token_buckets", "currency") or "api_parity_credit_usd" in rule
+
+
+def verified_credit_api_parity(pool, rule, api_price, rates, data_kind, query_date):
+    """A continuous credit face rate is valid only when every maker tariff bucket matches."""
+    if "api_parity_credit_usd" not in rule:
+        return None, None
+    parity = number(rule["api_parity_credit_usd"], "rule.api_parity_credit_usd",
+                    Decimal("0.0000000000000000001"))
+    if pool["unit"] != "credits" or rule.get("basis") != "weighted_tokens":
+        raise InputError("api_parity_credit_usd requires weighted-token credit rules")
+    issue = evidence_issue(rule.get("api_parity_evidence"), data_kind,
+                           f"api_parity:{pool['id']}", query_date)
+    if issue:
+        return parity, issue
+    weights = bucket_numbers(rule.get("per_million"), "rule.per_million", nullable=True)
+    maker_prices = bucket_numbers(api_price.get("per_million"),
+                                  "api_price.per_million", nullable=True)
+    for bucket in BUCKETS:
+        maker_usd = fx_convert(maker_prices[bucket], api_price["currency"], rates)
+        if maker_prices[bucket] is not None and maker_usd is None:
+            return parity, "api_price_fx_missing"
+        if (maker_prices[bucket] is None) != (weights[bucket] is None) or (
+            maker_usd is not None and weights[bucket] * parity != maker_usd
+        ):
+            return parity, "credit_to_maker_api_tariff_parity_not_proven"
+    return parity, None
 
 
 def debit_per_operation(rule, pool, scenario, api_usd, rates):
@@ -284,7 +316,17 @@ def pool_value(pool, rule, scenario, api_price, api_usd, rates, data_kind, query
             result["reasons"].append("nonmonthly_quota_no_monthly_cap")
         return result
 
-    if unit == "currency":
+    if "api_parity_credit_usd" in rule:
+        parity, parity_issue = verified_credit_api_parity(
+            pool, rule, api_price, rates, data_kind, query_date
+        )
+        if parity_issue:
+            result["reasons"].append(parity_issue)
+            return result
+
+        def face_value(balance):
+            return balance * parity
+    elif unit == "currency":
         if rule.get("basis") != "api_value":
             raise InputError("currency pool requires api_value debit basis")
         multiplier = number(rule.get("multiplier", "1"), "rule.multiplier", nullable=True)
@@ -394,6 +436,202 @@ def monthly_cost(price, rates, data_kind, query_date):
 
 def ratio(numerator, denominator):
     return numerator / denominator if numerator is not None and denominator not in (None, ZERO) else None
+
+
+def estimate_levels(value, where, maximum=None):
+    value = obj(value, where)
+    if set(value) != set(LEVELS):
+        raise InputError(f"{where} must have low, base, high")
+    result = {level: number(value[level], f"{where}.{level}") for level in LEVELS}
+    if not result["low"] <= result["base"] <= result["high"]:
+        raise InputError(f"{where} must be ordered low <= base <= high")
+    if maximum is not None and result["high"] > maximum:
+        raise InputError(f"{where} must not exceed {maximum}")
+    return result
+
+
+def estimate_source(source, data_kind, query_date, where):
+    source = obj(source, f"{where}.source")
+    klass = source.get("class")
+    if klass not in ESTIMATE_CLASSES:
+        raise InputError(f"{where}.source.class is invalid")
+    url = string(source.get("url"), f"{where}.source.url")
+    if not url.startswith(("https://", "http://")):
+        raise InputError(f"{where}.source.url must be HTTP(S)")
+    fetched = real_date(source.get("fetched_at"), f"{where}.source.fetched_at")
+    if data_kind == "live" and fetched != query_date:
+        raise InputError(f"{where}.source must be rechecked on query_date")
+    if klass in ("empirical_current", "stale_empirical"):
+        observed = real_date(source.get("observed_at"), f"{where}.source.observed_at")
+        if observed > query_date:
+            raise InputError(f"{where}.source.observed_at is after query_date")
+    match = source.get("model_match")
+    if match not in ("exact", "not_applicable", "mismatch"):
+        raise InputError(f"{where}.source.model_match is required")
+    if match == "mismatch":
+        string(source.get("mismatch_reason"), f"{where}.source.mismatch_reason")
+    labels = obj(source.get("assumptions"), f"{where}.source.assumptions")
+    if set(labels) != set(LEVELS):
+        raise InputError(f"{where}.source.assumptions needs low, base, high labels")
+    for level in LEVELS:
+        string(labels[level], f"{where}.source.assumptions.{level}")
+    return source
+
+
+def estimated_face_value(pool, rule, scenario, api_price, api_usd, rates, amount):
+    unit = pool["unit"]
+    multiplier = number(rule.get("multiplier", "1"), "rule.multiplier", nullable=True)
+    if multiplier in (None, ZERO):
+        return None, "debit_unknown" if multiplier is None else "zero_debit_unbounded"
+    if unit == "token_buckets":
+        if rule.get("basis") != "token_buckets":
+            raise InputError("token_buckets pool requires token_buckets debit basis")
+        prices = bucket_numbers(api_price["per_million"], "api_price.per_million", nullable=True)
+        if any(amount[bucket] and prices[bucket] is None for bucket in BUCKETS):
+            return None, "api_price_missing_token_rate"
+        native = sum((amount[bucket] / multiplier * (prices[bucket] or ZERO) / MILLION
+                      for bucket in BUCKETS), ZERO)
+        value = fx_convert(native, api_price["currency"], rates)
+        return (value, None) if value is not None else (None, "api_price_fx_missing")
+    if unit == "currency":
+        if rule.get("basis") != "api_value":
+            raise InputError("currency pool requires api_value debit basis")
+        currency = string(pool["quota"].get("currency"), "pool.quota.currency")
+        value = fx_convert(amount / multiplier, currency, rates)
+        return (value, None) if value is not None else (None, "pool_currency_fx_missing")
+    debit, issue = debit_per_operation(rule, pool, scenario, api_usd, rates)
+    if issue:
+        return None, issue
+    operations = (amount / debit).to_integral_value(rounding=ROUND_FLOOR)
+    return operations * api_usd, None
+
+
+def estimated_pool(pool, rule, scenario, api_price, api_usd, rates, data_kind,
+                   query_date, matching_pool_ids):
+    ident = pool["id"]
+    issues = []
+    add_issue(issues, evidence_issue(rule.get("evidence"), data_kind, f"model_rule:{ident}", query_date))
+    estimate = pool.get("estimate")
+    quota = obj(pool.get("quota"), f"pool.{ident}.quota")
+    amount = quota_amount(quota, pool["unit"])
+    if isinstance(amount, dict) and any(value is None for value in amount.values()):
+        amount = None
+    if amount is not None:
+        add_issue(issues, evidence_issue(quota.get("evidence"), data_kind, f"quota:{ident}", query_date))
+    needs_estimate = (
+        pool["entitlement_class"] != "guaranteed"
+        or amount is None
+        or pool["window"]["kind"] != "monthly"
+        or any(cap["window"]["kind"] != "monthly" for cap in pool.get("additional_caps", []))
+        or pool.get("daily_cap_requests") is not None
+    )
+    if needs_estimate and estimate is None:
+        add_issue(issues, "estimate_missing_for_current_total")
+    source = None
+    if estimate is not None:
+        estimate = obj(estimate, f"pool.{ident}.estimate")
+        source = estimate_source(estimate.get("source"), data_kind, query_date, f"pool.{ident}.estimate")
+        if source["model_match"] == "mismatch" or (estimate.get("quota_anchor") is not None
+            and source["model_match"] != "exact"):
+            add_issue(issues, "estimate_model_or_plan_mismatch")
+    if amount is None:
+        if estimate is None or estimate.get("quota_anchor") is None:
+            add_issue(issues, "quota_anchor_missing")
+            quotas = None
+        elif pool["unit"] == "token_buckets":
+            raise InputError(f"pool.{ident}.estimate.quota_anchor cannot replace token buckets")
+        else:
+            quotas = estimate_levels(estimate["quota_anchor"], f"pool.{ident}.estimate.quota_anchor")
+            multiplier = number(estimate.get("quota_multiplier", "1"),
+                                f"pool.{ident}.estimate.quota_multiplier")
+            if multiplier != 1:
+                add_issue(issues, evidence_issue(estimate.get("multiplier_evidence"),
+                          data_kind, f"quota_multiplier:{ident}", query_date))
+            quotas = {level: quotas[level] * multiplier for level in LEVELS}
+    else:
+        if estimate is not None and estimate.get("quota_anchor") is not None:
+            raise InputError(f"pool.{ident}.estimate.quota_anchor conflicts with official quota")
+        quotas = {level: amount for level in LEVELS}
+    if pool["entitlement_class"] != "guaranteed":
+        if estimate is None or estimate.get("presence") is None:
+            add_issue(issues, "current_extra_presence_missing")
+            presence = None
+        else:
+            presence = estimate_levels(estimate["presence"],
+                                       f"pool.{ident}.estimate.presence", maximum=Decimal(1))
+        other_ids = matching_pool_ids - {ident}
+        if other_ids:
+            additive_to = set(estimate.get("additive_to", [])) if estimate is not None else set()
+            if additive_to != other_ids:
+                add_issue(issues, "extra_additivity_not_proven")
+            else:
+                add_issue(issues, evidence_issue(estimate.get("stacking_evidence"),
+                          data_kind, f"stacking:{ident}", query_date))
+    else:
+        presence = {level: Decimal(1) for level in LEVELS}
+        if estimate is not None and estimate.get("presence") is not None:
+            raise InputError(f"pool.{ident}.estimate.presence applies only to extra entitlements")
+    counts = obj(estimate.get("window_counts", {}), f"pool.{ident}.estimate.window_counts") \
+        if estimate is not None else {}
+    has_short_window = pool["window"]["kind"] != "monthly" or any(
+        cap["window"]["kind"] != "monthly" for cap in pool.get("additional_caps", [])
+    )
+    if has_short_window and source is not None and source["class"] == "official_current":
+        add_issue(issues, "window_extrapolation_needs_estimate_class")
+
+    def window_factor(key, window):
+        kind = cap_window({"window": window}, f"pool.{ident}.{key}")
+        if kind == "monthly":
+            return {level: Decimal(1) for level in LEVELS}
+        if key not in counts:
+            add_issue(issues, f"window_counts_missing:{key}")
+            return None
+        return estimate_levels(counts[key], f"pool.{ident}.estimate.window_counts.{key}")
+
+    primary_counts = window_factor("primary", pool["window"])
+    cap_counts = {}
+    for cap in pool.get("additional_caps", []):
+        add_issue(issues, evidence_issue(cap.get("evidence"), data_kind,
+                  f"additional_cap:{ident}:{cap['id']}", query_date))
+        cap_counts[cap["id"]] = window_factor(cap["id"], cap["window"])
+        if cap.get("amount") is None:
+            add_issue(issues, f"additional_cap_unknown:{cap['id']}")
+    if pool.get("daily_cap_requests") is not None:
+        add_issue(issues, "daily_cap_estimate_unsupported")
+    if pool["unit"] == "token_buckets" and pool.get("additional_caps"):
+        add_issue(issues, "token_bucket_additional_cap_unsupported")
+    parity, parity_issue = verified_credit_api_parity(
+        pool, rule, api_price, rates, data_kind, query_date
+    )
+    add_issue(issues, parity_issue)
+    values = {level: None for level in LEVELS}
+    budgets = {level: None for level in LEVELS}
+    if not issues and quotas is not None and presence is not None and primary_counts is not None:
+        for level in LEVELS:
+            if pool["unit"] == "token_buckets":
+                budget = {bucket: Decimal(quotas[level][bucket]) * primary_counts[level]
+                          * presence[level] for bucket in BUCKETS}
+            else:
+                budget = quotas[level] * primary_counts[level]
+                for cap in pool.get("additional_caps", []):
+                    cap_amount = number(cap.get("amount"), f"additional_cap.{cap['id']}.amount")
+                    budget = min(budget, cap_amount * cap_counts[cap["id"]][level])
+                budget *= presence[level]
+            budgets[level] = budget
+            if parity is not None:
+                value, issue = budget * parity, None
+            else:
+                value, issue = estimated_face_value(
+                    pool, rule, scenario, api_price, api_usd, rates, budget
+                )
+            add_issue(issues, issue)
+            values[level] = value
+    return {
+        "pool_id": ident, "entitlement_class": pool["entitlement_class"],
+        "source_class": source["class"] if source else "official_current",
+        "source": source, "api_parity_credit_usd": parity, "monthly_budget": budgets,
+        "monthly_api_value_usd": values, "reasons": issues,
+    }
 
 
 def evaluate_plan_scenario(plan, scenario, api_prices, rates, data_kind, query_date, fx_issue,
@@ -601,6 +839,333 @@ def evaluate_plan_scenario(plan, scenario, api_prices, rates, data_kind, query_d
     return result
 
 
+def evaluate_estimated_plan_scenario(plan, scenario, api_prices, rates, data_kind,
+                                     query_date, fx_issue, direct=False):
+    matching = [
+        (pool, rule) for pool in plan["pools"] for rule in pool["rules"]
+        if rule["model_id"] == scenario["model_id"]
+        and rule["api_price_id"] == scenario["api_price_id"]
+        and (not direct or is_direct_entitlement(pool, rule))
+    ]
+    if not matching:
+        return None
+    if direct and any(not is_direct_entitlement(pool, rule) for pool, rule in matching):
+        raise InputError("direct estimate cannot include converted pool")
+    if not direct and all(is_direct_entitlement(pool, rule) for pool, rule in matching):
+        return None
+    issues = []
+    availability = plan["availability"]
+    if availability.get("status") != "on_sale":
+        add_issue(issues, "plan_not_verified_currently_on_sale")
+    add_issue(issues, evidence_issue(
+        availability.get("evidence"), data_kind, "plan_availability", query_date
+    ))
+    for field in ("access", "limits"):
+        if data_kind == "live":
+            info = plan.get(field)
+            add_issue(issues, evidence_issue(
+                info.get("evidence") if isinstance(info, dict) else None,
+                data_kind, f"plan_{field}", query_date
+            ))
+    access = plan.get("access")
+    if isinstance(access, dict) and access.get("api_access") is not True and not access.get("clients"):
+        add_issue(issues, "no_verified_access_path")
+    api_price = api_prices.get(scenario["api_price_id"])
+    if api_price is None:
+        add_issue(issues, "api_price_missing")
+        api_usd = None
+    else:
+        add_issue(issues, evidence_issue(
+            api_price.get("evidence"), data_kind, "api_price", query_date
+        ))
+        if api_price["model_id"] != scenario["model_id"]:
+            add_issue(issues, "api_price_model_mismatch")
+        if direct:
+            api_usd = ZERO
+        else:
+            api_usd, api_issue = price_per_operation(scenario, api_price, rates)
+            add_issue(issues, api_issue)
+    if scenario["basis"] == "official_usage":
+        add_issue(issues, evidence_issue(
+            scenario.get("evidence"), data_kind, "official_usage", query_date
+        ))
+    valuation_fx = (
+        (api_price is not None and api_price.get("currency") != "USD")
+        or any(pool["unit"] == "currency" and pool["quota"].get("currency") != "USD"
+               for pool, _ in matching)
+    )
+    if valuation_fx:
+        add_issue(issues, fx_issue)
+    cost, cost_issues = monthly_cost(plan["price"], rates, data_kind, query_date)
+    components = []
+    if api_usd is not None and api_price is not None:
+        ids = {pool["id"] for pool, _ in matching}
+        for pool, rule in matching:
+            component = estimated_pool(
+                pool, rule, scenario, api_price, api_usd, rates,
+                data_kind, query_date, ids
+            )
+            components.append(component)
+            for issue in component["reasons"]:
+                add_issue(issues, f"pool:{pool['id']}:{issue}")
+    else:
+        add_issue(issues, "api_price_unusable")
+    values = {level: None for level in LEVELS}
+    if not issues:
+        values = {
+            level: sum((component["monthly_api_value_usd"][level]
+                        for component in components), ZERO)
+            for level in LEVELS
+        }
+    for issue in cost_issues:
+        add_issue(issues, issue)
+    if plan["price"].get("currency") != "USD":
+        add_issue(issues, fx_issue)
+    quote_verified = not any(issue.startswith("plan_price:") for issue in cost_issues) and not (
+        plan["price"].get("currency") != "USD" and fx_issue
+    )
+    sources = sorted({component["source_class"] for component in components})
+    status = "estimated" if values["base"] is not None else "unranked"
+    return {
+        "plan_id": plan["id"], "provider": plan["provider"], "product": plan["product"],
+        "tier": plan["tier"], "region": plan["region"],
+        "model_id": scenario["model_id"], "api_price_id": scenario["api_price_id"],
+        "scenario_id": f"direct:{scenario['model_id']}" if direct else scenario["id"],
+        "scenario_label": scenario["label"],
+        "category": "exact_model", "status": status, "reasons": issues,
+        "source_classes": sources, "components": components,
+        "component_pool_ids": [component["pool_id"] for component in components],
+        "monthly_api_value_usd": values,
+        "monthly_cost": cost,
+        "roi_initial": {level: ratio(values[level], cost["initial_monthly_usd"])
+                        if quote_verified else None for level in LEVELS},
+        "roi_renewal": {level: ratio(values[level], cost["renewal_monthly_usd"])
+                        if quote_verified else None for level in LEVELS},
+        "roi_initial_listed": {
+            level: ratio(values[level], cost["initial_monthly_listed_usd"])
+            if quote_verified else None for level in LEVELS
+        },
+        "roi_renewal_listed": {
+            level: ratio(values[level], cost["renewal_monthly_listed_usd"])
+            if quote_verified else None for level in LEVELS
+        },
+        "shared_pool_alternatives": {
+            pool["id"]: sorted(other["model_id"] for other in pool["rules"]
+                               if other["model_id"] != scenario["model_id"])
+            for pool, _ in matching if len(pool["rules"]) > 1
+        },
+    }
+
+
+def evaluate_estimate_bundle(plan, rates, data_kind, query_date, fx_issue):
+    """Value a reported mixed-model API-equivalent observation, without model parity claims."""
+    bundle = plan.get("estimate_bundle")
+    if bundle is None:
+        return None
+    bundle = obj(bundle, f"plans.{plan['id']}.estimate_bundle")
+    bundle_id = string(bundle.get("id"), "estimate_bundle.id")
+    source = estimate_source(bundle.get("source"), data_kind, query_date,
+                             f"plans.{plan['id']}.estimate_bundle")
+    if source["class"] == "official_current":
+        raise InputError("estimate_bundle source must identify an empirical or assumed API value")
+    if source["model_match"] == "exact":
+        raise InputError("mixed estimate_bundle cannot claim an exact-model match")
+    weekly = estimate_levels(bundle.get("weekly_api_value_usd"),
+                             "estimate_bundle.weekly_api_value_usd")
+    counts = estimate_levels(bundle.get("monthly_window_counts"),
+                             "estimate_bundle.monthly_window_counts")
+    issues = []
+    if source["model_match"] == "mismatch":
+        add_issue(issues, "bundle_plan_or_model_mismatch")
+    if plan["availability"].get("status") != "on_sale":
+        add_issue(issues, "plan_not_verified_currently_on_sale")
+    add_issue(issues, evidence_issue(plan["availability"].get("evidence"), data_kind,
+                                     "plan_availability", query_date))
+    if data_kind == "live":
+        for field in ("access", "limits"):
+            info = plan.get(field)
+            add_issue(issues, evidence_issue(info.get("evidence") if isinstance(info, dict)
+                                         else None, data_kind, f"plan_{field}", query_date))
+    if isinstance(plan.get("access"), dict) and not (
+        plan["access"].get("api_access") is True or plan["access"].get("clients")
+    ):
+        add_issue(issues, "no_verified_access_path")
+    interactive = {level: weekly[level] * counts[level] for level in LEVELS}
+    credit = {level: ZERO for level in LEVELS}
+    credit_source = None
+    credit_input = bundle.get("api_credit")
+    if credit_input is not None:
+        credit_input = obj(credit_input, "estimate_bundle.api_credit")
+        credit_source = estimate_source(credit_input.get("source"), data_kind, query_date,
+                                        "estimate_bundle.api_credit")
+        monthly_credit = number(credit_input.get("monthly_usd"),
+                                "estimate_bundle.api_credit.monthly_usd")
+        presence = estimate_levels(credit_input.get("presence"),
+                                   "estimate_bundle.api_credit.presence", maximum=Decimal(1))
+        add_issue(issues, evidence_issue(credit_input.get("independence_evidence"),
+                  data_kind, "estimate_bundle.api_credit.independence", query_date))
+        if credit_source["model_match"] == "mismatch":
+            add_issue(issues, "api_credit_plan_mismatch")
+        credit = {level: monthly_credit * presence[level] for level in LEVELS}
+    values = {level: interactive[level] + credit[level] for level in LEVELS}
+    if issues:
+        values = {level: None for level in LEVELS}
+    cost, cost_issues = monthly_cost(plan["price"], rates, data_kind, query_date)
+    for issue in cost_issues:
+        add_issue(issues, issue)
+    if plan["price"].get("currency") != "USD":
+        add_issue(issues, fx_issue)
+    quote_verified = not any(issue.startswith("plan_price:") for issue in cost_issues) and not (
+        plan["price"].get("currency") != "USD" and fx_issue
+    )
+    status = "estimated" if values["base"] is not None else "unranked"
+    return {
+        "plan_id": plan["id"], "provider": plan["provider"], "product": plan["product"],
+        "tier": plan["tier"], "region": plan["region"], "category": "mixed_model_bundle",
+        "model_id": None, "api_price_id": None, "scenario_id": bundle_id,
+        "scenario_label": "Source-reported mixed-model weekly API value; sensitivity across source assumptions",
+        "status": status, "reasons": issues, "source_classes": sorted({source["class"]} | (
+            {credit_source["class"]} if credit_source is not None else set()
+        )),
+        "source": source, "components": {
+            "interactive_mixed_usd": interactive,
+            "api_credit_usd": credit,
+            "api_credit_source": credit_source,
+            "weekly_source_reported_usd": weekly,
+            "monthly_window_counts": counts,
+        },
+        "component_pool_ids": [], "monthly_api_value_usd": values,
+        "monthly_cost": cost,
+        "roi_initial": {level: ratio(values[level], cost["initial_monthly_usd"])
+                        if quote_verified else None for level in LEVELS},
+        "roi_renewal": {level: ratio(values[level], cost["renewal_monthly_usd"])
+                        if quote_verified else None for level in LEVELS},
+        "roi_initial_listed": {level: ratio(values[level], cost["initial_monthly_listed_usd"])
+                               if quote_verified else None for level in LEVELS},
+        "roi_renewal_listed": {level: ratio(values[level], cost["renewal_monthly_listed_usd"])
+                               if quote_verified else None for level in LEVELS},
+        "shared_pool_alternatives": {},
+    }
+
+
+def evaluate_empirical_observation(plan, observation, api_prices, rates, data_kind,
+                                   query_date, fx_issue):
+    """Reprice disjoint observed token buckets; only explicit meter projection estimates capacity."""
+    observation = obj(observation, f"plans.{plan['id']}.empirical_observation")
+    ident = string(observation.get("id"), "empirical_observation.id")
+    mid = model_id(observation.get("model_id"), f"empirical_observation.{ident}.model_id")
+    price_id = string(observation.get("api_price_id"),
+                      f"empirical_observation.{ident}.api_price_id")
+    source = estimate_source(observation.get("source"), data_kind, query_date,
+                             f"empirical_observation.{ident}")
+    if source["class"] not in ("empirical_current", "stale_empirical"):
+        raise InputError("empirical_observation needs an empirical source class")
+    raw = bucket_numbers(observation.get("token_buckets"),
+                         f"empirical_observation.{ident}.token_buckets", integer_values=True)
+    if not any(raw.values()):
+        raise InputError("empirical_observation.token_buckets cannot all be zero")
+    if observation.get("accounts") != 1 or observation.get("extra_usage") is not False:
+        raise InputError("empirical_observation requires one account and no paid extra usage")
+    if observation.get("window_kind") != "weekly":
+        raise InputError("empirical_observation.window_kind must be weekly")
+    start = number(observation.get("meter_start"), "empirical_observation.meter_start")
+    end = number(observation.get("meter_end"), "empirical_observation.meter_end")
+    if not ZERO <= start < end <= 1:
+        raise InputError("empirical_observation meter must rise within [0,1]")
+    exhausted = observation.get("exhausted")
+    if not isinstance(exhausted, bool) or exhausted and end < Decimal("0.99"):
+        raise InputError("empirical_observation.exhausted contradicts meter_end")
+    linear = observation.get("linear_meter_projection")
+    if not isinstance(linear, bool):
+        raise InputError("empirical_observation.linear_meter_projection must be boolean")
+    basis = obj(observation.get("value_basis"), "empirical_observation.value_basis")
+    if set(basis) != set(LEVELS) or any(basis[level] not in ("observed", "projected")
+                                             for level in LEVELS):
+        raise InputError("empirical_observation.value_basis needs observed/projected low, base, high")
+    if "projected" in basis.values() and not linear:
+        raise InputError("projected empirical capacity needs linear_meter_projection=true")
+    counts = estimate_levels(observation.get("monthly_window_counts"),
+                             "empirical_observation.monthly_window_counts")
+    context = integer(observation.get("context_tokens"),
+                      "empirical_observation.context_tokens")
+    if not isinstance(observation.get("batch"), bool):
+        raise InputError("empirical_observation.batch must be boolean")
+    scenario = {"model_id": mid, "api_price_id": price_id,
+                "context_tokens": context, "batch": observation["batch"],
+                "per_operation": raw}
+    issues = []
+    if source["model_match"] != "exact":
+        add_issue(issues, "empirical_model_or_plan_mismatch")
+    if plan["availability"].get("status") != "on_sale":
+        add_issue(issues, "plan_not_verified_currently_on_sale")
+    add_issue(issues, evidence_issue(plan["availability"].get("evidence"), data_kind,
+                                     "plan_availability", query_date))
+    if data_kind == "live":
+        for field in ("access", "limits"):
+            info = plan.get(field)
+            add_issue(issues, evidence_issue(info.get("evidence") if isinstance(info, dict)
+                                         else None, data_kind, f"plan_{field}", query_date))
+    api_price = api_prices.get(price_id)
+    if api_price is not None:
+        add_issue(issues, evidence_issue(api_price.get("evidence"), data_kind,
+                                         "api_price", query_date))
+        if raw["cache_write"]:
+            duration = string(observation.get("cache_write_duration"),
+                              "empirical_observation.cache_write_duration")
+            if duration != api_price.get("cache_write_duration"):
+                add_issue(issues, "cache_write_duration_price_mismatch")
+    observed_usd, price_issue = price_per_operation(scenario, api_price, rates)
+    add_issue(issues, price_issue)
+    if api_price is not None and api_price["currency"] != "USD":
+        add_issue(issues, fx_issue)
+    cost, cost_issues = monthly_cost(plan["price"], rates, data_kind, query_date)
+    if plan["price"].get("currency") != "USD":
+        add_issue(issues, fx_issue)
+    quote_verified = not any(issue.startswith("plan_price:") for issue in cost_issues) and not (
+        plan["price"].get("currency") != "USD" and fx_issue
+    )
+    projected_usd = observed_usd / (end - start) if observed_usd is not None and linear else None
+    if not linear and not (exhausted and start == ZERO):
+        add_issue(issues, "observed_usage_only_not_total_capacity")
+    if basis["base"] == "observed" and not (exhausted and start == ZERO):
+        add_issue(issues, "base_observation_is_only_lower_bound")
+    weekly = {level: (observed_usd if basis[level] == "observed" else projected_usd)
+              for level in LEVELS}
+    values = {level: (weekly[level] * counts[level] if weekly[level] is not None else None)
+              for level in LEVELS}
+    if all(value is not None for value in values.values()) and not (
+        values["low"] <= values["base"] <= values["high"]
+    ):
+        raise InputError("empirical_observation estimated values must order low <= base <= high")
+    if issues:
+        values = {level: None for level in LEVELS}
+    for issue in cost_issues:
+        add_issue(issues, issue)
+    return {
+        "plan_id": plan["id"], "provider": plan["provider"], "product": plan["product"],
+        "tier": plan["tier"], "region": plan["region"], "category": "exact_model",
+        "model_id": mid, "api_price_id": price_id, "scenario_id": ident,
+        "scenario_label": "Disjoint raw token buckets valued at maker API tariff",
+        "status": "estimated" if values["base"] is not None else "unranked",
+        "reasons": issues, "source_classes": [source["class"]], "source": source,
+        "components": {"observed_window_api_usd": observed_usd,
+                       "projected_full_window_api_usd": projected_usd,
+                       "meter_start": start, "meter_end": end, "exhausted": exhausted,
+                       "capacity_basis": basis, "monthly_window_counts": counts,
+                       "token_buckets": raw},
+        "component_pool_ids": [], "monthly_api_value_usd": values, "monthly_cost": cost,
+        "roi_initial": {level: ratio(values[level], cost["initial_monthly_usd"])
+                        if quote_verified else None for level in LEVELS},
+        "roi_renewal": {level: ratio(values[level], cost["renewal_monthly_usd"])
+                        if quote_verified else None for level in LEVELS},
+        "roi_initial_listed": {level: ratio(values[level], cost["initial_monthly_listed_usd"])
+                               if quote_verified else None for level in LEVELS},
+        "roi_renewal_listed": {level: ratio(values[level], cost["renewal_monthly_listed_usd"])
+                               if quote_verified else None for level in LEVELS},
+        "shared_pool_alternatives": {},
+    }
+
+
 def index_items(items, key, where):
     result = {}
     for index, item in enumerate(array(items, where)):
@@ -620,11 +1185,27 @@ def validate(data, today=None):
     if data_kind not in ("live", "synthetic"):
         raise InputError("data_kind must be live or synthetic")
     query_date = real_date(data.get("query_date"), "query_date")
-    execution_date = date.today() if today is None else today
-    if not isinstance(execution_date, date):
-        raise InputError("today must be a date")
+    zone_name = data.get("query_timezone")
+    if zone_name is not None:
+        zone_name = string(zone_name, "query_timezone")
+        try:
+            query_zone = ZoneInfo(zone_name)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise InputError("query_timezone must be a valid IANA timezone") from exc
+    else:
+        query_zone = None
+    if today is None:
+        execution_date = datetime.now(query_zone).date() if query_zone else date.today()
+    elif isinstance(today, datetime):
+        if today.tzinfo is None:
+            raise InputError("today datetime must have a timezone")
+        execution_date = today.astimezone(query_zone).date() if query_zone else today.astimezone().date()
+    elif isinstance(today, date):
+        execution_date = today
+    else:
+        raise InputError("today must be a date or timezone-aware datetime")
     if data_kind == "live" and query_date != execution_date.isoformat():
-        raise InputError("live query_date must equal the execution host's current local date")
+        raise InputError("live query_date must equal today's date in query_timezone (or host local date)")
     fx = obj(data.get("fx"), "fx")
     real_date(fx.get("as_of"), "fx.as_of")
     raw_rates = obj(fx.get("per_usd"), "fx.per_usd")
@@ -689,8 +1270,10 @@ def validate(data, today=None):
             if limits.get("concurrency") is not None:
                 integer(limits["concurrency"], f"plans.{ident}.limits.concurrency")
         pools = array(plan.get("pools"), f"plans.{ident}.pools")
-        if not pools:
-            raise InputError(f"plans.{ident}.pools must not be empty")
+        if not pools and plan.get("estimate_bundle") is None and not plan.get("empirical_observations"):
+            raise InputError(f"plans.{ident}.pools must not be empty without an estimate bundle or empirical observation")
+        if plan.get("estimate_bundle") is not None and plan.get("empirical_observations"):
+            raise InputError(f"plans.{ident} cannot combine alternative bundle and raw observations")
         for pool in pools:
             pool = obj(pool, f"plans.{ident}.pool")
             pool_id = string(pool.get("id"), "pool.id")
@@ -789,6 +1372,85 @@ def rankings(evaluations):
     }
 
 
+def estimate_confidence(row):
+    if row["status"] != "estimated":
+        return "insufficient"
+    classes = set(row["source_classes"])
+    if row["category"] == "mixed_model_bundle" or classes.intersection(
+        {"empirical_current", "stale_empirical", "explicit_assumption", "theoretical_window"}
+    ):
+        return "low"
+    if row["category"] == "exact_model" and (
+        row["scenario_id"].startswith("direct:") or all(
+            component.get("api_parity_credit_usd") is not None
+            for component in row["components"]
+        )
+    ):
+        return "high"
+    return "medium"
+
+
+def estimated_rankings(rows, plans):
+    for row in rows:
+        row["confidence"] = estimate_confidence(row)
+    eligible = [row for row in rows if row["status"] == "estimated"
+                and row["roi_renewal_listed"]["base"] is not None]
+    exact_groups = {}
+    for row in eligible:
+        if row["category"] != "exact_model":
+            continue
+        key = (row["model_id"], row["api_price_id"], row["scenario_id"])
+        exact_groups.setdefault(key, []).append(row)
+    same = []
+    for key, group in sorted(exact_groups.items(), key=lambda item: (
+        item[0][0], item[0][1], item[0][2] or ""
+    )):
+        if len(group) < 2:
+            continue
+        group.sort(key=lambda row: (-row["roi_renewal_listed"]["base"], row["plan_id"]))
+        same.append({"model_id": key[0], "api_price_id": key[1],
+                     "scenario_id": key[2], "rows": group})
+    own = sorted((row for row in eligible if row["category"] == "exact_model"), key=lambda row: (
+        -row["roi_renewal_listed"]["base"], row["plan_id"],
+        row["model_id"] or ""
+    ))
+    mixed = sorted((row for row in eligible if row["category"] == "mixed_model_bundle"),
+                   key=lambda row: (-row["roi_renewal_listed"]["base"], row["plan_id"]))
+    by_plan = {}
+    for row in rows:
+        by_plan.setdefault(row["plan_id"], []).append(row)
+    total = []
+    omitted = []
+    for plan in plans.values():
+        reference = plan.get("representative_scenario_id")
+        if reference is None:
+            omitted.append({"plan_id": plan["id"], "reason": "representative_scenario_id_missing"})
+            continue
+        string(reference, f"plans.{plan['id']}.representative_scenario_id")
+        candidates = [row for row in by_plan.get(plan["id"], [])
+                      if row["scenario_id"] == reference]
+        if len(candidates) != 1:
+            omitted.append({"plan_id": plan["id"],
+                            "reason": "representative_scenario_id_not_unique_or_missing"})
+            continue
+        selected = candidates[0]
+        if selected not in eligible:
+            omitted.append({"plan_id": plan["id"],
+                            "reason": "representative_scenario_unrankable"})
+            continue
+        total.append({"plan_id": plan["id"], "representative": selected,
+                      "other_scenario_ids": sorted({row["scenario_id"]
+                                                    for row in by_plan[plan["id"]]
+                                                    if row is not selected})})
+    total.sort(key=lambda item: (-item["representative"]["roi_renewal_listed"]["base"],
+                                 item["plan_id"]))
+    return {"estimated_same_model": same, "estimated_own_api_value": own,
+            "estimated_mixed_bundle": mixed,
+            "estimated_total_plan_value": total,
+            "estimated_total_plan_omissions": omitted,
+            "ranking_basis": "base estimate divided by current quoted renewal price"}
+
+
 def unrank_partial_plan_value(row, reason):
     row["status"] = "unranked"
     row["value_kind"] = "unvalued"
@@ -806,6 +1468,7 @@ def unrank_partial_plan_value(row, reason):
 def analyze(data, today=None):
     data_kind, query_date, rates, fx_issue, api_prices, scenarios, plans = validate(data, today)
     evaluations = []
+    estimated_evaluations = []
     for plan in plans.values():
         converted_models = {
             rule["model_id"] for pool in plan["pools"] for rule in pool["rules"]
@@ -816,6 +1479,11 @@ def analyze(data, today=None):
             (rule["model_id"], rule["api_price_id"])
             for pool in plan["pools"] for rule in pool["rules"]
             if is_direct_entitlement(pool, rule)
+        }
+        converted_estimate_keys = {
+            (rule["model_id"], rule["api_price_id"])
+            for pool in plan["pools"] for rule in pool["rules"]
+            if not is_direct_entitlement(pool, rule)
         }
         for mid, price_id in sorted(direct_keys):
             if mid in converted_models:
@@ -831,12 +1499,34 @@ def analyze(data, today=None):
             )
             if row is not None:
                 evaluations.append(row)
+            if (mid, price_id) not in converted_estimate_keys:
+                estimated = evaluate_estimated_plan_scenario(
+                    plan, direct_scenario, api_prices, rates, data_kind,
+                    query_date, fx_issue, direct=True
+                )
+                if estimated is not None:
+                    estimated_evaluations.append(estimated)
         for scenario in scenarios.values():
             row = evaluate_plan_scenario(
                 plan, scenario, api_prices, rates, data_kind, query_date, fx_issue
             )
             if row is not None:
                 evaluations.append(row)
+            estimated = evaluate_estimated_plan_scenario(
+                plan, scenario, api_prices, rates, data_kind, query_date, fx_issue
+            )
+            if estimated is not None:
+                estimated_evaluations.append(estimated)
+        bundle_row = evaluate_estimate_bundle(
+            plan, rates, data_kind, query_date, fx_issue
+        )
+        if bundle_row is not None:
+            estimated_evaluations.append(bundle_row)
+        for observation in array(plan.get("empirical_observations", []),
+                                 f"plans.{plan['id']}.empirical_observations"):
+            estimated_evaluations.append(evaluate_empirical_observation(
+                plan, observation, api_prices, rates, data_kind, query_date, fx_issue
+            ))
         direct_prices_by_model = {}
         for pool in plan["pools"]:
             if pool["entitlement_class"] != "guaranteed":
@@ -886,12 +1576,16 @@ def analyze(data, today=None):
     return {
         "schema_version": 2, "data_kind": data_kind, "query_date": query_date,
         "fx_as_of": data["fx"]["as_of"], "evaluations": evaluations,
-        "rankings": rankings(evaluations),
+        "estimated_evaluations": estimated_evaluations,
+        "rankings": {**rankings(evaluations), **estimated_rankings(estimated_evaluations, plans)},
         "notes": [
             "API equivalent is replacement cost, not cash back or equal model quality.",
             "Assumption-based operation mixes are technical conversion scenarios.",
             "Rows using one shared pool for different models are mutually exclusive, not additive.",
-            "Short-window monthly upper bounds are not included in sorted rankings.",
+            "Estimated short-window values are named sensitivity scenarios, not measured monthly capacity.",
+            "Mixed-model source-reported weekly API values are separate from strict same-model comparisons.",
+            "Main plan ranking uses one explicit representative scenario per plan; alternatives are not summed.",
+            "Low/base/high are assumption sensitivity values, not statistical confidence intervals.",
             "Listed-price ratios assume the published quote without unverified checkout adjustments; exact paid-cost ratios require tax terms.",
         ],
     }
@@ -913,8 +1607,69 @@ def markdown(result):
         f"# Current plan API-equivalent value ({result['data_kind']}, {result['query_date']})",
         "", "API equivalent is replacement cost; model quality is not normalized.",
         "Exact paid-cost ROI requires verified checkout tax terms. Listed-price ROI uses the published quote without unverified checkout adjustments.",
-        "", "## Same model ranking", "",
+        "Low/base/high are explicit sensitivity assumptions, not statistical intervals or personal utilization.",
+        "", "## Estimated current total plan value (representative scenarios)", "",
+        "One explicitly selected scenario per plan; other model uses of a shared pool are alternatives. Ratios are conditional on the current listed renewal price.", "",
+        "| Rank | Plan | Category | Model / scenario | Monthly API USD low / base / high | Listed-price ROI low / base / high | Evidence | Confidence |",
+        "| ---: | --- | --- | --- | --- | --- | --- | --- |",
     ]
+    for rank, item in enumerate(result["rankings"]["estimated_total_plan_value"], 1):
+        row = item["representative"]
+        model = row["model_id"] or "mixed models"
+        values = " / ".join(fmt(row["monthly_api_value_usd"][level]) for level in LEVELS)
+        ratios = " / ".join(fmt(row["roi_renewal_listed"][level]) for level in LEVELS)
+        rows.append(f"| {rank} | {row['plan_id']} | {row['category']} | "
+                    f"{model} · {row['scenario_id']} | {values} | {ratios} | "
+                    f"{', '.join(row['source_classes'])} | {row['confidence']} |")
+    if not result["rankings"]["estimated_total_plan_value"]:
+        rows.append("| — | No rankable representative scenario | — | — | — | — | — | — |")
+    rows.extend(("", "## Estimated same exact model", "",
+                 "Only identical canonical model, API tariff row, and conversion scenario share a comparison group.", ""))
+    if not result["rankings"]["estimated_same_model"]:
+        rows.extend(("No comparable exact-model pair.", ""))
+    for group in result["rankings"]["estimated_same_model"]:
+        rows.extend((f"### {group['model_id']} · {group['api_price_id']} · {group['scenario_id']}", "",
+                     "| Rank | Plan | API USD low / base / high | Conditional ROI low / base / high | Confidence |",
+                     "| ---: | --- | --- | --- | --- |"))
+        for rank, row in enumerate(group["rows"], 1):
+            values = " / ".join(fmt(row["monthly_api_value_usd"][level]) for level in LEVELS)
+            ratios = " / ".join(fmt(row["roi_renewal_listed"][level]) for level in LEVELS)
+            rows.append(f"| {rank} | {row['plan_id']} | {values} | {ratios} | {row['confidence']} |")
+        rows.append("")
+    rows.extend(("## Estimated own-model API value", "",
+                 "Each row uses its own maker API price; cross-model dollars do not imply equal capability.", "",
+                 "| Rank | Plan | Model | Scenario | API USD low / base / high | Conditional ROI base | Confidence |",
+                 "| ---: | --- | --- | --- | --- | ---: | --- |"))
+    for rank, row in enumerate(result["rankings"]["estimated_own_api_value"], 1):
+        values = " / ".join(fmt(row["monthly_api_value_usd"][level]) for level in LEVELS)
+        rows.append(f"| {rank} | {row['plan_id']} | {row['model_id']} | {row['scenario_id']} | "
+                    f"{values} | {fmt(row['roi_renewal_listed']['base'])} | {row['confidence']} |")
+    if not result["rankings"]["estimated_own_api_value"]:
+        rows.append("| — | No rankable exact-model estimate | — | — | — | — | — |")
+    rows.extend(("", "## Estimated mixed-model bundles", "",
+                 "Source-reported weekly API value is converted to monthly by stated window counts; it is not a single-model tariff comparison.", "",
+                 "| Rank | Plan | Interactive API USD base | Separate API credit USD base | Total API USD low / base / high | Conditional ROI base | Evidence |",
+                 "| ---: | --- | ---: | ---: | --- | ---: | --- |"))
+    for rank, row in enumerate(result["rankings"]["estimated_mixed_bundle"], 1):
+        components = row["components"]
+        values = " / ".join(fmt(row["monthly_api_value_usd"][level]) for level in LEVELS)
+        rows.append(f"| {rank} | {row['plan_id']} | "
+                    f"{fmt(components['interactive_mixed_usd']['base'])} | "
+                    f"{fmt(components['api_credit_usd']['base'])} | {values} | "
+                    f"{fmt(row['roi_renewal_listed']['base'])} | {', '.join(row['source_classes'])} |")
+    if not result["rankings"]["estimated_mixed_bundle"]:
+        rows.append("| — | No rankable mixed-model observation | — | — | — | — | — |")
+    rows.extend(("", "## Estimated exclusions", "",
+                 "| Plan | Scenario | Reason |", "| --- | --- | --- |"))
+    for row in result["estimated_evaluations"]:
+        if row["status"] != "estimated":
+            rows.append(f"| {row['plan_id']} | {row['scenario_id']} | "
+                        f"{', '.join(row['reasons']) or 'unknown'} |")
+    for item in result["rankings"]["estimated_total_plan_omissions"]:
+        rows.append(f"| {item['plan_id']} | representative | {item['reason']} |")
+    rows.extend(("", "## Guaranteed/direct audit", "",
+                 "The following v2 audit uses only guaranteed directly monthly convertible entitlement.",
+                 "", "## Same model ranking", ""))
     if not result["rankings"]["same_model"]:
         rows.extend(("No comparable pair with the same exact model, API price, and conversion scenario.", ""))
     for group in result["rankings"]["same_model"]:

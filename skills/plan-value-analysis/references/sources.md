@@ -1,6 +1,6 @@
-# 当前官方来源入口
+# 来源入口
 
-以下链接只用于定位**查询时仍在售**的套餐、模型扣费和官方 API 价；不保存报价快照。每次分析重新打开官方页面，核对地区、在售状态、适用模型版本、首期及续费、额度、扣费与有效期，并记录 URL、查询日期和支持字段的短片段。停售页面、过期说明或有冲突的数字不能充作当前权益；先查明适用条款，否则该字段不排名。平台自己的 credit 价格不能无证明地代替模型官方 API 价。
+以下链接用于定位**查询时仍在售**的套餐、模型扣费、官方 API 价及公开测量；不保存报价快照。每次分析重新打开官方页面，核对地区、在售状态、适用模型版本、首期及续费、基础与当期 flex/bonus/促销、额度叠加、扣费与有效期，并记录 URL、查询日期和支持字段的短片段。停售页面、过期说明或有冲突的数字不能充作当前权益；先查明适用条款。平台自己的 credit 价格不能无证明地代替模型原厂官方 API 价。
 
 [Models.dev](https://models.dev/) 及其 [provider 数据](https://models.dev/api.json)、[模型元数据](https://models.dev/models.json)、[组合目录](https://models.dev/catalog.json) 可辅助发现模型 ID、开发者、接入服务商和价格候选。它的聚合价格或某接入商报价不自动等于**模型开发者的官方 API 价**；关键版本和费率仍须在模型开发者的官方 API 页面当次核实，也不能靠聚合条目证明某订阅仍在售。
 
@@ -8,14 +8,19 @@
 
 | 产品或模型 | 当前核验入口 | 核对重点 |
 | --- | --- | --- |
-| GitHub Copilot | [套餐](https://github.com/features/copilot/plans)、[个人订阅计费](https://docs.github.com/en/copilot/concepts/billing/usage-based-billing-for-individuals)、[模型与价格](https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing) | 当前档位、AI credits、模型费率与缓存扣费。 |
-| Claude Max / Code | [Max 套餐](https://support.claude.com/en/articles/11049741-what-is-the-max-plan)、[额度与长度限制](https://support.claude.com/en/articles/11647753-how-do-usage-and-length-limits-work)、[Claude API 价格](https://platform.claude.com/docs/en/about-claude/pricing) | 共用额度与窗口限制；宣传倍率是否有可换算额度。 |
+| GitHub Copilot | [套餐](https://github.com/features/copilot/plans)、[个人订阅计费](https://docs.github.com/en/copilot/concepts/billing/usage-based-billing-for-individuals)、[模型与价格](https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing) | 当前档位、基础与 flex credits 是否叠加、模型费率与缓存扣费；勿混用其它计费制度。 |
+| Claude Max / Code | [Max 套餐](https://support.claude.com/en/articles/11049741-what-is-the-max-plan)、[额度与长度限制](https://support.claude.com/en/articles/11647753-how-do-usage-and-length-limits-work)、[Claude API 价格](https://platform.claude.com/docs/en/about-claude/pricing) | 共用额度与窗口限制；宣传倍率是否有可换算额度，公开测量的模型 mix 和 extra usage。 |
 | MiniMax M Plan | [M Plan](https://platform.minimax.io/docs/m-plan/intro)、[API 价格](https://platform.minimax.io/docs/pricing/overview) | 当前在售档位、适用模型与扣费规则。 |
 | 小米 MiMo Token Plan | [套餐额度与扣费](https://mimo.mi.com/docs/en-US/quick-start/faq/token-plan/Usage%26Quota)、[API 价格](https://mimo.mi.com/docs/en-US/price/pay-as-you-go) | cache hit/miss/output 权重、时段、额度窗口。 |
-| Tencent CodeBuddy | [套餐](https://www.codebuddy.ai/pricing/)、[Credits 说明](https://www.codebuddy.ai/docs/ide/Account/credits) | 产品身份与 credit 扣费；未公布确定映射时不精确估值。 |
+| Tencent CodeBuddy | [套餐](https://www.codebuddy.ai/pricing/)、[Credits 说明](https://www.codebuddy.ai/docs/ide/Account/credits) | 产品身份与 credit 扣费；映射不全时寻找公开测量或列通用场景，不伪称精确。 |
 | Kimi / Kimi Code | [会员权益](https://www.kimi.com/en/help/membership/membership-overview)、[会员价格](https://www.kimi.com/en/help/membership/membership-pricing)、[模型 API 价格](https://platform.moonshot.cn/docs/pricing/chat) | 当前在售档位、Code 权限及共享额度；会员和 API 为不同产品。 |
+| GLM Coding Plan | [中国区套餐概览](https://docs.bigmodel.cn/cn/coding-plan/overview)、[中国区用量说明](https://docs.bigmodel.cn/cn/coding-plan/faq)、[国际区套餐](https://docs.z.ai/devpack/overview)、[国际区 API 价格](https://docs.z.ai/guides/overview/pricing) | 分地区核对档位、额度窗口、时段倍率、工具权限与模型原厂价；不混用两地区条款。 |
 | OpenCode Go | [Go 套餐](https://opencode.ai/v2/docs/console/go/) | 当前逐模型金额上限、短窗口与月上限；预估请求数不等于保证额度。 |
 | Command Code | [使用限制](https://commandcode.ai/docs/resources/usage-limits)、[价格与限制](https://commandcode.ai/docs/resources/pricing-limits) | 产品身份、共享归一池与窗口；官方页面数字冲突时标记 `conflicting`。 |
 | DeepSeek 官方 API | [模型与价格](https://api-docs.deepseek.com/quick_start/pricing/)、[模型列表](https://api-docs.deepseek.com/api/list-models/)、[更新记录](https://api-docs.deepseek.com/updates/) | alias 当次服务 checkpoint、模式及缓存价格；其它平台的模型身份另行核实。 |
 
-其它厂商也须分别找到当前官方**套餐与扣费规则**、**模型身份**及**该模型 API 价格**。任一环节无法核实，就说明缺口，不沿用其它模型或过期套餐的数字。
+其它厂商也须分别找到当前官方**套餐与扣费规则**、**模型身份**及**该模型 API 价格**。任一环节无法核实，就说明缺口；可继续寻找有出处的技术估计，不能沿用其它模型或过期套餐的数字。
+
+## 公开测量发现入口
+
+可从可复核的 [原始 usage/meter 记录示例](https://github.com/Fei2411/real-api-pricing/issues/96)、[另一档位的原始测量](https://github.com/Fei2411/real-api-pricing/issues/98)、[单账户方法说明](https://mulletiq.com/blog/claude-max-20x-vs-5x) 和 [多账户方法说明](https://wokey.ai/claude-max-limits) 寻找当次仍适用的观测；也可检索公开 X 原帖。它们都不是官方承诺额度，发布日期、观测日期、套餐/模型版本、cache、meter 外推、账户数及商业利益关系须逐项核对；原帖打不开或只有二手转述时，不能标成已核验第一手证据。对同一套餐的不同技术负载保留并列场景，不把差异样本机械平均。记录与估计规则见[证据参考](evidence.md)。

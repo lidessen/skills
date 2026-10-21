@@ -5,7 +5,7 @@ import importlib.util
 import json
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -84,6 +84,21 @@ def mark_live(data, fetched_at="2026-10-21"):
     plan["pools"][0]["quota"]["evidence"] = verified
     plan["pools"][0]["rules"][0]["evidence"] = verified
     return verified
+
+
+def estimate_source(kind="official_current", match="exact"):
+    source = {"class": kind, "url": "https://example.test/current-estimate",
+              "fetched_at": "2026-10-21", "model_match": match,
+              "assumptions": {"low": "low sensitivity", "base": "current central scenario",
+                              "high": "high sensitivity"}}
+    if kind in ("empirical_current", "stale_empirical"):
+        source["observed_at"] = "2026-10-20"
+    return source
+
+
+def estimated(data, plan_id="basic"):
+    return next(row for row in calculator.analyze(data)["estimated_evaluations"]
+                if row["plan_id"] == plan_id)
 
 
 class PlanValueTests(unittest.TestCase):
@@ -604,6 +619,178 @@ class PlanValueTests(unittest.TestCase):
         self.assertNotIn("rolling", same)
         self.assertNotIn("rolling", own)
         self.assertIn("rolling", diagnostics)
+
+    def test_current_additive_flex_and_exact_api_parity_have_no_operation_rounding(self):
+        data = base()
+        plan = data["plans"][0]
+        data["conversion_scenarios"] = []
+        plan["representative_scenario_id"] = f"direct:{MODEL}"
+        stable = plan["pools"][0]
+        stable["id"] = "stable"
+        stable["unit"] = "credits"
+        stable["quota"]["amount"] = "1000"
+        stable["rules"][0] = {
+            "model_id": MODEL, "api_price_id": "alpha-standard", "basis": "weighted_tokens",
+            "per_million": {"input": "100", "output": "0", "cache_read": "0", "cache_write": "0"},
+            "api_parity_credit_usd": "0.01", "api_parity_evidence": SOURCE,
+            "evidence": SOURCE,
+        }
+        extra = copy.deepcopy(stable)
+        extra["id"] = "flex"
+        extra["entitlement_class"] = "conditional"
+        extra["quota"]["amount"] = "500"
+        extra["estimate"] = {
+            "source": estimate_source(), "presence": {"low": "0", "base": "1", "high": "1"},
+            "additive_to": ["stable"], "stacking_evidence": SOURCE,
+        }
+        plan["pools"].append(extra)
+        result = calculator.analyze(data)
+        row = result["estimated_evaluations"][0]
+        self.assertEqual(row["monthly_api_value_usd"], {
+            "low": Decimal("10"), "base": Decimal("15"), "high": Decimal("15")})
+        self.assertEqual(row["roi_renewal_listed"]["base"], Decimal("1.5"))
+        self.assertEqual(result["rankings"]["estimated_total_plan_value"][0]
+                         ["representative"]["scenario_id"], f"direct:{MODEL}")
+        self.assertEqual(row["confidence"], "high")
+        self.assertEqual(result["evaluations"][0]["monthly_api_value_usd"], Decimal("10"))
+        del extra["estimate"]["stacking_evidence"]
+        self.assertEqual(estimated(data)["status"], "unranked")
+        extra["estimate"]["stacking_evidence"] = SOURCE
+        stable["rules"][0]["per_million"]["input"] = "99"
+        self.assertIn("credit_to_maker_api_tariff_parity_not_proven",
+                      estimated(data)["reasons"][0])
+
+    def test_bonus_must_prove_additive_against_every_component(self):
+        data = base()
+        plan = data["plans"][0]
+        for ident in ("stable-b", "stable-c"):
+            pool = copy.deepcopy(plan["pools"][0])
+            pool["id"] = ident
+            plan["pools"].append(pool)
+        extra = copy.deepcopy(plan["pools"][0])
+        extra["id"] = "extra"
+        extra["entitlement_class"] = "promotional"
+        extra["estimate"] = {"source": estimate_source(match="not_applicable"),
+                             "presence": {"low": "0", "base": "1", "high": "1"},
+                             "additive_to": ["basic-pool"], "stacking_evidence": SOURCE}
+        plan["pools"].append(extra)
+        self.assertEqual(estimated(data)["status"], "unranked")
+        extra["estimate"]["additive_to"] = ["basic-pool", "stable-b", "stable-c"]
+        self.assertEqual(estimated(data)["monthly_api_value_usd"]["base"], Decimal("4"))
+
+    def test_short_window_sensitivity_intersects_caps_without_claiming_guarantee(self):
+        data = base()
+        pool = data["plans"][0]["pools"][0]
+        pool["window"] = {"kind": "rolling_hours", "hours": 5}
+        pool["additional_caps"] = [
+            {"id": "week", "amount": "250", "window": {"kind": "weekly", "reset": "rolling"},
+             "evidence": SOURCE}]
+        pool["estimate"] = {"source": estimate_source("theoretical_window"),
+                            "window_counts": {"primary": {"low": "4", "base": "8", "high": "12"},
+                                              "week": {"low": "1", "base": "2", "high": "2"}}}
+        row = estimated(data)
+        self.assertEqual(row["monthly_api_value_usd"], {
+            "low": Decimal("2.5"), "base": Decimal("5"), "high": Decimal("5")})
+        self.assertEqual(row["confidence"], "low")
+        pool["estimate"]["source"]["class"] = "official_current"
+        self.assertEqual(estimated(data)["status"], "unranked")
+
+    def test_source_reported_mixed_bundle_is_separate_and_api_credit_independent(self):
+        data = base()
+        plan = data["plans"][0]
+        plan["pools"] = []
+        plan["representative_scenario_id"] = "mixed-weekly"
+        plan["estimate_bundle"] = {
+            "id": "mixed-weekly", "source": estimate_source("empirical_current", "not_applicable"),
+            "weekly_api_value_usd": {"low": "100", "base": "125", "high": "150"},
+            "monthly_window_counts": {"low": "4", "base": "4", "high": "4"},
+            "api_credit": {"monthly_usd": "10", "presence": {"low": "0", "base": "1", "high": "1"},
+                           "source": estimate_source("official_current", "not_applicable"),
+                           "independence_evidence": SOURCE},
+        }
+        result = calculator.analyze(data)
+        row = result["estimated_evaluations"][0]
+        self.assertEqual(row["monthly_api_value_usd"], {
+            "low": Decimal("400"), "base": Decimal("510"), "high": Decimal("610")})
+        self.assertEqual(result["rankings"]["estimated_same_model"], [])
+        self.assertEqual(result["rankings"]["estimated_own_api_value"], [])
+        self.assertEqual(result["rankings"]["estimated_mixed_bundle"][0]["plan_id"], "basic")
+        self.assertEqual(result["rankings"]["estimated_total_plan_value"][0]
+                         ["representative"]["category"], "mixed_model_bundle")
+
+    def test_raw_meter_observation_prices_disjoint_buckets_and_explicit_projection(self):
+        data = base()
+        plan = data["plans"][0]
+        plan["pools"] = []
+        plan["representative_scenario_id"] = "meter-week"
+        plan["empirical_observations"] = [{
+            "id": "meter-week", "model_id": MODEL, "api_price_id": "alpha-standard",
+            "source": estimate_source("empirical_current"),
+            "token_buckets": {"input": 1_000_000, "output": 0, "cache_read": 0,
+                              "cache_write": 0},
+            "accounts": 1, "extra_usage": False, "window_kind": "weekly",
+            "meter_start": "0", "meter_end": "0.5", "exhausted": False,
+            "linear_meter_projection": True,
+            "value_basis": {"low": "observed", "base": "projected", "high": "projected"},
+            "monthly_window_counts": {"low": "4", "base": "4", "high": "5"},
+            "context_tokens": 10000, "batch": False,
+        }]
+        row = estimated(data)
+        self.assertEqual(row["components"]["observed_window_api_usd"], Decimal("1"))
+        self.assertEqual(row["components"]["projected_full_window_api_usd"], Decimal("2"))
+        self.assertEqual(row["monthly_api_value_usd"], {
+            "low": Decimal("4"), "base": Decimal("8"), "high": Decimal("10")})
+        plan["empirical_observations"][0]["linear_meter_projection"] = False
+        with self.assertRaisesRegex(calculator.InputError, "needs linear_meter_projection"):
+            calculator.analyze(data)
+
+    def test_main_ranking_omits_plan_without_explicit_representative(self):
+        data = base()
+        result = calculator.analyze(data)
+        self.assertEqual(result["rankings"]["estimated_total_plan_value"], [])
+        self.assertEqual(result["rankings"]["estimated_total_plan_omissions"][0]["reason"],
+                         "representative_scenario_id_missing")
+
+    def test_direct_estimate_uses_stable_reference_id_without_changing_audit_id(self):
+        data = base()
+        data["conversion_scenarios"] = []
+        pool = data["plans"][0]["pools"][0]
+        pool["unit"] = "currency"
+        pool["quota"] = {"amount": "7", "currency": "CNY", "evidence": SOURCE}
+        pool["rules"] = [{"model_id": MODEL, "api_price_id": "alpha-standard",
+                          "basis": "api_value", "evidence": SOURCE}]
+        data["plans"][0]["representative_scenario_id"] = f"direct:{MODEL}"
+        result = calculator.analyze(data)
+        self.assertIsNone(result["evaluations"][0]["scenario_id"])
+        self.assertEqual(result["estimated_evaluations"][0]["scenario_id"], f"direct:{MODEL}")
+        self.assertEqual(result["rankings"]["estimated_total_plan_value"][0]["plan_id"],
+                         "basic")
+
+    def test_partial_unknown_token_bucket_estimate_stays_unranked(self):
+        data = base()
+        data["conversion_scenarios"] = []
+        pool = data["plans"][0]["pools"][0]
+        pool["unit"] = "token_buckets"
+        pool["quota"] = {"amounts": {"input": None, "output": 0, "cache_read": 0,
+                                     "cache_write": 0}, "evidence": SOURCE}
+        pool["rules"] = [{"model_id": MODEL, "api_price_id": "alpha-standard",
+                          "basis": "token_buckets", "evidence": SOURCE}]
+        row = estimated(data)
+        self.assertEqual(row["status"], "unranked")
+        self.assertIn("pool:basic-pool:quota_anchor_missing", row["reasons"])
+
+    def test_explicit_query_timezone_uses_that_date_and_rejects_invalid_zone(self):
+        data = base()
+        mark_live(data)
+        data["query_timezone"] = "Etc/UTC"
+        instant = datetime(2026, 10, 21, 17, 38, tzinfo=timezone.utc)
+        self.assertEqual(calculator.analyze(data, today=instant)["query_date"], "2026-10-21")
+        data["query_timezone"] = "Asia/Shanghai"
+        with self.assertRaisesRegex(calculator.InputError, "query_timezone"):
+            calculator.analyze(data, today=instant)
+        data["query_timezone"] = "No/Such_Zone"
+        with self.assertRaisesRegex(calculator.InputError, "valid IANA timezone"):
+            calculator.analyze(data, today=instant)
 
 
 if __name__ == "__main__":

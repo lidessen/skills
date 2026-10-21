@@ -109,8 +109,58 @@
               "units_per_operation": "1"
             }
           ]
+        },
+        {
+          "id": "fictional-a-basic-current-flex",
+          "unit": "requests",
+          "entitlement_class": "conditional",
+          "quota": {
+            "amount": "50",
+            "evidence": {
+              "status": "synthetic"
+            }
+          },
+          "window": {
+            "kind": "monthly"
+          },
+          "rules": [
+            {
+              "model_id": "fictional/shared@1.0#standard",
+              "api_price_id": "fictional-shared-standard",
+              "basis": "request",
+              "evidence": {
+                "status": "synthetic"
+              },
+              "units_per_operation": "1"
+            }
+          ],
+          "estimate": {
+            "source": {
+              "class": "official_current",
+              "url": "https://example.invalid/synthetic-current-flex",
+              "fetched_at": "2026-01-01",
+              "model_match": "exact",
+              "assumptions": {
+                "low": "Fictional flex is unavailable in the low scenario",
+                "base": "Fictional flex is currently eligible and fully additive",
+                "high": "Fictional flex remains eligible through the month"
+              }
+            },
+            "presence": {
+              "low": "0",
+              "base": "1",
+              "high": "1"
+            },
+            "additive_to": [
+              "fictional-a-basic-requests"
+            ],
+            "stacking_evidence": {
+              "status": "synthetic"
+            }
+          }
         }
       ],
+      "representative_scenario_id": "shared-coding-scenario",
       "availability": {
         "status": "on_sale",
         "evidence": {
@@ -181,6 +231,7 @@
           ]
         }
       ],
+      "representative_scenario_id": "shared-coding-scenario",
       "availability": {
         "status": "on_sale",
         "evidence": {
@@ -270,9 +321,30 @@
               },
               "units_per_operation": "1"
             }
-          ]
+          ],
+          "estimate": {
+            "source": {
+              "class": "theoretical_window",
+              "url": "https://example.invalid/synthetic-window",
+              "fetched_at": "2026-01-01",
+              "model_match": "not_applicable",
+              "assumptions": {
+                "low": "One fictional five-hour window is counted in a month",
+                "base": "Two fictional five-hour windows are counted in a month",
+                "high": "Three fictional five-hour windows are counted in a month"
+              }
+            },
+            "window_counts": {
+              "primary": {
+                "low": "1",
+                "base": "2",
+                "high": "3"
+              }
+            }
+          }
         }
       ],
+      "representative_scenario_id": "shared-coding-scenario",
       "availability": {
         "status": "on_sale",
         "evidence": {
@@ -344,6 +416,7 @@
           ]
         }
       ],
+      "representative_scenario_id": "direct:fictional/shared@1.0#standard",
       "availability": {
         "status": "on_sale",
         "evidence": {
