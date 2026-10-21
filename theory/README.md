@@ -10,7 +10,7 @@
 | [信息与文档管理](thoughts/information.md) | 归档价值、信息干湿、文档组织和归属审计的原话记录 | [原文](https://github.com/lidessen/rossovia-old/blob/e205d09f036a134864d336978ced0a7ec9c10f91/theory/thoughts/information.md) |
 | [Skills 方法要点](skills.md) | 旧项目中 11 个方法的核心判断与边界 | [原文](https://github.com/lidessen/rossovia-old/blob/e205d09f036a134864d336978ced0a7ec9c10f91/theory/skills.md) |
 
-三份文件来自 `rossovia-old` 的 `cursor/incubate-theory-068c` 分支，固定提交为 `e205d09f036a134864d336978ced0a7ec9c10f91`。本次保留原始字节，不在正文加入导航或改写历史表述；逐文件校验值见[迁移清单](../migration-manifest.json)。
+三份文件来自 `rossovia-old` 的 `cursor/incubate-theory-068c` 分支，固定提交为 `e205d09f036a134864d336978ced0a7ec9c10f91`。正文保留原始字节与历史表述。
 
 这些文稿在旧仓中已经是从归档提取的要点或原话记录，不能据此认为归档里的全部上下文也已迁入。原文保留的候选、未知和旧方法名仍按当时的地位阅读；旧 11 个方法与当前可安装技能不一一对应。
 
@@ -19,7 +19,7 @@
 - [技能怎样发展，效果怎样判断](skill-development.md)：整理方法作用、分层验证、匹配比较和评价限制。
 - [整体结构、分治与归位](architecture-and-defrag.md)：讨论职责边界、任务接合、整理中的语义保留和结果检查。
 
-这两篇主要来自后续 Rossovia 技能形成资料，来源区段保存在[迁移清单](../migration-manifest.json)。它们不是上面三份原文的直接缩写，也不替代原文。表达保真、单一语义源、机制负担、实践回返与验证等主题有所重合；哲学序列、旧方法的完整目录和原话条目仍需回到对应原文阅读。
+这两篇主要来自后续 Rossovia 技能形成资料，来源材料见[内容来源与适配](../MIGRATION.md#理论)。它们不是上面三份原文的直接缩写，也不替代原文。表达保真、单一语义源、机制负担、实践回返与验证等主题有所重合；哲学序列、旧方法的完整目录和原话条目仍需回到对应原文阅读。
 
 信息干湿这一想法还在[信息也有干湿](../notes/2026-08-26-information-hydration.md)中以独立短文呈现。`thoughts/information.md` 保留原话与当时的去向标记，短文面向阅读作了整理，两者分别保留。
 

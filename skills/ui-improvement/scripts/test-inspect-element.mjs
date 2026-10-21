@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { resolve, join } from "node:path";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
 import { elementFacts, inspectElement, locate } from "./inspect-element.mjs";
 
 const { chromium } = createRequire(resolve(process.cwd(), "package.json"))("@playwright/test");
@@ -93,7 +94,7 @@ try {
       ),
   });
   try {
-    const script = resolve("skills/ui-improvement/scripts/inspect-ui.mjs");
+    const script = fileURLToPath(new URL("./inspect-ui.mjs", import.meta.url));
     const invoke = async (extra) => {
       const child = Bun.spawn(
         [process.execPath, script, "--url", server.url.href, "--channel", "chrome", ...extra],

@@ -13,7 +13,7 @@
     },
     {
       "title": "development",
-      "description": "设计架构与界面，维护代码结构，撰写项目文档，一次做完实现。",
+      "description": "设计架构与界面，维护代码和依赖，验证行为并撰写项目文档，一次做完实现。",
       "skills": [
         "architecture",
         "assurance-review",
@@ -24,7 +24,9 @@
         "doc-writing",
         "interface-design",
         "oneshot",
-        "ui-improvement"
+        "ui-improvement",
+        "risk-driven-testing",
+        "dependency-upgrade"
       ]
     },
     {

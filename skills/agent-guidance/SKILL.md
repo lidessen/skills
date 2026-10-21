@@ -61,6 +61,7 @@ runtime/base 才拥有权限、工具能力、事务、并发、恢复、持久�
 - 组织上下文内容、状态与操作提示，或设计渐进披露：读 [context-interface.md](references/context-interface.md)。
 - 诊断载体层级、重叠、冲突和上下文负担：读 [review.md](references/review.md)。
 - 设计行为探针或报告证据强度：读 [evaluation.md](references/evaluation.md)。
+- 实际观察一段 Agent 工作、隔离操作者答案或开展开放评价：读 [field-trial.md](references/field-trial.md)。
 
 只读取会改变当前判断或行动的 reference。理论与研究是本 skill 的生成来源，不是普通激活的
 前置阅读；任务事实仍回到任务自己的 canonical source。

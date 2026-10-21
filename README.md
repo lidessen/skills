@@ -1,6 +1,6 @@
 # Skills
 
-这个仓库收录用于 Agent 开发协作的通用技能，以及相关的理论、感悟和文章。技能覆盖架构与界面设计、文档写作、调研、分治协作和项目整理，供不同项目按任务选用；理论与文章也可以独立阅读。
+这个仓库收录用于 Agent 开发协作的通用技能，以及相关的理论、感悟和文章。技能覆盖架构与界面设计、文档写作、调研、分治协作、测试和依赖维护，供不同项目按任务选用；理论与文章也可以独立阅读。维护本仓库时先读 [AGENTS.md](AGENTS.md)。
 
 ## 内容
 
@@ -13,7 +13,24 @@
 
 ### 按任务选择技能
 
-15 个技能按用途组成下面几组。Pack 提供分组浏览和安装入口，技能源码仍统一维护在本仓库的 `skills/` 中。
+技能源码位于根 `skills/`，每个技能目录包含入口和所需资源。根据任务选择方法，再阅读对应 `SKILL.md`：
+
+| 任务 | 方法入口 |
+| --- | --- |
+| 组织职责、依赖与整体结构 | [architecture](skills/architecture/SKILL.md) |
+| 设计 Agent 指导或发展方法 | [agent-guidance](skills/agent-guidance/SKILL.md)、[skill-incubator](skills/skill-incubator/SKILL.md) |
+| 分治协作 | [divide-and-conquer](skills/divide-and-conquer/SKILL.md) |
+| 设计测试、选择投入或接续复测 | [risk-driven-testing](skills/risk-driven-testing/SKILL.md) |
+| 整理结构或评估依赖升级 | [defrag](skills/defrag/SKILL.md)、[dependency-upgrade](skills/dependency-upgrade/SKILL.md) |
+| 界面设计与改进 | [interface-design](skills/interface-design/SKILL.md)、[ui-improvement](skills/ui-improvement/SKILL.md) |
+| 撰写项目文档 | [doc-writing](skills/doc-writing/SKILL.md) |
+| 调研材料与想法 | [research-synthesis](skills/research-synthesis/SKILL.md) |
+
+多轮测试和中断续接的方法在 `risk-driven-testing` 的按需参考中；隔离现场评估方法在 `agent-guidance` 的评估参考中。安装时先查看所选仓库版本实际提供的技能。
+
+### Pack
+
+Pack 提供分组浏览和安装入口，成员与仓库源码分别维护：
 
 | Pack | 技能数 | 包含的技能 |
 | --- | ---: | --- |
@@ -60,4 +77,4 @@ npx --yes skills@1.7.4 add lidessen/skills --skill interface-design -a codex --c
 
 ## 来源
 
-内容来源、命名变更和迁移记录见 [MIGRATION.md](MIGRATION.md)，逐文件来源见 [migration-manifest.json](migration-manifest.json)。文献、素材与第三方引用的出处保留在各文件中。
+内容来源、命名变更和适配记录见 [MIGRATION.md](MIGRATION.md)。文献、素材与第三方引用的出处保留在各文件中。
