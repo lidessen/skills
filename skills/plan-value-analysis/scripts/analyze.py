@@ -220,8 +220,11 @@ def cap_window(cap, where):
     if kind == "weekly":
         # Weekly reset policy is evidence, not an inferred monthly multiplier.
         reset = window.get("reset")
-        if reset not in ("calendar", "rolling"):
-            raise InputError(f"{where}.window.reset must be calendar or rolling")
+        if reset not in ("calendar", "rolling", "subscription_anchor", "unknown"):
+            raise InputError(
+                f"{where}.window.reset must be calendar, rolling, "
+                "subscription_anchor, or unknown"
+            )
     return kind
 
 
@@ -375,6 +378,9 @@ def monthly_cost(price, rates, data_kind, query_date):
     }
     for term in ("initial", "renewal"):
         amount = number(price.get(term), f"plan.price.{term}", nullable=True)
+        listed = amount / Decimal(months) if amount is not None else None
+        cost[f"{term}_monthly_listed_original"] = listed
+        cost[f"{term}_monthly_listed_usd"] = fx_convert(listed, currency, rates)
         original = amount * factor / Decimal(months) if amount is not None and factor is not None else None
         usd = fx_convert(original, currency, rates)
         cost[f"{term}_monthly_original"] = original
@@ -398,6 +404,7 @@ def evaluate_plan_scenario(plan, scenario, api_prices, rates, data_kind, query_d
         for rule in pool["rules"]
         if rule["model_id"] == scenario["model_id"]
         and not is_direct_entitlement(pool, rule)
+        and rule["api_price_id"] == scenario["api_price_id"]
     ]
     direct_matching = [
         (pool, rule)
@@ -422,13 +429,12 @@ def evaluate_plan_scenario(plan, scenario, api_prices, rates, data_kind, query_d
         availability.get("evidence"), data_kind, "plan_availability", query_date
     ))
     api_price = api_prices.get(scenario["api_price_id"])
-    needs_fx = (
-        plan["price"].get("currency") != "USD"
-        or (api_price is not None and api_price.get("currency") != "USD")
+    valuation_needs_fx = (
+        (api_price is not None and api_price.get("currency") != "USD")
         or any(pool["unit"] == "currency" and pool["quota"].get("currency") != "USD"
                for pool, _ in matching)
     )
-    if needs_fx:
+    if valuation_needs_fx:
         add_issue(issues, fx_issue)
     if data_kind == "live":
         for field in ("access", "limits"):
@@ -460,8 +466,6 @@ def evaluate_plan_scenario(plan, scenario, api_prices, rates, data_kind, query_d
             scenario.get("evidence"), data_kind, "official_usage", query_date
         ))
     cost, cost_issues = monthly_cost(plan["price"], rates, data_kind, query_date)
-    for issue in cost_issues:
-        add_issue(issues, issue)
     pools = []
     excluded_pools = []
     if api_usd is not None and api_price is not None:
@@ -524,6 +528,13 @@ def evaluate_plan_scenario(plan, scenario, api_prices, rates, data_kind, query_d
                 else "official_usage_conversion" if scenario["basis"] == "official_usage"
                 else "assumption_conversion"
             )
+    for issue in cost_issues:
+        add_issue(issues, issue)
+    if plan["price"].get("currency") != "USD":
+        add_issue(issues, fx_issue)
+    quote_verified = not any(issue.startswith("plan_price:") for issue in cost_issues) and not (
+        plan["price"].get("currency") != "USD" and fx_issue
+    )
     result = {
         "plan_id": plan["id"], "provider": plan["provider"], "product": plan["product"],
         "tier": plan["tier"], "region": plan["region"],
@@ -543,10 +554,26 @@ def evaluate_plan_scenario(plan, scenario, api_prices, rates, data_kind, query_d
         "monthly_api_value_usd": monthly_value,
         "monthly_api_value_upper_usd": monthly_upper,
         "monthly_cost": cost,
-        "roi_initial": ratio(monthly_value, cost["initial_monthly_usd"]),
-        "roi_renewal": ratio(monthly_value, cost["renewal_monthly_usd"]),
-        "roi_initial_upper": ratio(monthly_upper, cost["initial_monthly_usd"]),
-        "roi_renewal_upper": ratio(monthly_upper, cost["renewal_monthly_usd"]),
+        "roi_initial": ratio(monthly_value, cost["initial_monthly_usd"])
+        if quote_verified else None,
+        "roi_renewal": ratio(monthly_value, cost["renewal_monthly_usd"])
+        if quote_verified else None,
+        "roi_initial_listed": ratio(
+            monthly_value, cost["initial_monthly_listed_usd"]
+        ) if quote_verified else None,
+        "roi_renewal_listed": ratio(
+            monthly_value, cost["renewal_monthly_listed_usd"]
+        ) if quote_verified else None,
+        "roi_initial_upper": ratio(monthly_upper, cost["initial_monthly_usd"])
+        if quote_verified else None,
+        "roi_renewal_upper": ratio(monthly_upper, cost["renewal_monthly_usd"])
+        if quote_verified else None,
+        "roi_initial_listed_upper": ratio(
+            monthly_upper, cost["initial_monthly_listed_usd"]
+        ) if quote_verified else None,
+        "roi_renewal_listed_upper": ratio(
+            monthly_upper, cost["renewal_monthly_listed_usd"]
+        ) if quote_verified else None,
         "component_pool_ids": [item["pool_id"] for item in pools],
         "pools": pools, "excluded_pools": excluded_pools,
         "shared_pool_alternatives": {
@@ -695,8 +722,17 @@ def validate(data, today=None):
             for rule in rules:
                 rule = obj(rule, f"pool.{pool_id}.rule")
                 mid = model_id(rule.get("model_id"), f"pool.{pool_id}.rule.model_id")
+                if rule.get("api_price_id") is None:
+                    compatible_prices = [price_id for price_id, api_price in api_prices.items()
+                                         if api_price["model_id"] == mid]
+                    if len(compatible_prices) != 1:
+                        raise InputError(
+                            f"pool.{pool_id}.rule.api_price_id is required when "
+                            f"{mid} has {len(compatible_prices)} API price rows"
+                        )
+                    rule["api_price_id"] = compatible_prices[0]
+                string(rule.get("api_price_id"), f"pool.{pool_id}.rule.api_price_id")
                 if is_direct_entitlement(pool, rule):
-                    string(rule.get("api_price_id"), f"pool.{pool_id}.rule.api_price_id")
                     if pool["unit"] == "token_buckets" and rule.get("basis") != "token_buckets":
                         raise InputError(f"pool.{pool_id}.rule.basis must be token_buckets")
                     if pool["unit"] == "currency" and rule.get("basis") != "api_value":
@@ -715,31 +751,42 @@ def ranking_row(row):
         "monthly_api_value_usd": row["monthly_api_value_usd"],
         "renewal_monthly_cost_usd": row["monthly_cost"]["renewal_monthly_usd"],
         "roi_renewal": row["roi_renewal"], "value_kind": row["value_kind"],
+        "renewal_monthly_listed_usd": row["monthly_cost"]["renewal_monthly_listed_usd"],
+        "roi_renewal_listed": row["roi_renewal_listed"],
         "evidence_grade": row["evidence_grade"],
         "shared_pool_alternatives": row["shared_pool_alternatives"],
     }
 
 
 def rankings(evaluations):
-    eligible = [row for row in evaluations if row["status"] == "valued"
-                and row["roi_renewal"] is not None]
-    groups = {}
-    for row in eligible:
-        key = (row["model_id"], row["api_price_id"], row["scenario_id"])
-        groups.setdefault(key, []).append(row)
-    same_model = []
-    for key, rows in sorted(groups.items(), key=lambda item: (
-        item[0][0], item[0][1], item[0][2] or ""
-    )):
-        if len(rows) < 2:
-            continue
-        rows.sort(key=lambda row: (-row["roi_renewal"], row["plan_id"]))
-        same_model.append({
-            "model_id": key[0], "api_price_id": key[1], "scenario_id": key[2],
-            "rows": [ranking_row(row) for row in rows],
-        })
-    own = sorted(eligible, key=lambda row: (-row["roi_renewal"], row["plan_id"], row["model_id"]))
-    return {"same_model": same_model, "own_api_value": [ranking_row(row) for row in own]}
+    def ordered(metric):
+        eligible = [row for row in evaluations if row["status"] == "valued"
+                    and row[metric] is not None]
+        groups = {}
+        for row in eligible:
+            key = (row["model_id"], row["api_price_id"], row["scenario_id"])
+            groups.setdefault(key, []).append(row)
+        same_model = []
+        for key, rows in sorted(groups.items(), key=lambda item: (
+            item[0][0], item[0][1], item[0][2] or ""
+        )):
+            if len(rows) < 2:
+                continue
+            rows.sort(key=lambda row: (-row[metric], row["plan_id"]))
+            same_model.append({
+                "model_id": key[0], "api_price_id": key[1], "scenario_id": key[2],
+                "rows": [ranking_row(row) for row in rows],
+            })
+        own = sorted(eligible, key=lambda row: (-row[metric], row["plan_id"], row["model_id"]))
+        return same_model, [ranking_row(row) for row in own]
+
+    exact_same, exact_own = ordered("roi_renewal")
+    listed_same, listed_own = ordered("roi_renewal_listed")
+    return {
+        "same_model": exact_same, "own_api_value": exact_own,
+        "listed_price_same_model": listed_same,
+        "listed_price_own_api_value": listed_own,
+    }
 
 
 def unrank_partial_plan_value(row, reason):
@@ -749,6 +796,8 @@ def unrank_partial_plan_value(row, reason):
     add_issue(row["reasons"], reason)
     for field in ("monthly_api_value_usd", "monthly_api_value_upper_usd", "roi_initial",
                   "roi_renewal", "roi_initial_upper", "roi_renewal_upper",
+                  "roi_initial_listed", "roi_renewal_listed",
+                  "roi_initial_listed_upper", "roi_renewal_listed_upper",
                   "monthly_api_value_cny", "monthly_api_value_upper_cny"):
         if field in row:
             row[field] = None
@@ -824,6 +873,8 @@ def analyze(data, today=None):
                 "monthly_api_value_usd": None, "monthly_api_value_upper_usd": None,
                 "monthly_cost": cost, "roi_initial": None, "roi_renewal": None,
                 "roi_initial_upper": None, "roi_renewal_upper": None,
+                "roi_initial_listed": None, "roi_renewal_listed": None,
+                "roi_initial_listed_upper": None, "roi_renewal_listed_upper": None,
                 "component_pool_ids": [
                     pool["id"] for pool in plan["pools"]
                     if pool["entitlement_class"] == "guaranteed"
@@ -841,6 +892,7 @@ def analyze(data, today=None):
             "Assumption-based operation mixes are technical conversion scenarios.",
             "Rows using one shared pool for different models are mutually exclusive, not additive.",
             "Short-window monthly upper bounds are not included in sorted rankings.",
+            "Listed-price ratios assume the published quote without unverified checkout adjustments; exact paid-cost ratios require tax terms.",
         ],
     }
 
@@ -860,6 +912,7 @@ def markdown(result):
     rows = [
         f"# Current plan API-equivalent value ({result['data_kind']}, {result['query_date']})",
         "", "API equivalent is replacement cost; model quality is not normalized.",
+        "Exact paid-cost ROI requires verified checkout tax terms. Listed-price ROI uses the published quote without unverified checkout adjustments.",
         "", "## Same model ranking", "",
     ]
     if not result["rankings"]["same_model"]:
@@ -884,10 +937,36 @@ def markdown(result):
                     f"{row['value_kind']} |")
     if not result["rankings"]["own_api_value"]:
         rows.append("| — | No rankable monthly entitlement | — | — | — | — | — |")
+    rows.extend(("", "## Listed-price conditional same model ranking", "",
+                 "Ratios use the published subscription quote; actual payment and tax may differ.", ""))
+    if not result["rankings"]["listed_price_same_model"]:
+        rows.extend(("No comparable pair with a verified listed price and monthly API equivalent.", ""))
+    for group in result["rankings"]["listed_price_same_model"]:
+        label = group["scenario_id"] or "direct entitlement"
+        rows.extend((f"### {group['model_id']} · {group['api_price_id']} · {label}", "",
+                     "| Rank | Plan | Monthly API USD | Listed renewal USD/month | Conditional ROI | Basis |",
+                     "| ---: | --- | ---: | ---: | ---: | --- |"))
+        for rank, row in enumerate(group["rows"], 1):
+            rows.append(f"| {rank} | {row['plan_id']} | {fmt(row['monthly_api_value_usd'])} | "
+                        f"{fmt(row['renewal_monthly_listed_usd'])} | "
+                        f"{fmt(row['roi_renewal_listed'])} | {row['value_kind']} |")
+        rows.append("")
+    rows.extend(("## Listed-price conditional own API value ranking", "",
+                 "Each model uses its own maker API price; different models are not quality-equivalent.", "",
+                 "| Rank | Plan | Model | Conversion | Monthly API USD | Listed renewal USD/month | Conditional ROI | Basis |",
+                 "| ---: | --- | --- | --- | ---: | ---: | ---: | --- |"))
+    for rank, row in enumerate(result["rankings"]["listed_price_own_api_value"], 1):
+        rows.append(f"| {rank} | {row['plan_id']} | {row['model_id']} | "
+                    f"{row['scenario_id'] or 'direct entitlement'} | "
+                    f"{fmt(row['monthly_api_value_usd'])} | "
+                    f"{fmt(row['renewal_monthly_listed_usd'])} | "
+                    f"{fmt(row['roi_renewal_listed'])} | {row['value_kind']} |")
+    if not result["rankings"]["listed_price_own_api_value"]:
+        rows.append("| — | No conditional monthly rank | — | — | — | — | — | — |")
     rows.extend(("", "## Bounded and unranked diagnostics", "",
                  "Short-window upper bounds are not part of the sorted rankings.", "",
-                 "| Plan | Model | Status | Monthly upper USD | Window USD by pool | Reason |",
-                 "| --- | --- | --- | ---: | --- | --- |"))
+                 "| Plan | Model | Status | Monthly upper USD | Listed-price ROI upper | Window USD by pool | Reason |",
+                 "| --- | --- | --- | ---: | ---: | --- | --- |"))
     for row in result["evaluations"]:
         if row["status"] == "valued":
             continue
@@ -895,7 +974,8 @@ def markdown(result):
                             row["window_api_value_usd_by_pool"].items()) or "unknown"
         rows.append("| " + " | ".join((
             row["plan_id"], row["model_id"], row["status"],
-            fmt(row["monthly_api_value_upper_usd"]), windows,
+            fmt(row["monthly_api_value_upper_usd"]),
+            fmt(row["roi_renewal_listed_upper"]), windows,
             ", ".join(row["reasons"]) or "none",
         )) + " |")
     rows.extend(("", "Shared-pool model alternatives are mutually exclusive.", ""))

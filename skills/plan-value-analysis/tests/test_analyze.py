@@ -48,7 +48,8 @@ def base():
              "pools": [
                  {"id": "basic-pool", "unit": "requests", "entitlement_class": "guaranteed",
                   "quota": {"amount": "100", "evidence": SOURCE}, "window": {"kind": "monthly"},
-                  "rules": [{"model_id": MODEL, "basis": "request", "units_per_operation": "1",
+                  "rules": [{"model_id": MODEL, "api_price_id": "alpha-standard",
+                             "basis": "request", "units_per_operation": "1",
                              "evidence": SOURCE}]}
              ]}
         ]
@@ -148,7 +149,8 @@ class PlanValueTests(unittest.TestCase):
         pool["unit"] = "weighted_tokens"
         pool["quota"]["amount"] = "10"
         pool["rules"][0] = {
-            "model_id": MODEL, "basis": "weighted_tokens", "multiplier": "2",
+            "model_id": MODEL, "api_price_id": "alpha-standard",
+            "basis": "weighted_tokens", "multiplier": "2",
             "per_million": {"input": "1", "output": "2", "cache_read": "0.5", "cache_write": "2.5"},
             "evidence": SOURCE}
         self.assertEqual(evaluation(data)["monthly_api_value_usd"], Decimal("2"))
@@ -220,7 +222,8 @@ class PlanValueTests(unittest.TestCase):
             "id": "other-operation", "model_id": OTHER, "api_price_id": "beta-standard"})
         pool = data["plans"][0]["pools"][0]
         pool["unit"] = "credits"
-        pool["rules"].append({"model_id": OTHER, "basis": "request",
+        pool["rules"].append({"model_id": OTHER, "api_price_id": "beta-standard",
+                              "basis": "request",
                               "units_per_operation": "2", "evidence": SOURCE})
         result = calculator.analyze(data)
         self.assertEqual(len(result["evaluations"]), 2)
@@ -229,6 +232,49 @@ class PlanValueTests(unittest.TestCase):
         self.assertNotIn("total_plan_value_usd", result)
         self.assertIn("basic-pool", result["evaluations"][0]["shared_pool_alternatives"])
         self.assertEqual(result["rankings"]["same_model"], [])
+
+    def test_same_model_regional_api_prices_do_not_cross_apply(self):
+        data = base()
+        data["api_prices"].append({
+            **copy.deepcopy(data["api_prices"][0]), "id": "alpha-cny",
+            "currency": "CNY",
+            "per_million": {"input": "14", "output": "0",
+                            "cache_read": "0", "cache_write": "0"}})
+        data["conversion_scenarios"].append({
+            **copy.deepcopy(data["conversion_scenarios"][0]),
+            "id": "generic-cny", "api_price_id": "alpha-cny"})
+        add_second_plan(data)
+        data["plans"][1]["region"] = "Other market"
+        data["plans"][1]["price"].update(currency="CNY", initial="70", renewal="70")
+        data["plans"][1]["pools"][0]["rules"][0]["api_price_id"] = "alpha-cny"
+        result = calculator.analyze(data)
+        self.assertEqual(len(result["evaluations"]), 2)
+        by_plan = {row["plan_id"]: row for row in result["evaluations"]}
+        self.assertEqual(by_plan["basic"]["api_price_id"], "alpha-standard")
+        self.assertEqual(by_plan["basic"]["monthly_api_value_usd"], Decimal("1"))
+        self.assertEqual(by_plan["plus"]["api_price_id"], "alpha-cny")
+        self.assertEqual(by_plan["plus"]["monthly_api_value_usd"], Decimal("2"))
+
+    def test_older_single_price_rule_can_infer_id_but_ambiguous_prices_reject(self):
+        data = base()
+        del data["plans"][0]["pools"][0]["rules"][0]["api_price_id"]
+        self.assertEqual(evaluation(data)["monthly_api_value_usd"], Decimal("1"))
+        data = base()
+        del data["plans"][0]["pools"][0]["rules"][0]["api_price_id"]
+        data["api_prices"].append({
+            **copy.deepcopy(data["api_prices"][0]), "id": "alpha-other"})
+        with self.assertRaisesRegex(calculator.InputError, "api_price_id is required"):
+            calculator.analyze(data)
+
+    def test_weekly_reset_may_be_subscription_anchored_or_unknown(self):
+        for reset in ("subscription_anchor", "unknown"):
+            with self.subTest(reset=reset):
+                data = base()
+                data["plans"][0]["pools"][0]["window"] = {
+                    "kind": "weekly", "reset": reset}
+                found = evaluation(data)
+                self.assertEqual(found["status"], "unranked")
+                self.assertIsNotNone(found["window_api_value_usd_by_pool"])
 
     def test_independent_request_pools_are_one_whole_plan_value(self):
         data = base()
@@ -395,7 +441,11 @@ class PlanValueTests(unittest.TestCase):
         self.assertEqual(evaluation(data, today=test_day)["status"], "unranked")
         data["api_prices"][0]["evidence"] = verified
         data["plans"][0]["price"]["evidence"] = {"status": "conflicting"}
-        self.assertEqual(evaluation(data, today=test_day)["status"], "unranked")
+        found = evaluation(data, today=test_day)
+        self.assertEqual(found["status"], "valued")
+        self.assertEqual(found["monthly_api_value_usd"], Decimal("1"))
+        self.assertIsNone(found["roi_renewal"])
+        self.assertIsNone(found["roi_renewal_listed"])
         data["plans"][0]["price"]["evidence"] = verified
         data["plans"][0]["availability"]["evidence"] = {"status": "unavailable"}
         self.assertEqual(evaluation(data, today=test_day)["status"], "unranked")
@@ -412,8 +462,10 @@ class PlanValueTests(unittest.TestCase):
         data["plans"][0]["price"]["currency"] = "CNY"
         data["fx"]["as_of"] = "2026-10-20"
         found = evaluation(data, today=date(2026, 10, 21))
-        self.assertEqual(found["status"], "unranked")
+        self.assertEqual(found["status"], "valued")
+        self.assertEqual(found["monthly_api_value_usd"], Decimal("1"))
         self.assertIsNone(found["roi_renewal"])
+        self.assertIsNone(found["roi_renewal_listed"])
         self.assertEqual(calculator.analyze(data, today=date(2026, 10, 21))
                          ["rankings"]["own_api_value"], [])
 
@@ -431,14 +483,73 @@ class PlanValueTests(unittest.TestCase):
     def test_unknown_tax_is_not_zero_and_zero_cost_has_no_infinite_roi(self):
         data = base()
         data["plans"][0]["price"]["tax_rate"] = None
-        data["plans"][0]["price"]["tax_included"] = False
-        self.assertEqual(evaluation(data)["status"], "unranked")
+        data["plans"][0]["price"]["tax_included"] = None
+        found = evaluation(data)
+        self.assertEqual(found["status"], "valued")
+        self.assertEqual(found["monthly_api_value_usd"], Decimal("1"))
+        self.assertEqual(found["monthly_cost"]["renewal_monthly_listed_usd"], Decimal("10"))
+        self.assertIsNone(found["monthly_cost"]["renewal_monthly_usd"])
+        self.assertIsNone(found["roi_renewal"])
+        self.assertEqual(found["roi_renewal_listed"], Decimal("0.1"))
+        self.assertIn("tax_terms_unknown", found["reasons"])
+        result = calculator.analyze(data)
+        self.assertEqual(result["rankings"]["own_api_value"], [])
+        self.assertEqual(len(result["rankings"]["listed_price_own_api_value"]), 1)
         data = base()
         data["plans"][0]["price"]["initial"] = "0"
         data["plans"][0]["price"]["renewal"] = "0"
         found = evaluation(data)
         self.assertIsNone(found["roi_renewal"])
+        self.assertIsNone(found["roi_renewal_listed"])
         self.assertEqual(calculator.analyze(data)["rankings"]["own_api_value"], [])
+
+    def test_unknown_initial_cost_does_not_hide_known_renewal(self):
+        data = base()
+        data["plans"][0]["price"].update(initial=None, tax_rate=None, tax_included=None)
+        found = evaluation(data)
+        self.assertEqual(found["status"], "valued")
+        self.assertEqual(found["monthly_api_value_usd"], Decimal("1"))
+        self.assertIsNone(found["roi_initial"])
+        self.assertIsNone(found["roi_initial_listed"])
+        self.assertIsNone(found["roi_renewal"])
+        self.assertEqual(found["roi_renewal_listed"], Decimal("0.1"))
+        self.assertIn("initial_cost_unknown", found["reasons"])
+        self.assertEqual(len(calculator.analyze(data)["rankings"]
+                             ["listed_price_own_api_value"]), 1)
+
+    def test_live_tax_unknown_keeps_only_conditional_rank_and_excludes_bad_price(self):
+        data = base()
+        mark_live(data)
+        add_second_plan(data)
+        data["plans"][0]["price"].update(tax_rate=None, tax_included=None)
+        data["plans"][1]["price"].update(tax_rate=None, tax_included=None,
+                                           renewal="20")
+        result = calculator.analyze(data, today=date(2026, 10, 21))
+        self.assertEqual(result["rankings"]["same_model"], [])
+        self.assertEqual([row["plan_id"] for row in result["rankings"]
+                          ["listed_price_same_model"][0]["rows"]], ["basic", "plus"])
+        self.assertEqual(result["rankings"]["listed_price_own_api_value"][0]
+                         ["roi_renewal_listed"], Decimal("0.1"))
+        rendered = calculator.markdown(result)
+        self.assertIn("Listed-price conditional same model ranking", rendered)
+        self.assertIn("actual payment and tax may differ", rendered)
+        data["plans"][0]["price"]["evidence"] = {"status": "conflicting"}
+        invalid = calculator.analyze(data, today=date(2026, 10, 21))
+        self.assertEqual(invalid["rankings"]["listed_price_same_model"], [])
+        self.assertEqual([row["plan_id"] for row in invalid["rankings"]
+                          ["listed_price_own_api_value"]], ["plus"])
+
+    def test_short_window_remains_upper_bound_with_unknown_tax(self):
+        data = base()
+        data["plans"][0]["price"].update(tax_rate=None, tax_included=None)
+        data["plans"][0]["pools"][0]["additional_caps"] = [
+            {"id": "five-hour", "amount": "20",
+             "window": {"kind": "rolling_hours", "hours": 5}, "evidence": SOURCE}]
+        found = evaluation(data)
+        self.assertEqual(found["status"], "upper_bound")
+        self.assertIsNone(found["roi_renewal_upper"])
+        self.assertEqual(found["roi_renewal_listed_upper"], Decimal("0.1"))
+        self.assertEqual(calculator.analyze(data)["rankings"]["listed_price_own_api_value"], [])
 
     def test_cli_renders_json_and_table_without_removed_views(self):
         data = base()

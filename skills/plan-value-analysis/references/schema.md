@@ -27,7 +27,7 @@
 
 `plans[]` 每行包括 `id`、`provider`、`product`、`tier`、`region`、`availability`、`price`、`access`、`limits`、`pools`。`access` 记录客户端/API 权限及官方证据；若没有已确认可用的客户端或 API 路径，该行不排名。`limits` 记录限速、并发、公平使用、超额费用及其证据。文字限制保留在结果中，脚本不会把未量化条款假装成可精确扣减的金额。
 
-`price` 为 `{currency,months,initial,renewal,tax_rate,tax_included,evidence}`。`initial` 与 `renewal` 分别是**当前在售条款**下首个账期和续费账期的原币总付款；脚本除以 `months` 得月成本。现行促销须注明生效条件和结束时间。税额未知使该成本不可精确估值，不默认零。
+`price` 为 `{currency,months,initial,renewal,tax_rate,tax_included,evidence}`。`initial` 与 `renewal` 分别是**当前在售条款**下首个账期和续费账期的原币网页标价；任一项未能确认时填 `null`，另一项仍可单独估值。脚本除以 `months` 得月成本。现行促销须注明生效条件和结束时间。税额或结账调整未知时，实际付款成本与倍率为 `null`，不默认零；网页标价只供明确标记的条件倍率使用。
 
 每个 `pools[]` 有全局唯一 `id`、`unit`、`entitlement_class`、`quota`、`window`、`rules`，可带 `additional_caps`、`daily_cap_requests`：
 
@@ -36,8 +36,8 @@
 | `unit` | `requests`、`credits`、`weighted_tokens`、`currency` 或 `token_buckets`。 |
 | `entitlement_class` | `guaranteed`、`conditional` 或 `promotional`。有条件的额外额度不可混入保证额度排名。 |
 | `quota` | 标量池为 `{amount,evidence}`；`token_buckets` 为 `{amounts:{input,output,cache_read,cache_write},evidence}`；金额池还要 `currency`。未知额度用 `null`。 |
-| `window` | `{kind:"monthly"}`、`{kind:"weekly"}` 或 `{kind:"rolling_hours",hours:5}`；来源要说明重置起点和有效期。 |
-| `rules` | 每个可用精确模型一条扣费规则，含 `model_id`、`basis`、`evidence` 及该 basis 所需费率。缺某模型规则即不可给它估值。 |
+| `window` | `{kind:"monthly"}`、`{kind:"weekly",reset:"calendar|rolling|subscription_anchor|unknown"}` 或 `{kind:"rolling_hours",hours:5}`；来源要说明已知的重置起点和有效期，未公开时用 `unknown`。 |
+| `rules` | 每个可用精确模型一条扣费规则，含 `model_id`、对应的 `api_price_id`、`basis`、`evidence` 及该 basis 所需费率。同模型在不同地区或费率档不得交叉套用；缺某模型规则即不可给它估值。旧输入省略 `api_price_id` 仅在该模型恰有唯一 API 价格行时自动解析，存在多个价格行则报错。 |
 | `additional_caps` | 同一余额、同一扣费单位上的其它上限，如官方月上限；各 cap 有 `id`、`amount`、`window`、`evidence`，可用 `unit` 显式核对与主池同单位。它们与主额度取交集，不能当独立池相加。 |
 | `daily_cap_requests` | 额外日限制，只作为原生限制，不外推月度额度。 |
 
@@ -46,6 +46,10 @@
 ## 输出边界
 
 `evaluations` 为每档、每模型的独立行；请求/credit/加权 token 行还按通用换算场景区分，直算行的 `scenario_id` 为 `null`。`rankings.same_model` 只比较精确模型和 API 价格行相同的至少两档；需场景换算的行还须场景相同。`rankings.own_api_value` 展示各模型按**各自官方 API 价**的套餐等值。后者的美元数不是能力或质量统一分数。一个 plan 的同一共享池在不同模型下是互斥估值，不是多份额度。
+
+税费未知但网页标价已核实时，`monthly_api_value_usd` 仍是可独立计算的 API 等值，`monthly_cost.*_monthly_usd` 与实付 `roi_initial` / `roi_renewal` 保持 `null`。`monthly_cost.initial_monthly_listed_original` / `renewal_monthly_listed_original` 保留原币月度标价，对应 `_usd` 字段按当日汇率换算；`roi_initial_listed` / `roi_renewal_listed` 是**按标价且不计未核实结账调整**的条件倍率。`rankings.listed_price_same_model` / `listed_price_own_api_value` 是独立的标价条件榜；短窗口上界不进入任何榜。零标价的倍率仍为未定义。
+
+API 等值独立于订阅成本证据；若首期标价未知而续费标价已核实，首期倍率仍为 `null`，续费标价条件倍率可以计算。标价证据失效或该币种汇率过期时，保留可独立核实的 API 等值，但不生成该标价的倍率与排名。
 
 月度池可输出 `monthly_api_value_usd` 与首期/续费 `roi_initial`、`roi_renewal`；请求/credit/加权 token 的结果标 `value_kind:"official_usage_conversion"` 或 `"assumption_conversion"`，token 桶面值标 `"bucket_face_value"`，API 金额池面值标 `"api_spend_face_value"`。同一精确模型和 API 价格行的独立直算池与场景换算池兼容并可相加时，标 `"mixed_direct_and_operation_conversion"`；总额仍取决于该场景。`component_pool_ids` 列出本行包含的池。ROI 是 API 替代成本除以相应月度订阅成本，零成本的 ROI 为未定义。数值是公布额度在指定费率下的 API 面值；未量化的限速、公平使用等限制仍可能妨碍用满。独立且兼容的额度池可求和；任一池无法估值或不能证明可相加时，整行不排名且不展示部分套餐 ROI。共享池的不同模型仍是互斥替代方案。脚本保留原币成本、证据等级、限制和未排名原因。
 

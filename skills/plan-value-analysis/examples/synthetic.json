@@ -101,6 +101,7 @@
           "rules": [
             {
               "model_id": "fictional/shared@1.0#standard",
+              "api_price_id": "fictional-shared-standard",
               "basis": "request",
               "evidence": {
                 "status": "synthetic"
@@ -170,6 +171,7 @@
           "rules": [
             {
               "model_id": "fictional/shared@1.0#standard",
+              "api_price_id": "fictional-shared-standard",
               "basis": "request",
               "evidence": {
                 "status": "synthetic"
@@ -252,6 +254,7 @@
           "rules": [
             {
               "model_id": "fictional/shared@1.0#standard",
+              "api_price_id": "fictional-shared-standard",
               "basis": "request",
               "evidence": {
                 "status": "synthetic"
@@ -260,6 +263,7 @@
             },
             {
               "model_id": "fictional/exclusive@2.0#standard",
+              "api_price_id": "fictional-exclusive-standard",
               "basis": "request",
               "evidence": {
                 "status": "synthetic"
