@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic, source-gated subscription plan valuation. No network or prices built in."""
+"""Value current on-sale coding plans against sourced official API prices."""
 
 from __future__ import annotations
 
@@ -14,8 +14,12 @@ from pathlib import Path
 getcontext().prec = 40
 
 BUCKETS = ("input", "output", "cache_read", "cache_write")
-MODEL_ID = re.compile(r"^[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*@[a-z0-9][a-z0-9._-]*#[a-z0-9][a-z0-9._-]*$")
-EVIDENCE_STATUSES = {"verified", "synthetic", "estimated", "undisclosed", "conflicting", "unavailable"}
+MODEL_ID = re.compile(
+    r"^[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*@[a-z0-9][a-z0-9._-]*#[a-z0-9][a-z0-9._-]*$"
+)
+EVIDENCE_STATUSES = {
+    "verified", "synthetic", "estimated", "undisclosed", "conflicting", "unavailable"
+}
 ZERO = Decimal(0)
 MILLION = Decimal(1_000_000)
 
@@ -62,6 +66,16 @@ def number(value, where, minimum=ZERO, nullable=False):
     return result
 
 
+def real_date(value, where):
+    try:
+        parsed = date.fromisoformat(value)
+        if parsed.isoformat() != value:
+            raise ValueError
+    except (TypeError, ValueError) as exc:
+        raise InputError(f"{where} must be a real YYYY-MM-DD date") from exc
+    return value
+
+
 def model_id(value, where):
     string(value, where)
     if not MODEL_ID.fullmatch(value) or any(x in value for x in ("@latest#", "#auto", "#default")):
@@ -74,11 +88,13 @@ def bucket_numbers(value, where, integer_values=False, nullable=False):
     if set(value) != set(BUCKETS):
         raise InputError(f"{where} must have exactly {', '.join(BUCKETS)}; cache tokens are separate from input")
     parse = integer if integer_values else number
-    return {key: (parse(value[key], f"{where}.{key}") if not (nullable and value[key] is None)
-                  else None) for key in BUCKETS}
+    return {
+        key: None if nullable and value[key] is None else parse(value[key], f"{where}.{key}")
+        for key in BUCKETS
+    }
 
 
-def evidence_issue(evidence, data_kind, where):
+def evidence_issue(evidence, data_kind, where, query_date):
     if not isinstance(evidence, dict):
         return f"{where}:missing_evidence"
     status = evidence.get("status")
@@ -88,14 +104,19 @@ def evidence_issue(evidence, data_kind, where):
         return None
     if status != "verified":
         return f"{where}:evidence_{status}"
-    valid_date = False
     try:
-        valid_date = date.fromisoformat(evidence.get("fetched_at", "")).isoformat() == evidence.get("fetched_at")
-    except (TypeError, ValueError):
-        pass
-    if not (isinstance(evidence.get("url"), str) and evidence["url"].startswith(("https://", "http://"))
-            and valid_date and isinstance(evidence.get("excerpt"), str) and evidence["excerpt"].strip()):
+        fetched = real_date(evidence.get("fetched_at"), f"{where}.fetched_at")
+    except InputError:
         return f"{where}:incomplete_verified_evidence"
+    if not (
+        isinstance(evidence.get("url"), str)
+        and evidence["url"].startswith(("https://", "http://"))
+        and isinstance(evidence.get("excerpt"), str)
+        and evidence["excerpt"].strip()
+    ):
+        return f"{where}:incomplete_verified_evidence"
+    if data_kind == "live" and fetched != query_date:
+        return f"{where}:not_rechecked_on_query_date"
     return None
 
 
@@ -110,12 +131,14 @@ def fx_convert(amount, currency, rates):
     return amount / rates[currency]
 
 
-def api_call_cost(workload, api_price, rates):
-    if not api_price or api_price.get("model_id") != workload["model_id"]:
+def price_per_operation(scenario, api_price, rates):
+    if api_price is None:
+        return None, "api_price_missing"
+    if api_price["model_id"] != scenario["model_id"]:
         return None, "api_price_model_mismatch"
-    if api_price.get("batch") is not workload["batch"]:
+    if api_price["batch"] is not scenario["batch"]:
         return None, "api_price_batch_mismatch"
-    context = workload["context_tokens"]
+    context = scenario["context_tokens"]
     lower = integer(api_price.get("context_min", 0), "api_price.context_min")
     upper = api_price.get("context_max")
     if upper is not None:
@@ -125,180 +148,216 @@ def api_call_cost(workload, api_price, rates):
     if context < lower or (upper is not None and context >= upper):
         return None, "api_price_context_mismatch"
     prices = bucket_numbers(api_price.get("per_million"), "api_price.per_million", nullable=True)
-    if any(workload["per_request"][key] and prices[key] is None for key in BUCKETS):
+    if any(scenario["per_operation"][bucket] and prices[bucket] is None for bucket in BUCKETS):
         return None, "api_price_missing_token_rate"
-    native = sum((Decimal(workload["per_request"][key]) * (prices[key] or ZERO) / MILLION
-                  for key in BUCKETS), ZERO)
-    converted = fx_convert(native, api_price["currency"], rates)
-    return (converted, None) if converted is not None else (None, "api_price_fx_missing")
+    native = sum(
+        (Decimal(scenario["per_operation"][bucket]) * (prices[bucket] or ZERO) / MILLION
+         for bucket in BUCKETS),
+        ZERO,
+    )
+    usd = fx_convert(native, api_price["currency"], rates)
+    return (usd, None) if usd is not None else (None, "api_price_fx_missing")
 
 
 def quota_amount(quota, unit):
     if unit == "token_buckets":
         if quota.get("amounts") is None:
             return None
-        return bucket_numbers(quota["amounts"], "pool.quota.amounts", integer_values=True)
+        return bucket_numbers(
+            quota["amounts"], "pool.quota.amounts", integer_values=True, nullable=True
+        )
     return number(quota.get("amount"), "pool.quota.amount", nullable=True)
 
 
-def windows_for(pool, workload, period_days):
-    window = obj(pool.get("window"), "pool.window")
-    kind = window.get("kind")
-    if kind == "monthly":
-        return 1, None
-    active = workload.get("active_windows_per_month", {})
-    if not isinstance(active, dict) or pool["id"] not in active:
-        return None, "active_windows_missing"
-    count = integer(active[pool["id"]], f"workload.active_windows_per_month.{pool['id']}")
-    if kind == "weekly":
-        # Calendar-week resets can touch partial weeks at both ends of the period.
-        maximum = (period_days + 12) // 7
-    elif kind == "rolling_hours":
-        hours = integer(window.get("hours"), "pool.window.hours", 1)
-        maximum = (period_days * 24 + hours - 1) // hours + 1
-    else:
-        raise InputError("pool.window.kind must be monthly, weekly, or rolling_hours")
-    if count > maximum:
-        raise InputError(f"active windows for {pool['id']} exceed theoretical {period_days}-day maximum")
-    return count, None
+def is_direct_entitlement(pool, rule):
+    return pool["unit"] in ("token_buckets", "currency")
 
 
-def debit_per_request(rule, pool, workload, call_usd, rates):
+def debit_per_operation(rule, pool, scenario, api_usd, rates):
+    allowed = {
+        "requests": {"request"},
+        "credits": {"request", "weighted_tokens"},
+        "weighted_tokens": {"weighted_tokens"},
+        "token_buckets": {"token_buckets"},
+    }
     basis = rule.get("basis")
-    allowed = {"requests": {"request"}, "credits": {"request", "weighted_tokens"},
-               "weighted_tokens": {"weighted_tokens"}, "currency": {"api_value"},
-               "token_buckets": {"token_buckets"}}
     if basis not in allowed[pool["unit"]]:
         raise InputError(f"pool unit {pool['unit']} cannot use debit basis {basis}")
-    multiplier = number(rule.get("multiplier", "1"), "rule.multiplier")
+    multiplier = number(rule.get("multiplier", "1"), "rule.multiplier", nullable=True)
+    if multiplier is None:
+        return None, "debit_unknown"
     if multiplier == ZERO:
         return None, "zero_debit_unbounded"
     if basis == "token_buckets":
         return None, None
     if basis == "request":
-        debit = number(rule.get("units_per_request"), "rule.units_per_request") * multiplier
+        units = number(rule.get("units_per_operation"), "rule.units_per_operation", nullable=True)
+        if units is None:
+            return None, "debit_unknown"
+        debit = units * multiplier
     elif basis == "weighted_tokens":
-        weights = bucket_numbers(rule.get("per_million"), "rule.per_million")
-        debit = sum((Decimal(workload["per_request"][key]) * weights[key] / MILLION
-                     for key in BUCKETS), ZERO) * multiplier
-    elif basis == "api_value":
-        currency = string(pool["quota"].get("currency"), "pool.quota.currency")
-        if currency not in rates:
-            return None, "pool_currency_fx_missing"
-        debit = call_usd * rates[currency] * multiplier
+        weights = bucket_numbers(rule.get("per_million"), "rule.per_million", nullable=True)
+        if any(scenario["per_operation"][bucket] and weights[bucket] is None
+               for bucket in BUCKETS):
+            return None, "debit_unknown"
+        debit = sum(
+            (Decimal(scenario["per_operation"][bucket]) * (weights[bucket] or ZERO) / MILLION
+             for bucket in BUCKETS),
+            ZERO,
+        ) * multiplier
     else:
-        raise InputError("rule.basis must be request, weighted_tokens, api_value, or token_buckets")
-    if debit == ZERO:
-        return None, "zero_debit_unbounded"
-    return debit, None
+        raise InputError("invalid rule basis")
+    return (debit, None) if debit != ZERO else (None, "zero_debit_unbounded")
 
 
-def evaluate_pool(pool, rule, workload, api_price, call_usd, rates, data_kind, period_days):
+def cap_window(cap, where):
+    window = obj(cap.get("window"), f"{where}.window")
+    kind = window.get("kind")
+    if kind not in ("monthly", "weekly", "rolling_hours"):
+        raise InputError(f"{where}.window.kind must be monthly, weekly, or rolling_hours")
+    if kind == "rolling_hours":
+        integer(window.get("hours"), f"{where}.window.hours", 1)
+    if kind == "weekly":
+        # Weekly reset policy is evidence, not an inferred monthly multiplier.
+        reset = window.get("reset")
+        if reset not in ("calendar", "rolling"):
+            raise InputError(f"{where}.window.reset must be calendar or rolling")
+    return kind
+
+
+def pool_value(pool, rule, scenario, api_price, api_usd, rates, data_kind, query_date):
     issues = []
     quota = obj(pool.get("quota"), "pool.quota")
-    add_issue(issues, evidence_issue(quota.get("evidence"), data_kind, "quota"))
-    add_issue(issues, evidence_issue(rule.get("evidence"), data_kind, "model_rule"))
-    klass = pool.get("entitlement_class")
-    if klass not in ("guaranteed", "conditional", "promotional"):
-        raise InputError("pool.entitlement_class must be guaranteed, conditional, or promotional")
+    add_issue(issues, evidence_issue(quota.get("evidence"), data_kind, "quota", query_date))
+    add_issue(issues, evidence_issue(rule.get("evidence"), data_kind, "model_rule", query_date))
+    klass = pool["entitlement_class"]
     if klass != "guaranteed":
         add_issue(issues, "non_guaranteed_entitlement")
-    unit = pool.get("unit")
-    if unit not in ("requests", "credits", "weighted_tokens", "currency", "token_buckets"):
-        raise InputError("pool.unit is invalid")
-    if unit == "currency":
-        string(quota.get("currency"), "pool.quota.currency")
+    unit = pool["unit"]
     amount = quota_amount(quota, unit)
-    if amount is None:
+    if amount is None or isinstance(amount, dict) and any(x is None for x in amount.values()):
         add_issue(issues, "quota_unknown")
-    windows, window_issue = windows_for(pool, workload, period_days)
-    add_issue(issues, window_issue)
+    kind = cap_window(pool, f"pool.{pool['id']}")
+    result = {
+        "pool_id": pool["id"], "unit": unit, "window_kind": kind,
+        "entitlement_class": klass, "status": "unranked", "reasons": issues,
+        "window_api_value_usd": None, "monthly_api_value_usd": None,
+        "monthly_api_value_upper_usd": None,
+    }
     if issues:
-        return {"pool_id": pool["id"], "status": "unranked", "reasons": issues,
-                "entitlement_value_per_window_usd": None, "reachable_requests": None,
-                "reachable_value_usd": None, "active_windows_per_month": windows}
+        return result
+
     if unit == "token_buckets":
         if rule.get("basis") != "token_buckets":
             raise InputError("token_buckets pool requires token_buckets debit basis")
-        multiplier = number(rule.get("multiplier", "1"), "rule.multiplier")
+        multiplier = number(rule.get("multiplier", "1"), "rule.multiplier", nullable=True)
+        if multiplier is None:
+            result["reasons"].append("debit_unknown")
+            return result
         if multiplier == ZERO:
-            issues.append("zero_debit_unbounded")
-            return {"pool_id": pool["id"], "status": "unranked", "reasons": issues,
-                    "entitlement_value_per_window_usd": None, "reachable_requests": None,
-                    "reachable_value_usd": None, "active_windows_per_month": windows}
+            result["reasons"].append("zero_debit_unbounded")
+            return result
         prices = bucket_numbers(api_price["per_million"], "api_price.per_million", nullable=True)
-        if any(amount[key] and prices[key] is None for key in BUCKETS):
-            issues.append("api_price_missing_token_rate")
-            return {"pool_id": pool["id"], "status": "unranked", "reasons": issues,
-                    "entitlement_value_per_window_usd": None, "reachable_requests": None,
-                    "reachable_value_usd": None, "active_windows_per_month": windows}
-        native = sum((Decimal(amount[key]) / multiplier * (prices[key] or ZERO) / MILLION
-                      for key in BUCKETS), ZERO)
-        entitlement = fx_convert(native, api_price["currency"], rates)
-        if entitlement is None:
-            issues.append("api_price_fx_missing")
-            return {"pool_id": pool["id"], "status": "unranked", "reasons": issues,
-                    "entitlement_value_per_window_usd": None, "reachable_requests": None,
-                    "reachable_value_usd": None, "active_windows_per_month": windows}
-        ratios = [Decimal(amount[key]) / (Decimal(workload["per_request"][key]) * multiplier)
-                  for key in BUCKETS if workload["per_request"][key] > 0]
-        if not ratios:
-            issues.append("zero_usage_per_request")
-            return {"pool_id": pool["id"], "status": "unranked", "reasons": issues,
-                    "entitlement_value_per_window_usd": entitlement, "reachable_requests": None,
-                    "reachable_value_usd": None, "active_windows_per_month": windows}
-        per_window_requests = int(min(ratios).to_integral_value(rounding=ROUND_FLOOR))
-    else:
-        debit, debit_issue = debit_per_request(rule, pool, workload, call_usd, rates)
-        if debit_issue:
-            issues.append(debit_issue)
-            return {"pool_id": pool["id"], "status": "unranked", "reasons": issues,
-                    "entitlement_value_per_window_usd": None, "reachable_requests": None,
-                    "reachable_value_usd": None, "active_windows_per_month": windows}
-        per_window_requests = int((amount / debit).to_integral_value(rounding=ROUND_FLOOR))
-        entitlement = Decimal(per_window_requests) * call_usd
-    reachable_requests = per_window_requests * windows
-    additional_caps = pool.get("additional_caps", [])
-    for cap in array(additional_caps, f"pool.{pool['id']}.additional_caps"):
-        cap = obj(cap, f"pool.{pool['id']}.additional_cap")
-        cap_id = string(cap.get("id"), "additional_cap.id")
-        cap_key = f"{pool['id']}:{cap_id}"
-        add_issue(issues, evidence_issue(cap.get("evidence"), data_kind, f"additional_cap:{cap_id}"))
-        extra_amount = number(cap.get("amount"), f"additional_cap.{cap_id}.amount", nullable=True)
-        if extra_amount is None:
-            add_issue(issues, f"additional_cap:{cap_id}:unknown")
-        extra_windows, extra_issue = windows_for({"id": cap_key, "window": cap.get("window")},
-                                                 workload, period_days)
-        add_issue(issues, f"additional_cap:{cap_id}:{extra_issue}" if extra_issue else None)
-        if unit == "token_buckets":
-            add_issue(issues, "token_bucket_additional_cap_unsupported")
-        elif extra_amount is not None and extra_windows is not None:
-            extra_requests_per_window = int((extra_amount / debit).to_integral_value(rounding=ROUND_FLOOR))
-            reachable_requests = min(reachable_requests, extra_requests_per_window * extra_windows)
-    if pool.get("daily_cap_requests") is not None:
-        daily_cap = integer(pool["daily_cap_requests"], "pool.daily_cap_requests")
-        days = workload.get("active_days_per_month")
-        if days is None:
-            issues.append("active_days_missing_for_daily_cap")
+        if any(amount[bucket] and prices[bucket] is None for bucket in BUCKETS):
+            result["reasons"].append("api_price_missing_token_rate")
+            return result
+        native = sum(
+            (Decimal(amount[bucket]) / multiplier * (prices[bucket] or ZERO) / MILLION
+             for bucket in BUCKETS),
+            ZERO,
+        )
+        face_usd = fx_convert(native, api_price["currency"], rates)
+        if face_usd is None:
+            result["reasons"].append("api_price_fx_missing")
+            return result
+        if pool.get("additional_caps") or pool.get("daily_cap_requests") is not None:
+            result["reasons"].append("token_bucket_additional_cap_unsupported")
+            return result
+        if kind == "monthly":
+            result["status"] = "valued"
+            result["monthly_api_value_usd"] = face_usd
         else:
-            days = integer(days, "workload.active_days_per_month")
-            if days > period_days:
-                raise InputError("workload.active_days_per_month exceeds period_days")
-            reachable_requests = min(reachable_requests, daily_cap * days)
-    return {"pool_id": pool["id"], "status": "valued" if not issues else "unranked",
-            "reasons": issues, "entitlement_value_per_window_usd": entitlement,
-            "capacity_requests_per_window": per_window_requests,
-            "reachable_requests": reachable_requests if not issues else None,
-            "reachable_value_usd": Decimal(reachable_requests) * call_usd if not issues else None,
-            "active_windows_per_month": windows, "window_kind": pool["window"]["kind"],
-            "window_hours": pool["window"].get("hours"),
-            "entitlement_class": klass,
-            "unit": unit}
+            result["window_api_value_usd"] = face_usd
+            result["reasons"].append("nonmonthly_quota_no_monthly_cap")
+        return result
+
+    if unit == "currency":
+        if rule.get("basis") != "api_value":
+            raise InputError("currency pool requires api_value debit basis")
+        multiplier = number(rule.get("multiplier", "1"), "rule.multiplier", nullable=True)
+        if multiplier is None:
+            result["reasons"].append("debit_unknown")
+            return result
+        currency = string(quota.get("currency"), "pool.quota.currency")
+        if multiplier == ZERO:
+            result["reasons"].append("zero_debit_unbounded")
+            return result
+        if currency not in rates:
+            result["reasons"].append("pool_currency_fx_missing")
+            return result
+
+        def face_value(balance):
+            return balance / rates[currency] / multiplier
+    else:
+        debit, debit_issue = debit_per_operation(rule, pool, scenario, api_usd, rates)
+        if debit_issue:
+            result["reasons"].append(debit_issue)
+            return result
+
+        def face_value(balance):
+            operations = (balance / debit).to_integral_value(rounding=ROUND_FLOOR)
+            return operations * api_usd
+
+    primary_usd = face_value(amount)
+    if kind == "monthly":
+        monthly_usd = primary_usd
+    else:
+        monthly_usd = None
+        result["window_api_value_usd"] = primary_usd
+
+    nonmonthly_restriction = kind != "monthly"
+    monthly_cap_found = kind == "monthly"
+    for cap in pool.get("additional_caps", []):
+        cap_id = cap["id"]
+        add_issue(result["reasons"], evidence_issue(
+            cap.get("evidence"), data_kind, f"additional_cap:{cap_id}", query_date
+        ))
+        cap_amount = number(cap.get("amount"), f"additional_cap.{cap_id}.amount", nullable=True)
+        if cap_amount is None:
+            add_issue(result["reasons"], f"additional_cap:{cap_id}:unknown")
+            continue
+        cap_kind = cap_window(cap, f"additional_cap.{cap_id}")
+        if cap_kind == "monthly":
+            cap_usd = face_value(cap_amount)
+            monthly_usd = cap_usd if monthly_usd is None else min(monthly_usd, cap_usd)
+            monthly_cap_found = True
+        else:
+            nonmonthly_restriction = True
+    if pool.get("daily_cap_requests") is not None:
+        integer(pool["daily_cap_requests"], "pool.daily_cap_requests")
+        nonmonthly_restriction = True
+        add_issue(result["reasons"], "daily_cap_not_monthly_scaled")
+    if result["reasons"] and any(
+        item not in ("daily_cap_not_monthly_scaled",) for item in result["reasons"]
+    ):
+        return result
+    if not monthly_cap_found or monthly_usd is None:
+        add_issue(result["reasons"], "nonmonthly_quota_no_monthly_cap")
+        return result
+
+    if nonmonthly_restriction:
+        result["status"] = "upper_bound"
+        result["monthly_api_value_upper_usd"] = monthly_usd
+        add_issue(result["reasons"], "short_window_or_daily_cap_makes_monthly_value_upper_bound")
+    else:
+        result["status"] = "valued"
+        result["monthly_api_value_usd"] = monthly_usd
+    return result
 
 
-def monthly_cost(price, rates, data_kind):
+def monthly_cost(price, rates, data_kind, query_date):
     issues = []
-    add_issue(issues, evidence_issue(price.get("evidence"), data_kind, "plan_price"))
+    add_issue(issues, evidence_issue(price.get("evidence"), data_kind, "plan_price", query_date))
     currency = string(price.get("currency"), "plan.price.currency")
     months = integer(price.get("months"), "plan.price.months", 1)
     tax_rate = number(price.get("tax_rate"), "plan.price.tax_rate", nullable=True)
@@ -310,16 +369,18 @@ def monthly_cost(price, rates, data_kind):
         factor = None
     else:
         factor = Decimal(1) if tax_included else Decimal(1) + tax_rate
-    cost = {"currency": currency, "months_per_bill": months, "tax_rate": tax_rate,
-            "tax_included": tax_included}
-    for label in ("initial", "renewal"):
-        amount = number(price.get(label), f"plan.price.{label}", nullable=True)
-        native = amount * factor / Decimal(months) if amount is not None and factor is not None else None
-        usd = fx_convert(native, currency, rates)
-        cost[f"{label}_monthly_original"] = native
-        cost[f"{label}_monthly_usd"] = usd
+    cost = {
+        "currency": currency, "months_per_bill": months,
+        "tax_rate": tax_rate, "tax_included": tax_included,
+    }
+    for term in ("initial", "renewal"):
+        amount = number(price.get(term), f"plan.price.{term}", nullable=True)
+        original = amount * factor / Decimal(months) if amount is not None and factor is not None else None
+        usd = fx_convert(original, currency, rates)
+        cost[f"{term}_monthly_original"] = original
+        cost[f"{term}_monthly_usd"] = usd
         if amount is None:
-            add_issue(issues, f"{label}_cost_unknown")
+            add_issue(issues, f"{term}_cost_unknown")
         elif usd is None and factor is not None:
             add_issue(issues, "plan_price_fx_missing")
     return cost, issues
@@ -329,146 +390,187 @@ def ratio(numerator, denominator):
     return numerator / denominator if numerator is not None and denominator not in (None, ZERO) else None
 
 
-def evaluate_plan_workload(plan, workload, api_prices, rates, data_kind, period_days, fx_issue):
-    matching = []
-    for pool in plan["pools"]:
-        for rule in pool["rules"]:
-            if rule["model_id"] == workload["model_id"]:
-                matching.append((pool, rule))
-    if not matching:
+def evaluate_plan_scenario(plan, scenario, api_prices, rates, data_kind, query_date, fx_issue,
+                           direct=False):
+    convertible = [
+        (pool, rule)
+        for pool in plan["pools"]
+        for rule in pool["rules"]
+        if rule["model_id"] == scenario["model_id"]
+        and not is_direct_entitlement(pool, rule)
+    ]
+    direct_matching = [
+        (pool, rule)
+        for pool in plan["pools"]
+        for rule in pool["rules"]
+        if rule["model_id"] == scenario["model_id"]
+        and is_direct_entitlement(pool, rule)
+        and rule["api_price_id"] == scenario["api_price_id"]
+    ]
+    if direct and not direct_matching:
         return None
+    if not direct and not any(
+        pool["entitlement_class"] == "guaranteed" for pool, _ in convertible
+    ):
+        return None
+    matching = direct_matching if direct else convertible + direct_matching
     issues = []
-    price = api_prices.get(workload["api_price_id"])
-    needs_fx = (plan["price"].get("currency") != "USD"
-                or (price is not None and price.get("currency") != "USD")
-                or any(pool["unit"] == "currency" and pool["quota"].get("currency") != "USD"
-                       for pool, _ in matching))
+    availability = plan["availability"]
+    if availability.get("status") != "on_sale":
+        add_issue(issues, "plan_not_verified_currently_on_sale")
+    add_issue(issues, evidence_issue(
+        availability.get("evidence"), data_kind, "plan_availability", query_date
+    ))
+    api_price = api_prices.get(scenario["api_price_id"])
+    needs_fx = (
+        plan["price"].get("currency") != "USD"
+        or (api_price is not None and api_price.get("currency") != "USD")
+        or any(pool["unit"] == "currency" and pool["quota"].get("currency") != "USD"
+               for pool, _ in matching)
+    )
     if needs_fx:
         add_issue(issues, fx_issue)
-    access_contexts = workload.get("access_by_plan")
-    access_context = access_contexts.get(plan["id"]) if isinstance(access_contexts, dict) else None
-    plan_access = plan.get("access")
-    if data_kind == "live" or access_context is not None:
-        if not isinstance(plan_access, dict) or access_context is None:
-            add_issue(issues, "access_eligibility_unknown")
-        else:
-            add_issue(issues, evidence_issue(plan_access.get("evidence"), data_kind, "plan_access"))
-            kind = access_context.get("kind")
-            if kind == "api":
-                if plan_access.get("api_access") is not True:
-                    add_issue(issues, "api_access_not_verified_allowed")
-            elif kind == "client":
-                if access_context.get("name") not in plan_access.get("clients", []):
-                    add_issue(issues, "client_access_not_verified_allowed")
-            else:
-                raise InputError("workload.access_by_plan kind must be client or api")
     if data_kind == "live":
-        if not isinstance(plan.get("limits"), dict):
-            add_issue(issues, "limits_evidence_missing")
-        else:
-            add_issue(issues, evidence_issue(plan["limits"].get("evidence"), data_kind, "plan_limits"))
-    if price is None:
-        add_issue(issues, "api_price_missing")
-        call_usd = None
+        for field in ("access", "limits"):
+            info = plan.get(field)
+            if not isinstance(info, dict):
+                add_issue(issues, f"plan_{field}:missing_evidence")
+            else:
+                add_issue(issues, evidence_issue(
+                    info.get("evidence"), data_kind, f"plan_{field}", query_date
+                ))
+    access = plan.get("access")
+    if isinstance(access, dict) and access.get("api_access") is not True and not access.get("clients"):
+        add_issue(issues, "no_verified_access_path")
+    if api_price is not None:
+        add_issue(issues, evidence_issue(
+            api_price.get("evidence"), data_kind, "api_price", query_date
+        ))
+    if direct:
+        api_usd = ZERO if api_price is not None else None
+        if api_price is None:
+            add_issue(issues, "api_price_missing")
+        elif api_price["model_id"] != scenario["model_id"]:
+            add_issue(issues, "api_price_model_mismatch")
     else:
-        add_issue(issues, evidence_issue(price.get("evidence"), data_kind, "api_price"))
-        call_usd, price_issue = api_call_cost(workload, price, rates)
-        add_issue(issues, price_issue)
-    cost, cost_issues = monthly_cost(plan["price"], rates, data_kind)
+        api_usd, api_issue = price_per_operation(scenario, api_price, rates)
+        add_issue(issues, api_issue)
+    if scenario["basis"] == "official_usage":
+        add_issue(issues, evidence_issue(
+            scenario.get("evidence"), data_kind, "official_usage", query_date
+        ))
+    cost, cost_issues = monthly_cost(plan["price"], rates, data_kind, query_date)
     for issue in cost_issues:
         add_issue(issues, issue)
-    if workload["basis"] == "measured":
-        add_issue(issues, evidence_issue(workload.get("evidence"), data_kind, "measured_usage"))
     pools = []
     excluded_pools = []
-    if call_usd is not None and price is not None:
+    if api_usd is not None and api_price is not None:
         for pool, rule in matching:
-            result = evaluate_pool(pool, rule, workload, price, call_usd, rates, data_kind, period_days)
+            result = pool_value(
+                pool, rule, scenario, api_price, api_usd, rates, data_kind, query_date
+            )
             if "non_guaranteed_entitlement" in result["reasons"]:
                 excluded_pools.append(result)
             else:
                 pools.append(result)
                 for issue in result["reasons"]:
-                    add_issue(issues, f"pool:{pool['id']}:{issue}")
+                    if result["status"] == "unranked" or issue not in (
+                        "daily_cap_not_monthly_scaled",
+                        "short_window_or_daily_cap_makes_monthly_value_upper_bound",
+                    ):
+                        add_issue(issues, f"pool:{pool['id']}:{issue}")
     else:
-        pools = [{"pool_id": pool["id"], "status": "unranked", "reasons": ["api_price_unusable"]}
-                 for pool, _ in matching]
+        pools = [
+            {"pool_id": pool["id"], "status": "unranked", "reasons": ["api_price_unusable"]}
+            for pool, _ in matching
+            if pool["entitlement_class"] == "guaranteed"
+        ]
     if not pools:
         add_issue(issues, "no_guaranteed_eligible_pool")
-    reachable_requests = None
-    reachable_value = None
-    realized_requests = None
-    realized_value = None
-    entitlement_per_window = None
-    if not issues:
-        reachable_requests = sum(pool["reachable_requests"] for pool in pools)
-        reachable_value = Decimal(reachable_requests) * call_usd
-        # Entitlements from distinct pools are additive for one model; a shared pool's other models are alternatives.
-        window_counts = {(pool["window_kind"], pool["window_hours"], pool["active_windows_per_month"])
-                         for pool in pools}
-        # Different windows have incompatible per-window units; keep diagnostics in each pool.
-        entitlement_per_window = (sum((pool["entitlement_value_per_window_usd"] for pool in pools), ZERO)
-                                  if len(window_counts) == 1 else None)
-        realized_requests = min(reachable_requests, workload["requests_per_month"])
-        realized_value = Decimal(realized_requests) * call_usd
-    result = {"plan_id": plan["id"], "provider": plan["provider"], "product": plan["product"],
-              "tier": plan["tier"], "region": plan["region"], "billing_regime": plan["billing_regime"],
-              "model_id": workload["model_id"], "api_price_id": workload["api_price_id"],
-              "workload_id": workload["id"], "workload_basis": workload["basis"],
-              "access_context": access_context,
-              "status": "valued" if not issues else "unranked", "reasons": issues,
-              "api_value_per_request_usd": call_usd, "entitlement_value_per_window_usd": entitlement_per_window,
-              "reachable_requests": reachable_requests, "reachable_value_usd": reachable_value,
-              "realized_requests": realized_requests, "realized_value_usd": realized_value,
-              "effective_utilization": ratio(realized_value, reachable_value),
-              "monthly_cost": cost, "pools": pools, "excluded_pools": excluded_pools,
-              "valuation_scope": "guaranteed_lower_bound" if excluded_pools else "all_eligible_pools",
-              "access": plan.get("access"), "limits": plan.get("limits"),
-              "shared_pool_alternatives": {pool["id"]: [rule["model_id"] for rule in pool["rules"]]
-                                           for pool, _ in matching if len(pool["rules"]) > 1}}
-    nonmonthly = any(pool["window"]["kind"] != "monthly" or
-                     any(cap["window"]["kind"] != "monthly" for cap in pool.get("additional_caps", []))
-                     for pool, _ in matching)
-    operational_limits = data_kind == "live"
-    if isinstance(plan.get("limits"), dict):
-        operational_limits = operational_limits or any(
-            plan["limits"].get(key) is not None for key in ("rate_limit", "concurrency", "fair_use"))
-    result["evidence_grade"] = ("insufficient" if issues else
-                                "synthetic_scenario" if data_kind == "synthetic" else
-                                "verified_measured_mix" if workload["basis"] == "measured" else
-                                "verified_scenario_mix")
-    result["limitations"] = (["unmodeled_operational_limits"] if operational_limits else [])
-    result["reachable_bound_kind"] = ("unvalued" if issues else
-                                      "active_window_capacity_upper_bound" if nonmonthly else
-                                      "operational_capacity_upper_bound" if operational_limits else
-                                      "monthly_workload_capacity")
-    result["realized_bound_kind"] = ("unvalued" if issues else
-                                     "demand_capped_upper_bound" if nonmonthly or operational_limits
-                                     or workload["basis"] == "scenario"
-                                     else "measured_count_under_monthly_cap")
-    result["value_bounds_usd"] = {
-        "reachable_lower": ZERO if reachable_value is not None and (nonmonthly or operational_limits)
-                           else reachable_value,
-        "reachable_upper": reachable_value,
-        "realized_lower": ZERO if realized_value is not None and result["realized_bound_kind"] == "demand_capped_upper_bound"
-                          else realized_value,
-        "realized_upper": realized_value,
+    has_direct_component = any(is_direct_entitlement(pool, rule) for pool, rule in matching
+                               if pool["entitlement_class"] == "guaranteed")
+
+    status = "unranked"
+    value_kind = "unvalued"
+    monthly_value = None
+    monthly_upper = None
+    window_values = {
+        item["pool_id"]: item["window_api_value_usd"]
+        for item in pools
+        if item.get("window_api_value_usd") is not None
     }
+    if not issues:
+        if any(item["status"] == "unranked" for item in pools):
+            status = "unranked"
+            add_issue(issues, "pool_monthly_value_unavailable")
+        elif any(item["status"] == "upper_bound" for item in pools):
+            status = "upper_bound"
+            monthly_upper = sum(
+                (item["monthly_api_value_usd"] if item["monthly_api_value_usd"] is not None
+                 else item["monthly_api_value_upper_usd"]
+                 for item in pools),
+                ZERO,
+            )
+            value_kind = "monthly_cap_upper_bound"
+            add_issue(issues, "nonmonthly_window_makes_monthly_value_upper_bound")
+        else:
+            status = "valued"
+            monthly_value = sum((item["monthly_api_value_usd"] for item in pools), ZERO)
+            value_kind = (
+                "bucket_face_value" if all(item["unit"] == "token_buckets" for item in pools)
+                else "api_spend_face_value" if all(item["unit"] == "currency" for item in pools)
+                else "mixed_direct_face_value" if direct
+                else "mixed_direct_and_operation_conversion" if has_direct_component
+                else "official_usage_conversion" if scenario["basis"] == "official_usage"
+                else "assumption_conversion"
+            )
+    result = {
+        "plan_id": plan["id"], "provider": plan["provider"], "product": plan["product"],
+        "tier": plan["tier"], "region": plan["region"],
+        "availability": availability, "model_id": scenario["model_id"],
+        "scenario_id": scenario["id"], "scenario_basis": scenario["basis"],
+        "scenario_label": scenario["label"], "api_price_id": scenario["api_price_id"],
+        "status": status, "reasons": issues, "value_kind": value_kind,
+        "evidence_grade": (
+            "insufficient" if issues and status == "unranked"
+            else "synthetic" if data_kind == "synthetic"
+            else "official_entitlement" if direct
+            else "official_terms_with_assumption" if scenario["basis"] == "assumption"
+            else "official_terms_and_usage"
+        ),
+        "api_value_per_operation_usd": None if direct else api_usd,
+        "window_api_value_usd_by_pool": window_values,
+        "monthly_api_value_usd": monthly_value,
+        "monthly_api_value_upper_usd": monthly_upper,
+        "monthly_cost": cost,
+        "roi_initial": ratio(monthly_value, cost["initial_monthly_usd"]),
+        "roi_renewal": ratio(monthly_value, cost["renewal_monthly_usd"]),
+        "roi_initial_upper": ratio(monthly_upper, cost["initial_monthly_usd"]),
+        "roi_renewal_upper": ratio(monthly_upper, cost["renewal_monthly_usd"]),
+        "component_pool_ids": [item["pool_id"] for item in pools],
+        "pools": pools, "excluded_pools": excluded_pools,
+        "shared_pool_alternatives": {
+            pool["id"]: sorted(
+                rule["model_id"] for rule in pool["rules"]
+                if rule["model_id"] != scenario["model_id"]
+            )
+            for pool, _ in matching
+            if len(pool["rules"]) > 1
+        },
+        "access": plan.get("access"), "limits": plan.get("limits"),
+    }
+    if status == "valued":
+        for term in ("initial", "renewal"):
+            if cost[f"{term}_monthly_usd"] == ZERO:
+                add_issue(result["reasons"], f"zero_{term}_cost_roi_undefined")
     cny_rate = rates.get("CNY")
     if cny_rate is not None and fx_issue is None:
-        for name in ("api_value_per_request", "entitlement_value_per_window", "reachable_value", "realized_value"):
-            usd_value = result[f"{name}_usd"]
-            result[f"{name}_cny"] = usd_value * cny_rate if usd_value is not None else None
-        for period in ("initial", "renewal"):
-            usd_cost = cost[f"{period}_monthly_usd"]
-            cost[f"{period}_monthly_cny"] = usd_cost * cny_rate if usd_cost is not None else None
-    for period in ("initial", "renewal"):
-        usd_cost = cost[f"{period}_monthly_usd"]
-        result[f"reachable_roi_{period}"] = ratio(reachable_value, usd_cost)
-        result[f"realized_roi_{period}"] = ratio(realized_value, usd_cost)
-        result[f"break_even_utilization_{period}"] = ratio(usd_cost, reachable_value)
-        if usd_cost == ZERO and result["status"] == "valued":
-            add_issue(result["reasons"], f"zero_{period}_cost_roi_undefined")
+        for key in ("api_value_per_operation", "monthly_api_value", "monthly_api_value_upper"):
+            usd = result[f"{key}_usd"]
+            result[f"{key}_cny"] = usd * cny_rate if usd is not None else None
+        for term in ("initial", "renewal"):
+            usd = cost[f"{term}_monthly_usd"]
+            cost[f"{term}_monthly_cny"] = usd * cny_rate if usd is not None else None
     return result
 
 
@@ -483,26 +585,31 @@ def index_items(items, key, where):
     return result
 
 
-def validate(data):
+def validate(data, today=None):
     obj(data, "input")
-    if data.get("schema_version") != 1:
-        raise InputError("schema_version must be 1")
+    if data.get("schema_version") != 2:
+        raise InputError("schema_version must be 2; old plan snapshots are not current-plan inputs")
     data_kind = data.get("data_kind", "live")
     if data_kind not in ("live", "synthetic"):
         raise InputError("data_kind must be live or synthetic")
-    days = integer(data.get("period_days", 30), "period_days", 1)
+    query_date = real_date(data.get("query_date"), "query_date")
+    execution_date = date.today() if today is None else today
+    if not isinstance(execution_date, date):
+        raise InputError("today must be a date")
+    if data_kind == "live" and query_date != execution_date.isoformat():
+        raise InputError("live query_date must equal the execution host's current local date")
     fx = obj(data.get("fx"), "fx")
-    try:
-        if date.fromisoformat(fx.get("as_of", "")).isoformat() != fx.get("as_of"):
-            raise ValueError
-    except (TypeError, ValueError) as exc:
-        raise InputError("fx.as_of must be a real YYYY-MM-DD date") from exc
+    real_date(fx.get("as_of"), "fx.as_of")
     raw_rates = obj(fx.get("per_usd"), "fx.per_usd")
-    rates = {currency: number(rate, f"fx.per_usd.{currency}", Decimal("0.0000000000000000001"))
-             for currency, rate in raw_rates.items()}
+    rates = {
+        currency: number(rate, f"fx.per_usd.{currency}", Decimal("0.0000000000000000001"))
+        for currency, rate in raw_rates.items()
+    }
     if rates.get("USD") != Decimal(1):
         raise InputError("fx.per_usd.USD must be 1")
-    fx_issue = evidence_issue(fx.get("evidence"), data_kind, "fx")
+    fx_issue = evidence_issue(fx.get("evidence"), data_kind, "fx", query_date)
+    if data_kind == "live" and fx["as_of"] != query_date and fx_issue is None:
+        fx_issue = "fx:rate_not_as_of_query_date"
     api_prices = index_items(data.get("api_prices"), "id", "api_prices")
     for ident, price in api_prices.items():
         model_id(price.get("model_id"), f"api_prices.{ident}.model_id")
@@ -510,34 +617,35 @@ def validate(data):
         bucket_numbers(price.get("per_million"), f"api_prices.{ident}.per_million", nullable=True)
         if not isinstance(price.get("batch"), bool):
             raise InputError(f"api_prices.{ident}.batch must be boolean")
-    workloads = index_items(data.get("workloads"), "id", "workloads")
-    for ident, workload in workloads.items():
-        model_id(workload.get("model_id"), f"workloads.{ident}.model_id")
-        string(workload.get("api_price_id"), f"workloads.{ident}.api_price_id")
-        integer(workload.get("requests_per_month"), f"workloads.{ident}.requests_per_month")
-        workload["per_request"] = bucket_numbers(workload.get("per_request"),
-                                                  f"workloads.{ident}.per_request", integer_values=True)
-        integer(workload.get("context_tokens"), f"workloads.{ident}.context_tokens")
-        if not isinstance(workload.get("batch"), bool):
-            raise InputError(f"workloads.{ident}.batch must be boolean")
-        if workload.get("basis") not in ("scenario", "measured"):
-            raise InputError(f"workloads.{ident}.basis must be scenario or measured")
-        if workload["basis"] == "scenario":
-            string(workload.get("label"), f"workloads.{ident}.label")
-        if workload.get("access_by_plan") is not None:
-            contexts = obj(workload["access_by_plan"], f"workloads.{ident}.access_by_plan")
-            for plan_id, context in contexts.items():
-                string(plan_id, f"workloads.{ident}.access_by_plan key")
-                context = obj(context, f"workloads.{ident}.access_by_plan.{plan_id}")
-                if context.get("kind") not in ("api", "client"):
-                    raise InputError(f"workloads.{ident}.access_by_plan.{plan_id}.kind must be api or client")
-                if context["kind"] == "client":
-                    string(context.get("name"), f"workloads.{ident}.access_by_plan.{plan_id}.name")
+        integer(price.get("context_min", 0), f"api_prices.{ident}.context_min")
+        if price.get("context_max") is not None:
+            integer(price["context_max"], f"api_prices.{ident}.context_max", 1)
+    scenarios = index_items(data.get("conversion_scenarios", []), "id", "conversion_scenarios")
+    for ident, scenario in scenarios.items():
+        model_id(scenario.get("model_id"), f"conversion_scenarios.{ident}.model_id")
+        string(scenario.get("api_price_id"), f"conversion_scenarios.{ident}.api_price_id")
+        scenario["per_operation"] = bucket_numbers(
+            scenario.get("per_operation"),
+            f"conversion_scenarios.{ident}.per_operation", integer_values=True
+        )
+        if not any(scenario["per_operation"].values()):
+            raise InputError(f"conversion_scenarios.{ident}.per_operation cannot be all zero")
+        integer(scenario.get("context_tokens"), f"conversion_scenarios.{ident}.context_tokens")
+        if not isinstance(scenario.get("batch"), bool):
+            raise InputError(f"conversion_scenarios.{ident}.batch must be boolean")
+        if scenario.get("basis") not in ("official_usage", "assumption"):
+            raise InputError(f"conversion_scenarios.{ident}.basis must be official_usage or assumption")
+        string(scenario.get("label"), f"conversion_scenarios.{ident}.label")
     plans = index_items(data.get("plans"), "id", "plans")
     pool_ids = set()
     for ident, plan in plans.items():
-        for key in ("provider", "product", "tier", "region", "billing_regime"):
+        for forbidden in ("billing_regime", "upgrade_from"):
+            if forbidden in plan:
+                raise InputError(f"plans.{ident}.{forbidden} is obsolete in current-plan schema")
+        for key in ("provider", "product", "tier", "region"):
             string(plan.get(key), f"plans.{ident}.{key}")
+        availability = obj(plan.get("availability"), f"plans.{ident}.availability")
+        string(availability.get("status"), f"plans.{ident}.availability.status")
         obj(plan.get("price"), f"plans.{ident}.price")
         if plan.get("access") is not None:
             access = obj(plan["access"], f"plans.{ident}.access")
@@ -546,8 +654,6 @@ def validate(data):
                     string(client, f"plans.{ident}.access.clients[]")
             if access.get("api_access") is not None and not isinstance(access["api_access"], bool):
                 raise InputError(f"plans.{ident}.access.api_access must be boolean or null")
-            if access.get("notes") is not None:
-                string(access["notes"], f"plans.{ident}.access.notes")
         if plan.get("limits") is not None:
             limits = obj(plan["limits"], f"plans.{ident}.limits")
             for key in ("rate_limit", "fair_use", "overage"):
@@ -559,18 +665,19 @@ def validate(data):
         if not pools:
             raise InputError(f"plans.{ident}.pools must not be empty")
         for pool in pools:
-            obj(pool, f"plans.{ident}.pool")
+            pool = obj(pool, f"plans.{ident}.pool")
             pool_id = string(pool.get("id"), "pool.id")
-            if pool.get("entitlement_class") not in ("guaranteed", "conditional", "promotional"):
-                raise InputError(f"pool.{pool_id}.entitlement_class is required and must be guaranteed, conditional, or promotional")
-            if pool.get("unit") not in ("requests", "credits", "weighted_tokens", "currency", "token_buckets"):
-                raise InputError(f"pool.{pool_id}.unit is invalid")
-            if pool["unit"] == "currency":
-                string(obj(pool.get("quota"), f"pool.{pool_id}.quota").get("currency"),
-                       f"pool.{pool_id}.quota.currency")
             if pool_id in pool_ids:
                 raise InputError(f"pool.id must be globally unique: {pool_id}")
             pool_ids.add(pool_id)
+            if pool.get("entitlement_class") not in ("guaranteed", "conditional", "promotional"):
+                raise InputError(f"pool.{pool_id}.entitlement_class is required")
+            if pool.get("unit") not in ("requests", "credits", "weighted_tokens", "currency", "token_buckets"):
+                raise InputError(f"pool.{pool_id}.unit is invalid")
+            quota = obj(pool.get("quota"), f"pool.{pool_id}.quota")
+            if pool["unit"] == "currency":
+                string(quota.get("currency"), f"pool.{pool_id}.quota.currency")
+            cap_window(pool, f"pool.{pool_id}")
             cap_ids = set()
             for cap in array(pool.get("additional_caps", []), f"pool.{pool_id}.additional_caps"):
                 cap = obj(cap, f"pool.{pool_id}.additional_cap")
@@ -578,142 +685,164 @@ def validate(data):
                 if cap_id in cap_ids:
                     raise InputError(f"duplicate additional cap in pool {pool_id}: {cap_id}")
                 cap_ids.add(cap_id)
+                if cap.get("unit", pool["unit"]) != pool["unit"]:
+                    raise InputError(f"additional_cap.{cap_id}.unit must match its pool")
+                cap_window(cap, f"additional_cap.{cap_id}")
             rules = array(pool.get("rules"), f"pool.{pool_id}.rules")
             if not rules:
                 raise InputError(f"pool.{pool_id}.rules must not be empty")
-            model_rules = set()
+            mids = set()
             for rule in rules:
-                obj(rule, f"pool.{pool_id}.rule")
+                rule = obj(rule, f"pool.{pool_id}.rule")
                 mid = model_id(rule.get("model_id"), f"pool.{pool_id}.rule.model_id")
-                if mid in model_rules:
+                if is_direct_entitlement(pool, rule):
+                    string(rule.get("api_price_id"), f"pool.{pool_id}.rule.api_price_id")
+                    if pool["unit"] == "token_buckets" and rule.get("basis") != "token_buckets":
+                        raise InputError(f"pool.{pool_id}.rule.basis must be token_buckets")
+                    if pool["unit"] == "currency" and rule.get("basis") != "api_value":
+                        raise InputError(f"pool.{pool_id}.rule.basis must be api_value")
+                if mid in mids:
                     raise InputError(f"duplicate model rule in pool {pool_id}: {mid}")
-                model_rules.add(mid)
-        prior = plan.get("upgrade_from")
-        if prior is not None:
-            string(prior, f"plans.{ident}.upgrade_from")
-            if prior == ident or prior not in plans:
-                raise InputError(f"plans.{ident}.upgrade_from must refer to another plan")
-            old = plans[prior]
-            if any(plan[key] != old.get(key) for key in ("provider", "product", "region", "billing_regime")):
-                raise InputError(f"plans.{ident}.upgrade_from needs same provider/product/region/billing_regime")
-    return data_kind, days, rates, fx_issue, api_prices, workloads, plans
+                mids.add(mid)
+    return data_kind, query_date, rates, fx_issue, api_prices, scenarios, plans
 
 
-def ranking_row(row, metric):
-    return {"plan_id": row["plan_id"], "tier": row["tier"], "model_id": row["model_id"],
-            "workload_id": row["workload_id"], "api_price_id": row["api_price_id"],
-            "monthly_value_usd": row["reachable_value_usd"] if metric == "reachable_roi_renewal"
-                                 else row["realized_value_usd"], "renewal_monthly_cost_usd":
-            row["monthly_cost"]["renewal_monthly_usd"], "roi": row[metric],
-            "workload_basis": row["workload_basis"], "evidence_grade": row["evidence_grade"],
-            "value_bound_kind": row["reachable_bound_kind"] if metric == "reachable_roi_renewal"
-                                else row["realized_bound_kind"],
-            "access_context": row["access_context"],
-            "shared_pool_alternatives": row["shared_pool_alternatives"]}
+def ranking_row(row):
+    return {
+        "plan_id": row["plan_id"], "tier": row["tier"], "model_id": row["model_id"],
+        "scenario_id": row["scenario_id"], "api_price_id": row["api_price_id"],
+        "component_pool_ids": row["component_pool_ids"],
+        "monthly_api_value_usd": row["monthly_api_value_usd"],
+        "renewal_monthly_cost_usd": row["monthly_cost"]["renewal_monthly_usd"],
+        "roi_renewal": row["roi_renewal"], "value_kind": row["value_kind"],
+        "evidence_grade": row["evidence_grade"],
+        "shared_pool_alternatives": row["shared_pool_alternatives"],
+    }
 
 
 def rankings(evaluations):
-    same = {}
-    for row in evaluations:
-        if row["reachable_roi_renewal"] is not None:
-            key = (row["model_id"], row["api_price_id"], row["workload_id"])
-            same.setdefault(key, []).append(row)
-    same_groups = []
-    for key, rows in sorted(same.items()):
+    eligible = [row for row in evaluations if row["status"] == "valued"
+                and row["roi_renewal"] is not None]
+    groups = {}
+    for row in eligible:
+        key = (row["model_id"], row["api_price_id"], row["scenario_id"])
+        groups.setdefault(key, []).append(row)
+    same_model = []
+    for key, rows in sorted(groups.items(), key=lambda item: (
+        item[0][0], item[0][1], item[0][2] or ""
+    )):
         if len(rows) < 2:
             continue
-        rows.sort(key=lambda row: (-row["reachable_roi_renewal"], row["plan_id"]))
-        same_groups.append({"model_id": key[0], "api_price_id": key[1], "workload_id": key[2],
-                            "rows": [ranking_row(row, "reachable_roi_renewal") for row in rows]})
-    own = sorted((row for row in evaluations if row["reachable_roi_renewal"] is not None),
-                 key=lambda row: (-row["reachable_roi_renewal"], row["plan_id"], row["model_id"]))
-    realized = sorted((row for row in evaluations if row["realized_roi_renewal"] is not None),
-                      key=lambda row: (-row["realized_roi_renewal"], row["plan_id"], row["model_id"]))
-    return {"same_model": same_groups,
-            "own_api_value": [ranking_row(row, "reachable_roi_renewal") for row in own],
-            "realized": [ranking_row(row, "realized_roi_renewal") for row in realized]}
+        rows.sort(key=lambda row: (-row["roi_renewal"], row["plan_id"]))
+        same_model.append({
+            "model_id": key[0], "api_price_id": key[1], "scenario_id": key[2],
+            "rows": [ranking_row(row) for row in rows],
+        })
+    own = sorted(eligible, key=lambda row: (-row["roi_renewal"], row["plan_id"], row["model_id"]))
+    return {"same_model": same_model, "own_api_value": [ranking_row(row) for row in own]}
 
 
-def upgrades(plans, evaluations):
-    lookup = {(row["plan_id"], row["model_id"], row["api_price_id"], row["workload_id"]): row
-              for row in evaluations}
-    output = []
+def unrank_partial_plan_value(row, reason):
+    row["status"] = "unranked"
+    row["value_kind"] = "unvalued"
+    row["evidence_grade"] = "insufficient"
+    add_issue(row["reasons"], reason)
+    for field in ("monthly_api_value_usd", "monthly_api_value_upper_usd", "roi_initial",
+                  "roi_renewal", "roi_initial_upper", "roi_renewal_upper",
+                  "monthly_api_value_cny", "monthly_api_value_upper_cny"):
+        if field in row:
+            row[field] = None
+
+
+def analyze(data, today=None):
+    data_kind, query_date, rates, fx_issue, api_prices, scenarios, plans = validate(data, today)
+    evaluations = []
     for plan in plans.values():
-        prior = plan.get("upgrade_from")
-        if prior is None:
-            continue
+        converted_models = {
+            rule["model_id"] for pool in plan["pools"] for rule in pool["rules"]
+            if not is_direct_entitlement(pool, rule)
+            and pool["entitlement_class"] == "guaranteed"
+        }
+        direct_keys = {
+            (rule["model_id"], rule["api_price_id"])
+            for pool in plan["pools"] for rule in pool["rules"]
+            if is_direct_entitlement(pool, rule)
+        }
+        for mid, price_id in sorted(direct_keys):
+            if mid in converted_models:
+                continue
+            direct_scenario = {
+                "id": None, "model_id": mid, "api_price_id": price_id,
+                "basis": "direct_entitlement", "label": "Published entitlement face value",
+                "per_operation": {bucket: 0 for bucket in BUCKETS},
+            }
+            row = evaluate_plan_scenario(
+                plan, direct_scenario, api_prices, rates, data_kind,
+                query_date, fx_issue, direct=True
+            )
+            if row is not None:
+                evaluations.append(row)
+        for scenario in scenarios.values():
+            row = evaluate_plan_scenario(
+                plan, scenario, api_prices, rates, data_kind, query_date, fx_issue
+            )
+            if row is not None:
+                evaluations.append(row)
+        direct_prices_by_model = {}
+        for pool in plan["pools"]:
+            if pool["entitlement_class"] != "guaranteed":
+                continue
+            for rule in pool["rules"]:
+                if is_direct_entitlement(pool, rule):
+                    direct_prices_by_model.setdefault(rule["model_id"], set()).add(
+                        rule["api_price_id"]
+                    )
         for row in evaluations:
             if row["plan_id"] != plan["id"]:
                 continue
-            old = lookup.get((prior, row["model_id"], row["api_price_id"], row["workload_id"]))
-            if old is None:
-                output.append({"from_plan_id": prior, "to_plan_id": plan["id"],
-                               "model_id": row["model_id"], "workload_id": row["workload_id"],
-                               "status": "unranked", "reason": "baseline_model_or_workload_missing"})
-                continue
-            if old["status"] != "valued" or row["status"] != "valued":
-                output.append({"from_plan_id": prior, "to_plan_id": plan["id"],
-                               "model_id": row["model_id"], "workload_id": row["workload_id"],
-                               "status": "unranked", "reason": "baseline_or_upgrade_unvalued"})
-                continue
-            delta_cost = row["monthly_cost"]["renewal_monthly_usd"] - old["monthly_cost"]["renewal_monthly_usd"]
-            delta_initial_cost = row["monthly_cost"]["initial_monthly_usd"] - old["monthly_cost"]["initial_monthly_usd"]
-            delta_reachable = row["reachable_value_usd"] - old["reachable_value_usd"]
-            delta_realized = row["realized_value_usd"] - old["realized_value_usd"]
-            output.append({"from_plan_id": prior, "to_plan_id": plan["id"],
-                           "model_id": row["model_id"], "workload_id": row["workload_id"],
-                           "status": "valued" if delta_cost > ZERO and delta_reachable >= ZERO else "unranked",
-                           "reason": None if delta_cost > ZERO and delta_reachable >= ZERO else "nonpositive_cost_or_entitlement_delta",
-                           "incremental_initial_cost_usd": delta_initial_cost,
-                           "incremental_cost_usd": delta_cost, "incremental_reachable_value_usd": delta_reachable,
-                           "incremental_realized_value_usd": delta_realized,
-                           "incremental_initial_reachable_roi": ratio(delta_reachable, delta_initial_cost) if delta_initial_cost > ZERO else None,
-                           "incremental_initial_realized_roi": ratio(delta_realized, delta_initial_cost) if delta_initial_cost > ZERO else None,
-                           "incremental_reachable_roi": ratio(delta_reachable, delta_cost) if delta_cost > ZERO else None,
-                           "incremental_realized_roi": ratio(delta_realized, delta_cost) if delta_cost > ZERO else None})
-    return output
-
-
-def analyze(data):
-    data_kind, days, rates, fx_issue, api_prices, workloads, plans = validate(data)
-    evaluations = []
-    for plan in plans.values():
-        for workload in workloads.values():
-            row = evaluate_plan_workload(plan, workload, api_prices, rates, data_kind, days, fx_issue)
-            if row is not None:
-                evaluations.append(row)
-        covered_models = {row["model_id"] for row in evaluations if row["plan_id"] == plan["id"]}
-        offered_models = {rule["model_id"] for pool in plan["pools"] for rule in pool["rules"]}
-        for mid in sorted(offered_models - covered_models):
-            cost, cost_issues = monthly_cost(plan["price"], rates, data_kind)
-            evaluations.append({"plan_id": plan["id"], "provider": plan["provider"],
-                                "product": plan["product"], "tier": plan["tier"], "region": plan["region"],
-                                "billing_regime": plan["billing_regime"], "model_id": mid,
-                                "api_price_id": None, "workload_id": None, "workload_basis": None,
-                                "access_context": None, "status": "unranked",
-                                "reasons": ["workload_missing"] + cost_issues,
-                                "evidence_grade": "insufficient", "reachable_bound_kind": "unvalued",
-                                "realized_bound_kind": "unvalued", "value_bounds_usd": None,
-                                "api_value_per_request_usd": None,
-                                "entitlement_value_per_window_usd": None, "reachable_requests": None,
-                                "reachable_value_usd": None, "realized_requests": None,
-                                "realized_value_usd": None, "effective_utilization": None,
-                                "monthly_cost": cost, "pools": [], "excluded_pools": [],
-                                "valuation_scope": "unvalued", "access": plan.get("access"),
-                                "limits": plan.get("limits"), "shared_pool_alternatives": {},
-                                "reachable_roi_initial": None, "reachable_roi_renewal": None,
-                                "realized_roi_initial": None, "realized_roi_renewal": None,
-                                "break_even_utilization_initial": None,
-                                "break_even_utilization_renewal": None})
-    return {"schema_version": 1, "data_kind": data_kind, "period_days": days,
-            "fx_as_of": data["fx"]["as_of"], "evaluations": evaluations,
-            "rankings": rankings(evaluations), "upgrades": upgrades(plans, evaluations),
-            "portfolio_analysis": {"status": "not_evaluated",
-                                   "reason": "shared_demand_and_window_allocation_not_computed"},
-            "notes": ["API value is replacement cost, not cash back or equal model quality.",
-                      "Shared pool model rows are mutually exclusive alternatives; do not add them.",
-                      "Own-API and realized rankings do not imply equal model capability.",
-                      "Do not add individual-plan realized values or infer a best bundle without shared-demand allocation."]}
+            prices = direct_prices_by_model.get(row["model_id"], set())
+            if prices and prices != {row["api_price_id"]}:
+                unrank_partial_plan_value(row, "incompatible_direct_api_price_ids_not_aggregated")
+        covered = {row["model_id"] for row in evaluations
+                   if row["plan_id"] == plan["id"] and row["scenario_id"] is not None}
+        offered = {rule["model_id"] for pool in plan["pools"] for rule in pool["rules"]
+                   if not is_direct_entitlement(pool, rule)}
+        for mid in sorted(offered - covered):
+            cost, cost_issues = monthly_cost(plan["price"], rates, data_kind, query_date)
+            evaluations.append({
+                "plan_id": plan["id"], "provider": plan["provider"], "product": plan["product"],
+                "tier": plan["tier"], "region": plan["region"],
+                "availability": plan["availability"], "model_id": mid,
+                "scenario_id": None, "scenario_basis": None, "scenario_label": None,
+                "api_price_id": None, "status": "unranked",
+                "reasons": [
+                    "conversion_scenario_missing" if mid in converted_models
+                    else "no_guaranteed_eligible_pool"
+                ] + cost_issues,
+                "value_kind": "unvalued", "evidence_grade": "insufficient",
+                "api_value_per_operation_usd": None, "window_api_value_usd_by_pool": {},
+                "monthly_api_value_usd": None, "monthly_api_value_upper_usd": None,
+                "monthly_cost": cost, "roi_initial": None, "roi_renewal": None,
+                "roi_initial_upper": None, "roi_renewal_upper": None,
+                "component_pool_ids": [
+                    pool["id"] for pool in plan["pools"]
+                    if pool["entitlement_class"] == "guaranteed"
+                    and any(rule["model_id"] == mid for rule in pool["rules"])
+                ],
+                "pools": [], "excluded_pools": [], "shared_pool_alternatives": {},
+                "access": plan.get("access"), "limits": plan.get("limits"),
+            })
+    return {
+        "schema_version": 2, "data_kind": data_kind, "query_date": query_date,
+        "fx_as_of": data["fx"]["as_of"], "evaluations": evaluations,
+        "rankings": rankings(evaluations),
+        "notes": [
+            "API equivalent is replacement cost, not cash back or equal model quality.",
+            "Assumption-based operation mixes are technical conversion scenarios.",
+            "Rows using one shared pool for different models are mutually exclusive, not additive.",
+            "Short-window monthly upper bounds are not included in sorted rankings.",
+        ],
+    }
 
 
 def jsonable(value):
@@ -727,24 +856,55 @@ def jsonable(value):
 
 
 def markdown(result):
-    rows = [f"# Plan value ({result['data_kind']} data)", "",
-            "Monthly USD replacement value; model quality is not normalized.", "",
-            "| Plan | Model | Workload | Reachable USD | Realized USD | Renewal ROI | Status / reason |",
-            "| --- | --- | --- | ---: | ---: | ---: | --- |"]
+    fmt = lambda value: "unknown" if value is None else format(value, ".4f")
+    rows = [
+        f"# Current plan API-equivalent value ({result['data_kind']}, {result['query_date']})",
+        "", "API equivalent is replacement cost; model quality is not normalized.",
+        "", "## Same model ranking", "",
+    ]
+    if not result["rankings"]["same_model"]:
+        rows.extend(("No comparable pair with the same exact model, API price, and conversion scenario.", ""))
+    for group in result["rankings"]["same_model"]:
+        label = group["scenario_id"] or "direct entitlement"
+        rows.extend((f"### {group['model_id']} · {group['api_price_id']} · {label}", "",
+                     "| Rank | Plan | Monthly API USD | Renewal ROI | Basis |",
+                     "| ---: | --- | ---: | ---: | --- |"))
+        for rank, row in enumerate(group["rows"], 1):
+            rows.append(f"| {rank} | {row['plan_id']} | {fmt(row['monthly_api_value_usd'])} | "
+                        f"{fmt(row['roi_renewal'])} | {row['value_kind']} |")
+        rows.append("")
+    rows.extend(("## Own API value ranking", "",
+                 "Each model uses its own official API price; values do not imply equal capability.", "",
+                 "| Rank | Plan | Model | Conversion | Monthly API USD | Renewal ROI | Basis |",
+                 "| ---: | --- | --- | --- | ---: | ---: | --- |"))
+    for rank, row in enumerate(result["rankings"]["own_api_value"], 1):
+        rows.append(f"| {rank} | {row['plan_id']} | {row['model_id']} | "
+                    f"{row['scenario_id'] or 'direct entitlement'} | "
+                    f"{fmt(row['monthly_api_value_usd'])} | {fmt(row['roi_renewal'])} | "
+                    f"{row['value_kind']} |")
+    if not result["rankings"]["own_api_value"]:
+        rows.append("| — | No rankable monthly entitlement | — | — | — | — | — |")
+    rows.extend(("", "## Bounded and unranked diagnostics", "",
+                 "Short-window upper bounds are not part of the sorted rankings.", "",
+                 "| Plan | Model | Status | Monthly upper USD | Window USD by pool | Reason |",
+                 "| --- | --- | --- | ---: | --- | --- |"))
     for row in result["evaluations"]:
-        fmt = lambda x: "unknown" if x is None else format(x, ".4f")
-        rows.append("| " + " | ".join((row["plan_id"], row["model_id"], row["workload_id"] or "unknown",
-                                      fmt(row["reachable_value_usd"]), fmt(row["realized_value_usd"]),
-                                      fmt(row["reachable_roi_renewal"]),
-                                      row["status"] + (": " + ", ".join(row["reasons"]) if row["reasons"] else ""))) + " |")
-    rows.extend(("", "Shared-pool alternatives are separate what-if rows, never additive.",
-                 "Portfolio analysis: not_evaluated. Do not add individual-plan values or infer a best bundle.", ""))
+        if row["status"] == "valued":
+            continue
+        windows = ", ".join(f"{key}: {fmt(value)}" for key, value in
+                            row["window_api_value_usd_by_pool"].items()) or "unknown"
+        rows.append("| " + " | ".join((
+            row["plan_id"], row["model_id"], row["status"],
+            fmt(row["monthly_api_value_upper_usd"]), windows,
+            ", ".join(row["reasons"]) or "none",
+        )) + " |")
+    rows.extend(("", "Shared-pool model alternatives are mutually exclusive.", ""))
     return "\n".join(rows)
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("input", type=Path, help="JSON plan snapshot")
+    parser.add_argument("input", type=Path, help="JSON snapshot of current on-sale plans")
     parser.add_argument("--output", type=Path, help="write machine-readable JSON (default stdout)")
     parser.add_argument("--markdown", type=Path, help="optionally write a Markdown summary")
     args = parser.parse_args(argv)

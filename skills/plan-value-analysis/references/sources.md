@@ -1,17 +1,21 @@
-# 官方来源导航
+# 当前官方来源入口
 
-这些链接只用于**定位本次核验入口**，不保存报价快照，也不代替逐字段证据。每次分析重新打开产品与 API 页面，核对适用地区、计费制度、更新时间、实际模型版本及扣费细则；把支持字段的 URL、抓取日期和短片段写入输入 JSON。若页面文字、表格、结账页或帮助中心冲突，记录冲突并停止该字段的精确估值。任何平台自身的 token/credit 定价都不能无证明地代替模型官方 API 价。
+以下链接只用于定位**查询时仍在售**的套餐、模型扣费和官方 API 价；不保存报价快照。每次分析重新打开官方页面，核对地区、在售状态、适用模型版本、首期及续费、额度、扣费与有效期，并记录 URL、查询日期和支持字段的短片段。停售页面、过期说明或有冲突的数字不能充作当前权益；先查明适用条款，否则该字段不排名。平台自己的 credit 价格不能无证明地代替模型官方 API 价。
 
-| 对象 | 优先查阅的官方入口 | 核对焦点 |
+[Models.dev](https://models.dev/) 及其 [provider 数据](https://models.dev/api.json)、[模型元数据](https://models.dev/models.json)、[组合目录](https://models.dev/catalog.json) 可辅助发现模型 ID、开发者、接入服务商和价格候选。它的聚合价格或某接入商报价不自动等于**模型开发者的官方 API 价**；关键版本和费率仍须在模型开发者的官方 API 页面当次核实，也不能靠聚合条目证明某订阅仍在售。
+
+套餐候选可从 [Coding Plan](https://www.codingplan.fyi/) 及其开放的 [plans.json](https://github.com/wmpeng/codingplan/blob/main/plans.json)、[models.json](https://github.com/wmpeng/codingplan/blob/main/models.json)、[platforms.json](https://github.com/wmpeng/codingplan/blob/main/platforms.json)，或 [VibePlan](https://vibeplan.cc/) 的 [数据快照](https://vibeplan.cc/data/latest.json) 发现。聚合数据可能混有实测、推算、请求数估计、未知或不在售的条目；快照的 `generatedAt`/`verifiedAt` 不保证查询当日仍有效，tokens/$ 还取决于固定 cache 与操作场景。它们只帮助寻找候选和官方链接，**不得直接导入数值或排名**；逐项回到官网确认当日仍在售及价格、额度、扣费规则。
+
+| 产品或模型 | 当前核验入口 | 核对重点 |
 | --- | --- | --- |
-| GitHub Copilot | [计划](https://github.com/features/copilot/plans)、[个人用量计费](https://docs.github.com/en/copilot/concepts/billing/usage-based-billing-for-individuals)、[模型与价格](https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing)、[旧请求制](https://docs.github.com/en/copilot/reference/copilot-billing/request-based-billing-legacy/copilot-requests) | 当期 AI credits 与适用的旧 request 制分开；模型费率、缓存和额外费用。 |
-| Claude Max / Code | [Max 计划](https://support.claude.com/en/articles/11049741-what-is-the-max-plan)、[使用与长度限制](https://support.claude.com/en/articles/11647753-how-do-usage-and-length-limits-work)、[Claude API 价格](https://platform.claude.com/docs/en/about-claude/pricing) | 共用产品额度、会话与周限制；宣传倍率是否能转成确定 token 量。 |
-| MiniMax M Plan | [M Plan 说明](https://platform.minimax.io/docs/m-plan/intro)、[API 价格](https://platform.minimax.io/docs/pricing/overview) | 当期档位、实际模型及消费规则；不要混用旧 Token Plan。 |
-| 小米 MiMo Token Plan | [套餐扣费与额度](https://mimo.mi.com/docs/en-US/quick-start/faq/token-plan/Usage%26Quota)、[API 价格](https://mimo.mi.com/docs/en-US/price/pay-as-you-go) | cache hit/miss/output 权重、时段或地区、套餐额度与按量 API 账单的区别。 |
-| Tencent CodeBuddy | [计划价](https://www.codebuddy.ai/pricing/)、[Credits 说明](https://www.codebuddy.ai/docs/ide/Account/credits) | 产品身份、credit 如何按实际任务扣除；没有确定 token 映射时保持不可精确估值。 |
-| Kimi / Kimi Code | [会员权益](https://www.kimi.com/en/help/membership/membership-overview)、[会员价格](https://www.kimi.com/en/help/membership/membership-pricing)、[模型 API 价格](https://platform.moonshot.cn/docs/pricing/chat) | 国内新旧档位、Code 权限和共享额度；会员与按量 API 是不同产品。 |
-| OpenCode Go | [Go 计划](https://opencode.ai/v2/docs/console/go/) | 逐模型金额限制、短窗口及周/月上限、预估请求数与保证额度的区别。 |
-| Command Code | [使用限制](https://commandcode.ai/docs/resources/usage-limits)、[价格与限制](https://commandcode.ai/docs/resources/pricing-limits) | 具体产品身份、共享归一池、滚动窗口；若官网数字冲突标记 `conflicting`。 |
-| DeepSeek 官方 API | [模型与价格](https://api-docs.deepseek.com/quick_start/pricing/)、[模型列表](https://api-docs.deepseek.com/api/list-models/)、[更新记录](https://api-docs.deepseek.com/updates/) | alias 当前服务 checkpoint、模式、缓存与时段价格；其它平台声称接入同模型时逐一核实。 |
+| GitHub Copilot | [套餐](https://github.com/features/copilot/plans)、[个人订阅计费](https://docs.github.com/en/copilot/concepts/billing/usage-based-billing-for-individuals)、[模型与价格](https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing) | 当前档位、AI credits、模型费率与缓存扣费。 |
+| Claude Max / Code | [Max 套餐](https://support.claude.com/en/articles/11049741-what-is-the-max-plan)、[额度与长度限制](https://support.claude.com/en/articles/11647753-how-do-usage-and-length-limits-work)、[Claude API 价格](https://platform.claude.com/docs/en/about-claude/pricing) | 共用额度与窗口限制；宣传倍率是否有可换算额度。 |
+| MiniMax M Plan | [M Plan](https://platform.minimax.io/docs/m-plan/intro)、[API 价格](https://platform.minimax.io/docs/pricing/overview) | 当前在售档位、适用模型与扣费规则。 |
+| 小米 MiMo Token Plan | [套餐额度与扣费](https://mimo.mi.com/docs/en-US/quick-start/faq/token-plan/Usage%26Quota)、[API 价格](https://mimo.mi.com/docs/en-US/price/pay-as-you-go) | cache hit/miss/output 权重、时段、额度窗口。 |
+| Tencent CodeBuddy | [套餐](https://www.codebuddy.ai/pricing/)、[Credits 说明](https://www.codebuddy.ai/docs/ide/Account/credits) | 产品身份与 credit 扣费；未公布确定映射时不精确估值。 |
+| Kimi / Kimi Code | [会员权益](https://www.kimi.com/en/help/membership/membership-overview)、[会员价格](https://www.kimi.com/en/help/membership/membership-pricing)、[模型 API 价格](https://platform.moonshot.cn/docs/pricing/chat) | 当前在售档位、Code 权限及共享额度；会员和 API 为不同产品。 |
+| OpenCode Go | [Go 套餐](https://opencode.ai/v2/docs/console/go/) | 当前逐模型金额上限、短窗口与月上限；预估请求数不等于保证额度。 |
+| Command Code | [使用限制](https://commandcode.ai/docs/resources/usage-limits)、[价格与限制](https://commandcode.ai/docs/resources/pricing-limits) | 产品身份、共享归一池与窗口；官方页面数字冲突时标记 `conflicting`。 |
+| DeepSeek 官方 API | [模型与价格](https://api-docs.deepseek.com/quick_start/pricing/)、[模型列表](https://api-docs.deepseek.com/api/list-models/)、[更新记录](https://api-docs.deepseek.com/updates/) | alias 当次服务 checkpoint、模式及缓存价格；其它平台的模型身份另行核实。 |
 
-未在表内的厂商沿相同路径寻找其**计划与扣费规则**、**模型身份**及**该模型官方 API 价格**三类原始来源。没有一个环节的可靠数据，就在结果中说明缺口，不沿用别家模型的价格。
+其它厂商也须分别找到当前官方**套餐与扣费规则**、**模型身份**及**该模型 API 价格**。任一环节无法核实，就说明缺口，不沿用其它模型或过期套餐的数字。
