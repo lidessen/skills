@@ -1,0 +1,246 @@
+{
+  "schema_version": 1,
+  "data_kind": "synthetic",
+  "period_days": 30,
+  "fx": {
+    "as_of": "2026-01-01",
+    "per_usd": { "USD": "1", "CNY": "7" },
+    "evidence": { "status": "synthetic" }
+  },
+  "api_prices": [
+    {
+      "id": "fictional-shared-standard",
+      "model_id": "fictional/shared@1.0#standard",
+      "currency": "USD",
+      "per_million": {
+        "input": "2",
+        "output": "8",
+        "cache_read": "0.2",
+        "cache_write": "2.5"
+      },
+      "context_min": 0,
+      "context_max": null,
+      "batch": false,
+      "evidence": { "status": "synthetic" }
+    },
+    {
+      "id": "fictional-exclusive-standard",
+      "model_id": "fictional/exclusive@2.0#standard",
+      "currency": "CNY",
+      "per_million": {
+        "input": "20",
+        "output": "60",
+        "cache_read": "1",
+        "cache_write": "25"
+      },
+      "context_min": 0,
+      "context_max": null,
+      "batch": false,
+      "evidence": { "status": "synthetic" }
+    }
+  ],
+  "workloads": [
+    {
+      "id": "shared-coding-scenario",
+      "model_id": "fictional/shared@1.0#standard",
+      "api_price_id": "fictional-shared-standard",
+      "requests_per_month": 120,
+      "per_request": {
+        "input": 10000,
+        "output": 2000,
+        "cache_read": 1000,
+        "cache_write": 500
+      },
+      "context_tokens": 14000,
+      "batch": false,
+      "basis": "scenario",
+      "label": "Invented coding task mix; every call in one request uses this exact model, mode, context tier, and API rate",
+      "access_by_plan": {
+        "fictional-a-basic": { "kind": "client", "name": "Fictional A editor" },
+        "fictional-a-pro": { "kind": "client", "name": "Fictional A editor" },
+        "fictional-b-coding": { "kind": "client", "name": "Fictional B editor" }
+      },
+      "active_windows_per_month": { "fictional-b-shared-credits": 10 },
+      "active_days_per_month": 10
+    },
+    {
+      "id": "exclusive-coding-scenario",
+      "model_id": "fictional/exclusive@2.0#standard",
+      "api_price_id": "fictional-exclusive-standard",
+      "requests_per_month": 90,
+      "per_request": {
+        "input": 8000,
+        "output": 1000,
+        "cache_read": 2000,
+        "cache_write": 0
+      },
+      "context_tokens": 12000,
+      "batch": false,
+      "basis": "scenario",
+      "label": "Invented proprietary-model task mix; do not infer capability parity",
+      "access_by_plan": {
+        "fictional-b-coding": { "kind": "client", "name": "Fictional B editor" }
+      },
+      "active_windows_per_month": { "fictional-b-shared-credits": 10 },
+      "active_days_per_month": 10
+    }
+  ],
+  "plans": [
+    {
+      "id": "fictional-a-basic",
+      "provider": "Fictional A",
+      "product": "A Code",
+      "tier": "Basic",
+      "region": "Synthetic Region",
+      "billing_regime": "fictional fixed monthly requests",
+      "access": {
+        "clients": ["Fictional A editor"],
+        "api_access": false,
+        "notes": "Fabricated editor-only access",
+        "evidence": { "status": "synthetic" }
+      },
+      "limits": {
+        "rate_limit": null,
+        "concurrency": null,
+        "fair_use": null,
+        "overage": null,
+        "evidence": { "status": "synthetic" }
+      },
+      "price": {
+        "currency": "USD",
+        "months": 1,
+        "initial": "5",
+        "renewal": "5",
+        "tax_rate": "0",
+        "tax_included": true,
+        "evidence": { "status": "synthetic" }
+      },
+      "pools": [
+        {
+          "id": "fictional-a-basic-requests",
+          "unit": "requests",
+          "entitlement_class": "guaranteed",
+          "quota": { "amount": "100", "evidence": { "status": "synthetic" } },
+          "window": { "kind": "monthly" },
+          "rules": [
+            {
+              "model_id": "fictional/shared@1.0#standard",
+              "basis": "request",
+              "units_per_request": "1",
+              "evidence": { "status": "synthetic" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fictional-a-pro",
+      "provider": "Fictional A",
+      "product": "A Code",
+      "tier": "Pro",
+      "region": "Synthetic Region",
+      "billing_regime": "fictional fixed monthly requests",
+      "upgrade_from": "fictional-a-basic",
+      "access": {
+        "clients": ["Fictional A editor"],
+        "api_access": false,
+        "notes": "Fabricated editor-only access",
+        "evidence": { "status": "synthetic" }
+      },
+      "limits": {
+        "rate_limit": null,
+        "concurrency": null,
+        "fair_use": null,
+        "overage": null,
+        "evidence": { "status": "synthetic" }
+      },
+      "price": {
+        "currency": "USD",
+        "months": 12,
+        "initial": "72",
+        "renewal": "120",
+        "tax_rate": "0",
+        "tax_included": true,
+        "evidence": { "status": "synthetic" }
+      },
+      "pools": [
+        {
+          "id": "fictional-a-pro-requests",
+          "unit": "requests",
+          "entitlement_class": "guaranteed",
+          "quota": { "amount": "200", "evidence": { "status": "synthetic" } },
+          "window": { "kind": "monthly" },
+          "rules": [
+            {
+              "model_id": "fictional/shared@1.0#standard",
+              "basis": "request",
+              "units_per_request": "1",
+              "evidence": { "status": "synthetic" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fictional-b-coding",
+      "provider": "Fictional B",
+      "product": "B Coding",
+      "tier": "Single Tier",
+      "region": "Synthetic Region",
+      "billing_regime": "fictional shared rolling credits",
+      "access": {
+        "clients": ["Fictional B editor"],
+        "api_access": false,
+        "notes": "Fabricated client restriction for demonstrating disclosure only",
+        "evidence": { "status": "synthetic" }
+      },
+      "limits": {
+        "rate_limit": null,
+        "concurrency": 2,
+        "fair_use": "Fabricated fair-use note; no numeric adjustment is inferred",
+        "overage": null,
+        "evidence": { "status": "synthetic" }
+      },
+      "price": {
+        "currency": "CNY",
+        "months": 1,
+        "initial": "20",
+        "renewal": "20",
+        "tax_rate": "0",
+        "tax_included": true,
+        "evidence": { "status": "synthetic" }
+      },
+      "pools": [
+        {
+          "id": "fictional-b-shared-credits",
+          "unit": "credits",
+          "entitlement_class": "guaranteed",
+          "quota": { "amount": "8", "evidence": { "status": "synthetic" } },
+          "window": { "kind": "rolling_hours", "hours": 5 },
+          "additional_caps": [
+            {
+              "id": "monthly-ceiling",
+              "amount": "50",
+              "window": { "kind": "monthly" },
+              "evidence": { "status": "synthetic" }
+            }
+          ],
+          "rules": [
+            {
+              "model_id": "fictional/shared@1.0#standard",
+              "basis": "request",
+              "units_per_request": "2",
+              "evidence": { "status": "synthetic" }
+            },
+            {
+              "model_id": "fictional/exclusive@2.0#standard",
+              "basis": "request",
+              "units_per_request": "1",
+              "evidence": { "status": "synthetic" }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
