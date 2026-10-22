@@ -7,15 +7,16 @@ metadata:
 
 # Task Delegation · 基于 Herdr 与 Magpie 的任务委托
 
-主 Agent 为独立任务选择**能完成任务**且成本与延迟合理的执行通道，交接后追踪真实结果。
-Herdr 负责启动、提交和观察 Agent；Magpie 提供模型、provider、账户与额度线索；
+有独立目标和验收、需要另一 runner 的能力或上下文、或并行执行收益大于交接成本时，
+主 Agent 才委托；紧耦合的小任务直接自己做。委托时选择**能完成任务**且成本与延迟合理的
+执行通道，交接后追踪真实结果。Herdr 管理执行终端与 Agent 状态；Magpie 提供模型、
+provider、账户与额度线索；
 runner 自己拥有会话和恢复方式。具体 route 是否能调用，仍要核对认证、产品条款、runner
 参数与实际配置。技能不创建另一套 Agent 框架，也不把配置文字当作权限保证。
 
 多任务的分工、覆盖和总体验收由
 [divide-and-conquer](https://github.com/lidessen/skills/blob/main/skills/divide-and-conquer/SKILL.md)
-负责；本技能只处理每项任务的选路、交接和接续记录。无需委托的简单任务，或用户只要
-套餐价格比较时，分别用宿主原有执行方式或
+负责；本技能只处理每项任务的选路、交接和接续记录。用户只要套餐价格比较时用
 [plan-value-analysis](https://github.com/lidessen/skills/blob/main/skills/plan-value-analysis/SKILL.md)。
 
 ## 首次启用：与用户协商策略
@@ -57,11 +58,16 @@ runner 自己拥有会话和恢复方式。具体 route 是否能调用，仍要
 
 ## 委托、观察与回收
 
-在 Herdr 管理的 pane 中才用其控制命令。读取
+主 Agent 可从 Herdr pane 内控制当前会话；在外部终端控制时须有相应授权，明确指定
+`--session`、核对目标 pane，不能依赖默认会话。Fx 桥接器的 `start/resume` 本身只能在
+真实 Herdr pane 中运行，不伪造环境变量。读取
 [已核实的 CLI 接口与示例](references/interfaces.md)，核对现场 `--help`、runner 认证和执行参数；
 不修改 Magpie 的全局模型、group 或 fallback 配置来完成一次委托。Herdr 不支持的 runner
-不能假装为 Herdr kind；若另走其原生 CLI，使用它真实的执行与恢复接口。选 Fx 时按
-[Fx 接入参考](references/fx.md)区分一次性调用和本技能的可选长驻薄适配器。适配器由
+不能假装为 Herdr kind。优先选满足任务的实际执行形态：Herdr 原生支持的 runner 可由
+Herdr 启动；已有 Agent 若能按授权调用 Fx，可让它执行；一次性 Fx 任务可直接用其 CLI
+并核对 JSON 回执；只有需要 Herdr 追踪 Fx 多轮状态与恢复时才用可选长驻薄适配器，见
+[Fx 接入参考](references/fx.md)。由受支持 Agent 调用 Fx 时，Herdr 跟踪的是外层 Agent；
+它须另收 Fx 回执和原生 session ID，且外层 Agent 的模型调用也计入套餐或费用。适配器由
 主 Agent 在获准环境中部署并启动；自报告 Fx 的输入先由适配器编码成 shell 空操作封套，
 再通过 Herdr pane 接口提交并核对适配器回执，不能套用原生 `agent prompt` 或向 pane
 直接发送任务正文。Markdown 策略不是路由白名单。交给执行者的任务应包含：
@@ -78,11 +84,13 @@ Herdr 的状态只说明观察到的生命周期，不证明产物正确。`bloc
 [配置与接续日志](references/config-log.md)。
 遇到 429 先区分短期限流、共享池和真正耗尽，尊重可用的重试时间；余额未知既不是零也
 不是无限。付费 API fallback 未获允许时停下或等待合规通道恢复，绝不静默切到付费。
+还须检查套餐耗尽后 provider 是否会自动消耗购买的点数或信用额；没有可核实的收费边界时，
+不能把该 route 当作保证只扣套餐的选择。
 
 ## 证据边界
 
-本技能的命令依据 Herdr 0.9.5、Magpie 0.1.1321、Fx 0.0.14 与已核对的 runner
-帮助/官方文档；版本变化以现场 CLI 为准。策略与静态检查不证明套餐认证、条款允许、
+命令的已核实版本与边界见[接口参考](references/interfaces.md)；版本变化以现场 CLI 为准。
+策略与静态检查不证明套餐认证、条款允许、
 模型效果或实际执行成功；这些须分别由当前通道和任务结果验证。会话 hook 只在目标
 runner 支持且获授权时使用，不默认安装或修改
 个人配置。本技能不自动安装工具、登录服务、生成凭据或更改全局模型配置。

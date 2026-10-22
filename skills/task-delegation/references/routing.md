@@ -2,10 +2,8 @@
 
 ## 使用当期证据，不写固定榜单
 
-先从实际 Magpie 目录和 runner 能识别的 route 找候选，再查模型开发者当期官方能力与上下文
-说明：[OpenAI 模型目录](https://developers.openai.com/api/docs/models)、
-[Anthropic 模型目录](https://docs.anthropic.com/en/docs/about-claude/models)、
-[Gemini 模型目录](https://ai.google.dev/gemini-api/docs/models)。
+先从实际 Magpie 目录和 runner 能识别的 route 找候选，再逐个查该候选 provider 当期官方
+模型能力、上下文、价格与使用条件；不要从固定厂商清单或旧型号榜单反推候选。
 [Models.dev](https://models.dev/) 可帮助发现 ID、上下文和价格候选，但聚合条目不是当前
 账户权限、官方费率或质量排名的证明。
 
@@ -33,6 +31,9 @@
 对现有 group 或 fallback，检查其每个成员是否都满足禁止与付费限制；Magpie 的自动切换
 不能替主 Agent 审核。429 可能是短期限流、并发限制、共享池窗口耗尽或 API 支付/认证问题，
 须按返回错误及 `Retry-After` 分类；不同 route 若共用同一池，不是有效的额度 fallback。
+套餐耗尽后，provider 也可能在**同一 route** 自动消耗购买的点数或信用额，无需切换
+gateway fallback。严格禁止额外付费时，还要核对 provider 侧的续扣规则与可执行的硬上限；
+无法核实或限制时，不能宣称此 route 只耗套餐，改用已核实的候选或返回阻塞。
 预算或付费 API fallback 未获允许时，等待明确重置、改用已核实的合规候选或返回阻塞。
 
 当模型、runner CLI、套餐/计费条款、目录、任务类型变化，相关证据过时、反复失败或遇

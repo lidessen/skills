@@ -33,7 +33,9 @@ from log import append_event, default_log_path
 
 ENTRY_COMMAND = "task-delegation-fx-bridge"
 MAX_PROMPT_BYTES = 65536
-MAX_WIRE_BYTES = 90000
+# macOS canonical PTYs can truncate lines at 1024 bytes. Keep the whole
+# terminal line (including the Enter sent by Herdr) comfortably below that.
+MAX_WIRE_BYTES = 900
 WIRE_PREFIX = ": FXB1_"
 WIRE_PATTERN = re.compile(r": FXB1_([A-Za-z0-9_-]+)\Z", re.ASCII)
 REPORT_TIMEOUT = 1.5
@@ -87,7 +89,8 @@ def make_envelope(task_ref: str, expected_turn: int, prompt: str) -> str:
     encoded = base64.urlsafe_b64encode(payload).rstrip(b"=").decode("ascii")
     wire = WIRE_PREFIX + encoded
     if len(wire.encode("ascii")) > MAX_WIRE_BYTES:
-        raise BridgeError("encoded task line is too long")
+        raise BridgeError(f"encoded task line exceeds {MAX_WIRE_BYTES} ASCII bytes; "
+                          "shorten it and cite scoped, readable files for longer context")
     return wire
 
 
@@ -366,14 +369,16 @@ class FxBridge:
         except OSError:
             print("FX_BRIDGE_LOG_FAILED", file=sys.stderr, flush=True)
 
-    def fx_command(self, prompt: str) -> list[str]:
+    def fx_command(self) -> list[str]:
         command = [self.state["fx_bin"]]
         if self.state["no_additional_dirs"]:
             command.append("--no-additional-dirs")
         command += ["ask", "--json", "--model", self.state["model"]]
         if self.state.get("session_id"):
             command += ["--resume-id", self.state["session_id"]]
-        return command + ["--", prompt]
+        # Fx reads the prompt from stdin when no prompt arguments are given.
+        # Keeping it out of argv also keeps timeout diagnostics from quoting it.
+        return command
 
     def fx_environment(self) -> dict[str, str]:
         if self.state.get("clean_fx_env"):
@@ -391,19 +396,25 @@ class FxBridge:
                             "FX_ULTRAFAST": "0"})
         return environment
 
-    def stop_child(self) -> None:
-        if self.child is None or self.child.poll() is not None:
+    def stop_child(self, *, force_group: bool = False) -> None:
+        if self.child is None or (not force_group and self.child.poll() is not None):
             return
         try:
-            os.killpg(self.child.pid, signal.SIGTERM)
+            os.killpg(self.child.pid, signal.SIGKILL if force_group else signal.SIGTERM)
+        except OSError:
+            pass
+        try:
             self.child.wait(timeout=2)
-        except (ProcessLookupError, subprocess.TimeoutExpired):
-            if self.child.poll() is None:
-                try:
-                    os.killpg(self.child.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(self.child.pid, signal.SIGKILL)
+            except OSError:
+                pass
+            try:
                 self.child.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                # Keep the turn outcome uncertain rather than printing argv.
+                pass
 
     def turn(self, prompt: str) -> None:
         verify_fx_settings(self.state)
@@ -419,18 +430,23 @@ class FxBridge:
         parsed = None
         failure = None
         try:
-            self.child = subprocess.Popen(self.fx_command(prompt), cwd=self.state["cwd"],
-                                          env=self.fx_environment(), stdin=subprocess.DEVNULL,
+            self.child = subprocess.Popen(self.fx_command(), cwd=self.state["cwd"],
+                                          env=self.fx_environment(), stdin=subprocess.PIPE,
                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                           text=True, encoding="utf-8", errors="replace",
                                           start_new_session=True)
             try:
-                stdout, _ = self.child.communicate(timeout=self.state["turn_timeout"])
+                stdout, _ = self.child.communicate(input=prompt, timeout=self.state["turn_timeout"])
             except subprocess.TimeoutExpired:
                 timed_out = True
-                self.stop_child()
-                stdout, _ = self.child.communicate(timeout=2)
-            process_code = self.child.returncode
+                # A descendant can keep the captured pipes open after the Fx
+                # leader exits. Do not wait for EOF or let a second timeout
+                # escape without a durable failure receipt.
+                self.stop_child(force_group=True)
+                for stream in (self.child.stdout, self.child.stderr):
+                    if stream is not None:
+                        stream.close()
+            process_code = self.child.poll()
         except OSError:
             failure = "fx_start_failed"
         finally:
@@ -457,7 +473,9 @@ class FxBridge:
                     failure = "fx_session_mismatch"
                 else:
                     self.state["session_id"] = returned_session
-            if returned_model is not None and returned_model != self.state["model"]:
+            if not isinstance(returned_model, str) or not returned_model:
+                failure = "fx_model_missing"
+            elif returned_model != self.state["model"]:
                 failure = "fx_model_mismatch"
             if not isinstance(returned_session, str) or not returned_session:
                 failure = "fx_session_missing"
@@ -497,6 +515,7 @@ class FxBridge:
         self.report("idle")
 
     def run(self) -> None:
+        explicit_quit = False
         try:
             self.report("idle", initial=True)
             display("FX_BRIDGE_READY", {"task_ref": self.state["task_ref"], "agent": self.state["agent"],
@@ -516,6 +535,7 @@ class FxBridge:
                     display("FX_BRIDGE_INPUT_ERROR", {"reason": "invalid_utf8"})
                     continue
                 if wire == "/exit":
+                    explicit_quit = True
                     return
                 if not wire.strip():
                     continue
@@ -526,8 +546,14 @@ class FxBridge:
                     continue
                 self.turn(prompt)
         finally:
-            self.stop_child()
-            self.release()
+            self.stop_child(force_group=True)
+            if explicit_quit:
+                self.release()
+            elif self.state["bridge_state"] != "unknown":
+                # Only a user quit clears Herdr's stored resume command.
+                # A server stop or unexpected exit may be followed by restore.
+                self.state["bridge_state"] = "interrupted"
+                self.save()
 
 
 def inspect(task_ref: str) -> None:
@@ -582,11 +608,16 @@ def main(argv: list[str] | None = None) -> int:
     start.add_argument("--fx-home", help="Existing absolute Fx profile home; defaults to current HOME")
     start.add_argument("--fx-bin", help="Absolute Fx executable; defaults to fx on PATH")
     start.add_argument("--no-additional-dirs", action="store_true")
-    start.add_argument("--clean-fx-env", action="store_true",
-                       help="Pass only a small non-secret environment to Fx")
+    environment = start.add_mutually_exclusive_group()
+    environment.add_argument("--clean-fx-env", dest="clean_fx_env", action="store_true", default=True,
+                             help="Pass only a small environment to Fx (default)")
+    environment.add_argument("--inherit-fx-env", dest="clean_fx_env", action="store_false",
+                             help="Opt in to other host variables after checking route and secrets")
     start.add_argument("--turn-timeout", type=positive_timeout, default=1800.0, metavar="SECONDS")
     resume = sub.add_parser("resume", help="Reopen a saved Fx bridge without resending a turn")
     resume.add_argument("--task-ref", required=True)
+    resume.add_argument("--ack-failed-turn", action="store_true",
+                        help="After inspecting a failed turn, explicitly allow the next turn")
     query = sub.add_parser("inspect", help="Print saved bridge and last-turn status as JSON")
     query.add_argument("--task-ref", required=True)
     encode = sub.add_parser("encode", help="Encode a stdin prompt as a shell-safe Herdr pane line")
@@ -626,6 +657,8 @@ def main(argv: list[str] | None = None) -> int:
                 raise BridgeError("previous turn outcome is uncertain; inspect it before any new prompt")
             if state.get("turn", 0) > 0 and not state.get("session_id"):
                 raise BridgeError("no confirmed Fx session ID; resuming would start a new conversation")
+            if state.get("turn_status") == "failed" and not args.ack_failed_turn:
+                raise BridgeError("previous turn failed; inspect its receipt, then resume with --ack-failed-turn only after deciding how to continue")
         descriptor = lock_task(directory)
         try:
             bridge = FxBridge(directory, state, pane_id, herdr_bin)
@@ -636,6 +669,9 @@ def main(argv: list[str] | None = None) -> int:
     except BridgeError as error:
         print("FX_BRIDGE_ERROR " + str(error), file=sys.stderr, flush=True)
         return 1
+    except KeyboardInterrupt:
+        print("FX_BRIDGE_INTERRUPTED", file=sys.stderr, flush=True)
+        return 130
 
 
 if __name__ == "__main__":

@@ -11,7 +11,10 @@ fallback 后再用。`--ultrafast` 属更高价格档，不能未经付费授权
 ## 一次性任务：按进程与 JSON 回执收结果
 
 在已安装、已认证且任务允许的环境中，主 Agent 可从项目工作目录运行
-`fx ask --json --model "$MODEL" "$TASK"`；`MODEL` 与 `TASK` 必须先按策略确定。
+`printf '%s' "$TASK" | fx ask --json --model "$MODEL"`；`MODEL` 与 `TASK` 必须先按策略
+确定。本机 Fx 0.0.14 的 `ask --help` 确认无 prompt 参数时可从 stdin 读取任务文字；
+这样任务正文不进入 Fx 进程 argv。管道输入无法回答交互审批，需审批的任务改用合适的
+交互执行方式。
 它是一次非交互请求，结束即退出。检查**进程退出码**和 JSON `exit_code`，再读
 `final_output`、`session_id`、错误与产物；`final_output` 可能为空，成功退出也不代替
 任务验收。需要后续接续时保留实际返回的 `session_id`，按
@@ -36,6 +39,7 @@ Herdr 0.9.5 的 `agent start --kind` **没有 `fx`**。本技能的
 `scripts/fx_bridge.py` 提供 `task-delegation-fx-bridge` 命令入口：它在 Herdr pane 中
 长驻、逐行接收终端输入，每轮调用一次 `fx ask --json`，然后继续等待下一轮。Fx CLI
 子进程可以结束，但适配器必须继续运行，Herdr 才有可等待和可恢复的当前 Agent。
+此脚本使用 POSIX 文件锁和进程组；在其他操作系统部署前须核对或适配这些接口。
 安装或链接这个入口须由主 Agent 按当前任务授权完成，且**目标 pane 的 `PATH`** 与
 Herdr 恢复后的 `PATH` 都必须能找到同名命令。源码存在不表示入口已安装；先在目标
 环境核对 `command -v task-delegation-fx-bridge`，并确认该命令解析符号链接后指向
@@ -44,19 +48,23 @@ Herdr 恢复后的 `PATH` 都必须能找到同名命令。源码存在不表示
 
 先按策略核对 provider、精确模型、认证、套餐与 fallback，确认适配器会继承的 Fx 配置。
 `start` 可选 `--fx-home ABS` 指向已有 Fx 配置家目录、`--fx-bin ABS` 指向已安装的
-Fx 可执行文件；`--no-additional-dirs` 限制额外工作目录，`--clean-fx-env` 适合隔离
-测试时只传必要环境变量。这些选项不复制凭据，也不能替代项目上下文与工具权限检查。
+Fx 可执行文件；`--no-additional-dirs` 限制额外工作目录。新任务默认给 Fx 子进程最小
+环境；只有核实目标通道确需并允许继承环境中的认证或其他变量时，才显式使用
+`--inherit-fx-env`。已有任务恢复沿用启动时保存的环境模式。最小环境不保证每种通道
+都能认证成功，继承环境也不能替代项目上下文与工具权限检查。
 恢复会记住这些路径、provider 和模型，但配置文件以后
 可能被人修改，因此接续前仍要重新核对实际路由。
-仅在 `HERDR_ENV=1` 的 Herdr pane 内由主 Agent 创建独立 pane，从返回 JSON 的
-`.result.pane.pane_id` 读取真实 ID；
-等待该 pane 处于 shell prompt 后运行适配器。以下是命令形状，`PROJECT`、`DESCRIPTION`
+以下使用 `--current` 的创建示例仅适用于主 Agent 已在真实 Herdr pane 内；从外部终端
+控制时须获得授权，在每条命令显式指定已核对的 `--session` 与目标 pane，不能隐式选默认
+会话。无论控制命令从哪里发，适配器 `start/resume` 都必须实际运行在 Herdr pane 内。
+从创建结果 `.result.pane.pane_id` 取得真实 ID，等待该 pane 到 shell prompt 后再启动。
+以下是命令形状，`PROJECT`、`DESCRIPTION`
 与 `MODEL_ID` 换成已核实的值，动态文字须按 shell 规则安全引用，不把任务全文写到
 `--description` 中：
 
 ```sh
-created=$(herdr pane split --current --direction right --cwd "$PWD" --no-focus)
-PANE_ID=$(printf '%s\n' "$created" | jq -r '.result.pane.pane_id')
+herdr pane split --current --direction right --cwd "$PWD" --no-focus
+# 仅在创建成功后，从返回 JSON 的 .result.pane.pane_id 取 PANE_ID 并核对目标 pane。
 herdr pane run "$PANE_ID" \
   "task-delegation-fx-bridge start --project PROJECT --description DESCRIPTION --provider PROVIDER --model MODEL_ID"
 herdr pane wait-output "$PANE_ID" --match FX_BRIDGE_READY --timeout 30000
@@ -64,11 +72,13 @@ herdr agent get "$PANE_ID"
 herdr agent read "$PANE_ID" --source recent-unwrapped --lines 40
 ```
 
-`pane run` 只确认命令已送入终端。等适配器上报 `idle`，并从终端的
+`pane run` 只确认命令已送入终端；`wait-output` 也可能匹配旧 scrollback，因此需检查
+刚启动的前台进程和最新输出。等适配器上报 `idle`，并从终端的
 `FX_BRIDGE_READY` 行读取真实 `task_ref` 后，才准备完整任务；任务中仍要交代
 目标、范围、上下文、产物与验收。`encode` 从标准输入接收一行 UTF-8 任务文字，拒绝
-原始换行、回车与控制符，再输出 `: FXB1_...` 封套。较长的上下文应给明确的可读文件
-路径和范围，避免把整篇内容挤进终端输入。Herdr 0.9.5 只把此适配器的自报告用于状态展示，
+原始换行、回车与控制符，再输出 `: FXB1_...` 封套。为避开 macOS PTY 的单行限制，
+封套最多 900 个 ASCII 字节；超限时缩短任务文字，改给经过授权、目标 runner 可读的
+文件路径与具体范围。Herdr 0.9.5 只把此适配器的自报告用于状态展示，
 `agent prompt` 仍要求原生识别的前台 Agent，不能给自报告的 Fx 提交任务；改名也不会改变
 这一检查。用 `pane run` 将编码后的单行封套和 Enter 一次送到当前适配器，再按本轮标识
 等回执：
@@ -77,9 +87,18 @@ herdr agent read "$PANE_ID" --source recent-unwrapped --lines 40
 TASK_REF=ACTUAL_UUID       # 从 FX_BRIDGE_READY 读取，不自行生成
 NEXT_TURN=1                # inspect 的当前 turn + 1
 TASK_TEXT='一行内写清目标、范围、产物和验收'
-WIRE=$(printf '%s' "$TASK_TEXT" | task-delegation-fx-bridge encode \
-  --task-ref "$TASK_REF" --turn "$NEXT_TURN")
-herdr pane run "$PANE_ID" "$WIRE"
+if WIRE=$(printf '%s' "$TASK_TEXT" | task-delegation-fx-bridge encode \
+  --task-ref "$TASK_REF" --turn "$NEXT_TURN"); then
+  herdr pane run "$PANE_ID" "$WIRE"
+else
+  printf '%s\n' '编码失败：没有提交任务' >&2
+fi
+```
+
+编码成功且 `pane run` 已提交后，等待本轮回执；提交结果不确定时先查 pane 与 `inspect`，
+不要重发：
+
+```sh
 herdr pane wait-output "$PANE_ID" --source recent-unwrapped \
   --match "FX_BRIDGE_RESULT {\"task_ref\":\"$TASK_REF\",\"turn\":$NEXT_TURN," --timeout 120000
 task-delegation-fx-bridge inspect --task-ref "$TASK_REF"
@@ -102,12 +121,15 @@ herdr agent get "$PANE_ID"
 
 适配器只在 Herdr 确认环境变量齐全时自报，使用不与内建 adapter 冲突的稳定 `source`
 和递增 `seq`。真开始 Fx 请求时上报 `working`；成功回执落盘且适配器可接收下一行时
-才上报 `idle`。任一轮失败会保存回执、上报 `unknown` 并退出，随后释放 pane 的 Agent
-身份；此时等待状态可能以 Agent 消失结束，必须用 `inspect` 查原因，不可自动重发。
+才上报 `idle`。任一轮失败会保存回执、上报 `unknown` 并退出；此时必须用 `inspect`
+查原因，不可自动重发。`resume` 遇到已记录的失败轮次会拒绝恢复；检查回执和可能的
+实际副作用后，确需继续时显式加 `--ack-failed-turn`，它不会自动重发上一轮。
 不能可靠判定审批或提问时不虚报 `blocked`。Fx CLI 的非交互审批限制
 仍然存在；需要人决策的任务应选支持可观察审批的执行方式。Herdr 上报使用短超时，
-不应让本地状态服务故障阻塞 Fx。适配器在退出时调用 `release-agent`，不占用原有
-Herdr 内建 adapter 的 pane。
+不应让本地状态服务故障阻塞 Fx。仅显式 `/exit` 会调用 `release-agent`；异常退出与
+Herdr 服务停止时不会由适配器主动清除恢复信息，但不能因此推断 Herdr 已保存或自动恢复成功。
+轮次超时会尽力终止 Fx 的进程组并保存 `turn_timeout` 回执；自行脱离该进程组的后代
+可能继续运行。状态不确定时先核实实际产物和费用，不自动重发。
 
 ## 会话接续与日志
 
@@ -119,10 +141,8 @@ Herdr 报告原生 ID 和 `task-delegation-fx-bridge resume --task-ref UUID` 恢
 `fx ask --resume-id ID` 接续；不能把 pane ID 或自造 ID 当 Fx session，也不能把
 裸 `fx resume` 当成 Herdr 适配器。Herdr 恢复 argv 首词须是 `PATH` 中的普通命令名，
 参数不能含撇号或控制符，最多 64 项、8 KiB；用户也可能在 Herdr 配置中禁用自动恢复。
-优雅停止 Herdr server 时，适配器可能收到退出信号并调用 `release-agent`，从而清除
-自动恢复命令；这种停止后的自动重启不能仅凭配置或 mock 推断，须在独立会话实测。
-Herdr 重启后的恢复须实际观察新适配器、原生 ID 和下一轮回执，不能仅凭存下的 argv
-声称成功。具体合同见[官方自接入文档](https://herdr.dev/docs/add-herdr-support/)与
+Herdr 停止与重启后的自动恢复须在独立会话实际观察新适配器、原生 ID 和下一轮回执；
+保存的 argv 或 mock 不能证明成功。具体合同见[官方自接入文档](https://herdr.dev/docs/add-herdr-support/)与
 [会话恢复说明](https://herdr.dev/docs/session-state/)。
 
 若旧适配进程确已退出而 Herdr 没有自动恢复，可在新的空 shell pane 中手动运行
@@ -132,7 +152,7 @@ Herdr 重启后的恢复须实际观察新适配器、原生 ID 和下一轮回�
 适配器使用[跨项目日志](config-log.md)追加简短的轮次状态和真实 Fx session ID，
 主 Agent 不必再为同一轮手动写一份日志。日志与 pane 的 `task_ref` 相连，不保存任务
 全文或凭据。`inspect` 是离线回执读取，不会重新提交 prompt；已有任务不确定时先查它。
-正常退出或 `/exit` 会释放 Herdr 当前 Agent 与其自动恢复命令；只在旧进程确已退出且
+显式 `/exit` 会释放 Herdr 当前 Agent 与其自动恢复命令；只在旧进程确已退出且
 仍有有效 Fx session 时才手动启动 `resume --task-ref UUID`，避免两个适配器同时写同一任务。
 
 本参考描述的是薄适配器与 Herdr 的实际接口；Mock 报告只验证适配器的自报告调用形状，

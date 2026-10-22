@@ -41,7 +41,9 @@ Magpie 的 `magpie <agent> <model>`、`magpie use <profile>`、`magpie group add
 
 ## 单次启动与交接示例
 
-仅在 `HERDR_ENV=1` 的 Herdr pane 内执行控制命令。此例的 `MODEL` 必须由当前 Codex CLI
+以下 `--current` 示例只能在 `HERDR_ENV=1` 的真实 Herdr pane 中使用。主 Agent 若从外部
+终端控制，须先取得该操作授权，在每条命令显式指定目标 `herdr --session SESSION` 和已核对的
+pane；不能依赖隐式默认会话或冒用 Herdr 环境变量。此例的 `MODEL` 必须由当前 Codex CLI
 识别，且其路由与认证已核对；不能把任一 Magpie 目录 ID 直接套入。不要原样使用示例 Agent
 名，先确认同一 Herdr server 中唯一。
 
@@ -55,8 +57,9 @@ fi
 ```
 
 只有上条成功创建 pane，才从返回 JSON 的 `.result.pane.pane_id` 取得 `PANE_ID`；
-等待新 pane 到交互 shell prompt，再继续以下命令。非 Herdr 环境或创建失败时停止，
-不要改用聚焦 pane 执行。
+等待新 pane 到交互 shell prompt，再继续以下命令。此 `--current` 示例在非 Herdr 环境
+或创建失败时停止；不要改用聚焦 pane 或默认会话执行。获授权的外部控制另按已核实的
+`--session` 和目标 pane 操作。
 
 ```sh
 herdr agent start worker_name --kind codex --pane PANE_ID -- -m MODEL

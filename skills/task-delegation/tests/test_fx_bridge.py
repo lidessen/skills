@@ -6,12 +6,15 @@ import json
 import base64
 import os
 from pathlib import Path
+import pty
 import select
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
 import textwrap
+import time
 import unittest
 
 
@@ -36,22 +39,33 @@ import json
 import os
 import sys
 import time
+import subprocess
+from pathlib import Path
 
-path = os.environ["FAKE_FX_LOG"]
+home = Path(os.environ["HOME"])
+path = home.parent / "fx.jsonl"
+prompt = sys.stdin.read()
 with open(path, "a+", encoding="utf-8") as stream:
     stream.seek(0)
     number = len(stream.readlines()) + 1
     stream.write(json.dumps({
         "argv": sys.argv[1:],
+        "stdin_prompt": prompt,
         "provider": os.environ.get("FX_PROVIDER"),
         "model_env": os.environ.get("FX_MODEL"),
         "auto_upgrade": os.environ.get("FX_AUTO_UPGRADE"),
         "home": os.environ.get("HOME"),
+        "sentinel_seen": "SECRET_SENTINEL" in os.environ,
     }) + "\n")
 
-mode = os.environ.get("FAKE_FX_MODE", "success")
+mode_file = home / "fake-mode"
+mode = mode_file.read_text().strip() if mode_file.exists() else "success"
 if mode == "sleep":
     time.sleep(6)
+if mode == "pipe_holder":
+    subprocess.Popen([sys.executable, "-c", "import time;time.sleep(5)"])
+if mode == "detached_holder":
+    subprocess.Popen([sys.executable, "-c", "import time;time.sleep(5)"], start_new_session=True)
 if mode == "error":
     print(json.dumps({
         "exit_code": 2, "final_output": "", "session_id": "fx-session-7",
@@ -65,13 +79,15 @@ if mode == "mismatch" and "--resume-id" in args:
     session_id = "fx-session-unexpected"
 if mode == "missing":
     session_id = None
-print(json.dumps({
+receipt = {
     "exit_code": 0,
     "final_output": "OK-" + str(number),
     "session_id": session_id,
-    "model": args[args.index("--model") + 1],
     "tool_calls": [],
-}))
+}
+if mode != "missing_model":
+    receipt["model"] = args[args.index("--model") + 1]
+print(json.dumps(receipt))
 """
 
 
@@ -161,6 +177,8 @@ class FxBridgeTests(unittest.TestCase):
     def run_turn(self, args: tuple[str, ...], prompt: str, *, turn: int = 1,
                  extra_env: dict[str, str] | None = None, timeout: float = 15
                  ) -> subprocess.CompletedProcess[str]:
+        if extra_env and "FAKE_FX_MODE" in extra_env:
+            (self.home / "fake-mode").write_text(extra_env["FAKE_FX_MODE"], encoding="utf-8")
         proc, task_ref, ready = self.ready_process(*args, extra_env=extra_env)
         try:
             wire = self.encoded(task_ref, turn, prompt)
@@ -217,6 +235,11 @@ class FxBridgeTests(unittest.TestCase):
 
         fx_calls = read_jsonl(self.fx_log)
         self.assertEqual(len(fx_calls), 2)
+        self.assertEqual([call["stdin_prompt"] for call in fx_calls],
+                         [private_prompt, "Continue simply"])
+        self.assertTrue(all(private_prompt not in repr(call["argv"])
+                            and "Continue simply" not in repr(call["argv"])
+                            for call in fx_calls))
         self.assertNotIn("--resume-id", fx_calls[0]["argv"])
         self.assertEqual(option(fx_calls[1]["argv"], "--resume-id"), "fx-session-7")
         self.assertTrue(all(option(call["argv"], "--model") == "provider/example-model"
@@ -285,6 +308,87 @@ class FxBridgeTests(unittest.TestCase):
                     read_jsonl(self.state_home / "task-delegation" / "delegations.jsonl")]
         self.assertEqual(statuses, ["started", "failed"])
 
+    def test_descendant_holding_pipe_cannot_erase_timeout_receipt_or_expose_prompt(self) -> None:
+        prompt = "SyntheticPrivatePrompt_NeverInDiagnostics"
+        (self.home / "fake-mode").write_text("pipe_holder", encoding="utf-8")
+        result = self.run_turn(self.start_args(turn_timeout="1"), prompt, timeout=10)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertNotIn(prompt, result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        directory, state = self.state()
+        receipt = json.loads((directory / "turn-1.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["turn_status"], "failed")
+        self.assertEqual(receipt["failure"], "turn_timeout")
+        self.assertTrue(receipt["timed_out"])
+        self.assertFalse(any(event[:2] == ["pane", "release-agent"]
+                             for event in read_jsonl(self.herdr_log)))
+
+    def test_detached_descendant_holding_pipe_keeps_timeout_receipt(self) -> None:
+        (self.home / "fake-mode").write_text("detached_holder", encoding="utf-8")
+        result = self.run_turn(self.start_args(turn_timeout="1"), "Synthetic pipe test", timeout=10)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        directory, state = self.state()
+        receipt = json.loads((directory / "turn-1.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["turn_status"], "failed")
+        self.assertEqual(receipt["failure"], "turn_timeout")
+
+    def test_missing_model_in_fx_json_is_failure(self) -> None:
+        result = self.run_turn(self.start_args(), "Model evidence required",
+                               extra_env={"FAKE_FX_MODE": "missing_model"})
+        self.assertEqual(result.returncode, 1, result.stderr)
+        directory, state = self.state()
+        receipt = json.loads((directory / "turn-1.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["turn_status"], "failed")
+        self.assertEqual(receipt["failure"], "fx_model_missing")
+
+    def test_failed_turn_requires_explicit_ack_before_resume(self) -> None:
+        first = self.run_turn(self.start_args(), "Synthetic failing turn",
+                              extra_env={"FAKE_FX_MODE": "error"})
+        self.assertEqual(first.returncode, 1, first.stderr)
+        _, state = self.state()
+        self.assertEqual(state["turn_status"], "failed")
+        self.assertEqual(state["session_id"], "fx-session-7")
+        events_before = read_jsonl(self.herdr_log)
+        blocked = self.command("resume", "--task-ref", state["task_ref"])
+        self.assertEqual(blocked.returncode, 1, blocked.stderr)
+        self.assertIn("--ack-failed-turn", blocked.stderr)
+        self.assertEqual(len(read_jsonl(self.fx_log)), 1)
+        self.assertEqual(read_jsonl(self.herdr_log), events_before)
+        proc, _, ready = self.ready_process("resume", "--task-ref", state["task_ref"],
+                                            "--ack-failed-turn")
+        stdout, stderr = proc.communicate("/exit\n", timeout=5)
+        self.assertEqual(proc.returncode, 0, ready + stdout + stderr)
+        self.assertEqual(len(read_jsonl(self.fx_log)), 1)
+        events = read_jsonl(self.herdr_log)
+        self.assertEqual(events[-2][:2], ["pane", "report-agent"])
+        self.assertEqual(option(events[-2], "--state"), "idle")
+        self.assertEqual(events[-1][:2], ["pane", "release-agent"])
+
+    def test_default_child_environment_is_minimal_and_inherit_requires_opt_in(self) -> None:
+        extra = {"SECRET_SENTINEL": "test-only"}
+        first = self.run_turn(self.start_args(), "Default environment", extra_env=extra)
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertFalse(read_jsonl(self.fx_log)[0]["sentinel_seen"])
+        _, state = self.state()
+        self.assertTrue(state["clean_fx_env"])
+        second = self.run_turn(("resume", "--task-ref", state["task_ref"]),
+                               "Still isolated", turn=2, extra_env=extra)
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertFalse(read_jsonl(self.fx_log)[1]["sentinel_seen"])
+
+    def test_inherit_child_environment_is_explicit_and_persists_on_resume(self) -> None:
+        extra = {"SECRET_SENTINEL": "test-only"}
+        first = self.run_turn(self.start_args() + ("--inherit-fx-env",),
+                              "Approved environment", extra_env=extra)
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertTrue(read_jsonl(self.fx_log)[0]["sentinel_seen"])
+        _, state = self.state()
+        self.assertFalse(state["clean_fx_env"])
+        second = self.run_turn(("resume", "--task-ref", state["task_ref"]),
+                               "Same saved environment mode", turn=2, extra_env=extra)
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertTrue(read_jsonl(self.fx_log)[1]["sentinel_seen"])
+
     def test_missing_session_never_starts_a_second_conversation(self) -> None:
         result = self.run_turn(self.start_args(), "First",
                                extra_env={"FAKE_FX_MODE": "missing"})
@@ -318,6 +422,51 @@ class FxBridgeTests(unittest.TestCase):
         self.assertEqual([event[:2] for event in events],
                          [["pane", "report-agent"], ["pane", "release-agent"]])
         self.assertEqual(read_jsonl(self.state_home / "task-delegation" / "delegations.jsonl"), [])
+
+    def test_eof_does_not_release_saved_resume_command(self) -> None:
+        result = self.command(*self.start_args(), input_text="")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        _, state = self.state()
+        self.assertEqual(state["bridge_state"], "interrupted")
+        self.assertEqual([event[:2] for event in read_jsonl(self.herdr_log)],
+                         [["pane", "report-agent"]])
+
+    def test_sigterm_does_not_release_saved_resume_command(self) -> None:
+        proc, _, _ = self.ready_process(*self.start_args())
+        proc.send_signal(signal.SIGTERM)
+        stdout, stderr = proc.communicate(timeout=5)
+        self.assertEqual(proc.returncode, 130, stderr + stdout)
+        self.assertIn("FX_BRIDGE_INTERRUPTED", stderr)
+        self.assertNotIn("Traceback", stderr)
+        _, state = self.state()
+        self.assertEqual(state["bridge_state"], "interrupted")
+        self.assertEqual([event[:2] for event in read_jsonl(self.herdr_log)],
+                         [["pane", "report-agent"]])
+
+    def test_sigterm_during_turn_preserves_uncertain_outcome(self) -> None:
+        (self.home / "fake-mode").write_text("sleep", encoding="utf-8")
+        proc, task_ref, _ = self.ready_process(*self.start_args())
+        wire = self.encoded(task_ref, 1, "Synthetic interrupted task")
+        assert proc.stdin is not None
+        proc.stdin.write(wire + "\n")
+        proc.stdin.flush()
+        deadline = time.monotonic() + 5
+        while not read_jsonl(self.fx_log) and time.monotonic() < deadline:
+            time.sleep(0.02)
+        self.assertTrue(read_jsonl(self.fx_log), "fake Fx did not start")
+        proc.send_signal(signal.SIGTERM)
+        stdout, stderr = proc.communicate(timeout=5)
+        self.assertEqual(proc.returncode, 130, stderr + stdout)
+        self.assertNotIn("Traceback", stderr)
+        directory, state = self.state()
+        self.assertEqual(state["turn_status"], "working")
+        self.assertEqual(state["bridge_state"], "interrupted")
+        self.assertFalse((directory / "turn-1.json").exists())
+        self.assertFalse(any(event[:2] == ["pane", "release-agent"]
+                             for event in read_jsonl(self.herdr_log)))
+        resumed = self.command("resume", "--task-ref", task_ref)
+        self.assertEqual(resumed.returncode, 1)
+        self.assertIn("previous turn outcome is uncertain", resumed.stderr)
 
     def test_missing_bridge_entry_rejects_start_before_fx_request(self) -> None:
         self.entry.unlink()
@@ -378,6 +527,45 @@ class FxBridgeTests(unittest.TestCase):
         self.assertFalse((self.root / "should-not-exist").exists())
         self.assertEqual(read_jsonl(self.fx_log), [])
 
+    def test_maximum_encoded_line_round_trips_through_canonical_pty(self) -> None:
+        master, slave = pty.openpty()
+        proc = subprocess.Popen([sys.executable, "-B", str(SCRIPT), *self.start_args()],
+                                cwd=self.root, env=self.env, stdin=slave,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
+        os.close(slave)
+        try:
+            assert proc.stdout is not None
+            self.assertTrue(select.select([proc.stdout], [], [], 5)[0])
+            ready = proc.stdout.readline()
+            self.assertTrue(ready.startswith("FX_BRIDGE_READY "), ready)
+            task_ref = json.loads(ready.removeprefix("FX_BRIDGE_READY "))["task_ref"]
+
+            def wire_size(length: int) -> int:
+                payload = json.dumps({"task_ref": task_ref, "expected_turn": 1,
+                                      "prompt": "x" * length},
+                                     ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+                return len(": FXB1_") + len(base64.urlsafe_b64encode(payload).rstrip(b"="))
+
+            longest = max(size for size in range(901) if wire_size(size) <= 900)
+            self.assertGreater(wire_size(longest + 1), 900)
+            wire = self.encoded(task_ref, 1, "x" * longest)
+            self.assertLessEqual(len(wire.encode("ascii")), 900)
+            rejected = self.command("encode", "--task-ref", task_ref, "--turn", "1",
+                                    input_text="x" * (longest + 1))
+            self.assertEqual(rejected.returncode, 1)
+            self.assertIn("cite scoped, readable files", rejected.stderr)
+            payload = (wire + "\n/exit\n").encode("ascii")
+            while payload:
+                payload = payload[os.write(master, payload):]
+            stdout, stderr = proc.communicate(timeout=10)
+            self.assertEqual(proc.returncode, 0, ready + stdout + stderr)
+            self.assertIn("FX_BRIDGE_RESULT", stdout)
+            self.assertEqual(read_jsonl(self.fx_log)[0]["stdin_prompt"], "x" * longest)
+        finally:
+            os.close(master)
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait(timeout=5)
     def test_raw_and_mismatched_envelopes_do_not_call_fx(self) -> None:
         proc, task_ref, _ = self.ready_process(*self.start_args())
         wrong_ref = "00000000-0000-4000-8000-000000000000"
@@ -411,9 +599,7 @@ class FxBridgeTests(unittest.TestCase):
         self.assertEqual(read_jsonl(self.fx_log), [])
         self.assertEqual(read_jsonl(self.state_home / "task-delegation" / "delegations.jsonl"), [])
         events = read_jsonl(self.herdr_log)
-        self.assertEqual([event[:2] for event in events],
-                         [["pane", "report-agent"], ["pane", "release-agent"]])
-        self.assertLess(int(option(events[0], "--seq")), int(option(events[1], "--seq")))
+        self.assertEqual([event[:2] for event in events], [["pane", "report-agent"]])
 
 
 if __name__ == "__main__":
