@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 """Keep an Fx conversation in a Herdr pane using Fx's documented CLI.
 
-The bridge accepts one prompt per terminal line. It does not interpret task
-content, approve Fx tool requests, choose a model, or retry a failed turn.
+The bridge accepts one encoded task per terminal line. It does not interpret
+task content, approve Fx tool requests, choose a model, or retry a failed turn.
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 from datetime import datetime, timezone
 import fcntl
 import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import shutil
 import signal
@@ -30,6 +33,9 @@ from log import append_event, default_log_path
 
 ENTRY_COMMAND = "task-delegation-fx-bridge"
 MAX_PROMPT_BYTES = 65536
+MAX_WIRE_BYTES = 90000
+WIRE_PREFIX = ": FXB1_"
+WIRE_PATTERN = re.compile(r": FXB1_([A-Za-z0-9_-]+)\Z", re.ASCII)
 REPORT_TIMEOUT = 1.5
 
 
@@ -62,6 +68,50 @@ def exact_uuid(value: str) -> str:
     if parsed != value:
         raise BridgeError("task-ref must be a canonical UUID")
     return parsed
+
+
+def checked_prompt(prompt: str) -> str:
+    if (not prompt.strip() or len(prompt.encode("utf-8")) > MAX_PROMPT_BYTES
+            or any(ord(char) < 32 or ord(char) == 127 for char in prompt)):
+        raise BridgeError("prompt must be one nonempty line of at most 65536 UTF-8 bytes")
+    return prompt
+
+
+def make_envelope(task_ref: str, expected_turn: int, prompt: str) -> str:
+    exact_uuid(task_ref)
+    if type(expected_turn) is not int or expected_turn < 1:
+        raise BridgeError("expected turn must be a positive integer")
+    checked_prompt(prompt)
+    payload = json.dumps({"task_ref": task_ref, "expected_turn": expected_turn,
+                          "prompt": prompt}, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    encoded = base64.urlsafe_b64encode(payload).rstrip(b"=").decode("ascii")
+    wire = WIRE_PREFIX + encoded
+    if len(wire.encode("ascii")) > MAX_WIRE_BYTES:
+        raise BridgeError("encoded task line is too long")
+    return wire
+
+
+def parse_envelope(line: str, task_ref: str, expected_turn: int) -> str:
+    match = WIRE_PATTERN.fullmatch(line)
+    if match is None:
+        raise BridgeError("invalid task envelope; use the encode command")
+    token = match.group(1)
+    try:
+        raw = base64.b64decode(token + "=" * (-len(token) % 4), altchars=b"-_", validate=True)
+        if base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii") != token:
+            raise BridgeError("noncanonical task envelope")
+        payload = json.loads(raw.decode("utf-8"))
+    except (binascii.Error, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise BridgeError("invalid task envelope payload") from error
+    if not isinstance(payload, dict) or set(payload) != {"task_ref", "expected_turn", "prompt"}:
+        raise BridgeError("invalid task envelope fields")
+    if payload["task_ref"] != task_ref:
+        raise BridgeError("task envelope reference does not match this bridge")
+    if type(payload["expected_turn"]) is not int or payload["expected_turn"] != expected_turn:
+        raise BridgeError("task envelope turn does not match this bridge")
+    if not isinstance(payload["prompt"], str):
+        raise BridgeError("invalid task envelope prompt")
+    return checked_prompt(payload["prompt"])
 
 
 def absolute_existing_dir(name: str, value: str) -> str:
@@ -452,22 +502,27 @@ class FxBridge:
             display("FX_BRIDGE_READY", {"task_ref": self.state["task_ref"], "agent": self.state["agent"],
                                         "session_id": self.state.get("session_id")})
             while True:
-                line = sys.stdin.buffer.readline(MAX_PROMPT_BYTES + 2)
+                line = sys.stdin.buffer.readline(MAX_WIRE_BYTES + 2)
                 if not line:
                     return
-                if len(line) > MAX_PROMPT_BYTES:
+                if len(line) > MAX_WIRE_BYTES:
                     while line and not line.endswith(b"\n"):
-                        line = sys.stdin.buffer.readline(MAX_PROMPT_BYTES + 2)
-                    display("FX_BRIDGE_INPUT_ERROR", {"reason": "prompt_line_too_long"})
+                        line = sys.stdin.buffer.readline(MAX_WIRE_BYTES + 2)
+                    display("FX_BRIDGE_INPUT_ERROR", {"reason": "task_line_too_long"})
                     continue
                 try:
-                    prompt = line.decode("utf-8").rstrip("\r\n")
+                    wire = line.decode("utf-8").rstrip("\r\n")
                 except UnicodeDecodeError:
                     display("FX_BRIDGE_INPUT_ERROR", {"reason": "invalid_utf8"})
                     continue
-                if prompt == "/exit":
+                if wire == "/exit":
                     return
-                if not prompt.strip():
+                if not wire.strip():
+                    continue
+                try:
+                    prompt = parse_envelope(wire, self.state["task_ref"], self.state["turn"] + 1)
+                except BridgeError as error:
+                    display("FX_BRIDGE_INPUT_ERROR", {"reason": str(error)})
                     continue
                 self.turn(prompt)
         finally:
@@ -534,10 +589,28 @@ def main(argv: list[str] | None = None) -> int:
     resume.add_argument("--task-ref", required=True)
     query = sub.add_parser("inspect", help="Print saved bridge and last-turn status as JSON")
     query.add_argument("--task-ref", required=True)
+    encode = sub.add_parser("encode", help="Encode a stdin prompt as a shell-safe Herdr pane line")
+    encode.add_argument("--task-ref", required=True)
+    encode.add_argument("--turn", type=int, required=True, metavar="NEXT_TURN")
     args = parser.parse_args(argv)
     try:
         if args.action == "inspect":
             inspect(args.task_ref)
+            return 0
+        if args.action == "encode":
+            if sys.stdin.isatty():
+                raise BridgeError("encode requires a prompt on stdin")
+            _, state = read_state(args.task_ref)
+            if state.get("bridge_state") != "idle" or args.turn != state["turn"] + 1:
+                raise BridgeError("bridge is not idle at the requested next turn")
+            raw = sys.stdin.buffer.read(MAX_PROMPT_BYTES + 1)
+            if len(raw) > MAX_PROMPT_BYTES:
+                raise BridgeError("prompt exceeds 65536 UTF-8 bytes")
+            try:
+                prompt = raw.decode("utf-8")
+            except UnicodeDecodeError as error:
+                raise BridgeError("prompt is not UTF-8") from error
+            print(make_envelope(args.task_ref, args.turn, prompt))
             return 0
         ensure_resume_entry()
         pane_id, herdr_bin = herdr_environment()

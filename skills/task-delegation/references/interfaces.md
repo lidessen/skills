@@ -63,7 +63,10 @@ herdr agent start worker_name --kind codex --pane PANE_ID -- -m MODEL
 ```
 
 只有 `agent start` 成功识别到新 Agent，才提交任务；失败时检查 pane 与 runner，
-不可把 prompt 发给可能已占用同名的旧 Agent。
+不可把 prompt 发给可能已占用同名的旧 Agent。下面的 `agent prompt` 仅适用于 Herdr
+原生识别的前台 runner；自报告的 Fx 薄适配器不满足此条件，须按
+[Fx 接入参考](fx.md)先编码成 shell 空操作封套，再用 `pane run` 提交并按轮次核对回执；
+不要直接把任务正文送进 pane。
 
 ```sh
 herdr agent prompt worker_name '目标、范围、上下文、产物与验收写在这里' --wait --timeout 120000

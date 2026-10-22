@@ -65,31 +65,46 @@ herdr agent read "$PANE_ID" --source recent-unwrapped --lines 40
 ```
 
 `pane run` 只确认命令已送入终端。等适配器上报 `idle`，并从终端的
-`FX_BRIDGE_READY` 行读取真实 `task_ref` 后，才提交一行完整任务；一行中仍要交代
-目标、范围、上下文、产物与验收，不能直接发送含原始换行的 prompt，因为适配器逐行接收。
-较长的上下文应给明确的可读文件路径和范围，避免把整篇内容挤进一条终端输入。
+`FX_BRIDGE_READY` 行读取真实 `task_ref` 后，才准备完整任务；任务中仍要交代
+目标、范围、上下文、产物与验收。`encode` 从标准输入接收一行 UTF-8 任务文字，拒绝
+原始换行、回车与控制符，再输出 `: FXB1_...` 封套。较长的上下文应给明确的可读文件
+路径和范围，避免把整篇内容挤进终端输入。Herdr 0.9.5 只把此适配器的自报告用于状态展示，
+`agent prompt` 仍要求原生识别的前台 Agent，不能给自报告的 Fx 提交任务；改名也不会改变
+这一检查。用 `pane run` 将编码后的单行封套和 Enter 一次送到当前适配器，再按本轮标识
+等回执：
 
 ```sh
-herdr agent prompt "$PANE_ID" '一行内写清目标、范围、产物和验收' --wait --timeout 120000
+TASK_REF=ACTUAL_UUID       # 从 FX_BRIDGE_READY 读取，不自行生成
+NEXT_TURN=1                # inspect 的当前 turn + 1
+TASK_TEXT='一行内写清目标、范围、产物和验收'
+WIRE=$(printf '%s' "$TASK_TEXT" | task-delegation-fx-bridge encode \
+  --task-ref "$TASK_REF" --turn "$NEXT_TURN")
+herdr pane run "$PANE_ID" "$WIRE"
+herdr pane wait-output "$PANE_ID" --source recent-unwrapped \
+  --match "FX_BRIDGE_RESULT {\"task_ref\":\"$TASK_REF\",\"turn\":$NEXT_TURN," --timeout 120000
+task-delegation-fx-bridge inspect --task-ref "$TASK_REF"
 herdr agent get "$PANE_ID"
-herdr agent read "$PANE_ID" --source recent-unwrapped --lines 120
-task-delegation-fx-bridge inspect --task-ref ACTUAL_UUID
 ```
 
+封套只使用 shell 安全字符，前面的 `:` 是 shell 空操作；即使适配器在检查与提交之间
+退出，落到 shell 的这一行也不会执行任务正文。适配器只接受匹配当前 `task_ref` 与下一
+轮次的封套，拒绝原始任务文字和旧封套。编码并不加密，仍不可借此传递凭据或越权内容。
+`encode` 须与目标适配器使用同一用户状态目录，且仅在其状态为 `idle` 时生成封套。
+`pane run` 的成功回执只表示文本已送达终端；`pane wait-output` 会先搜索已有 scrollback，
+所以每次都用实际 `task_ref` 和预期 `turn` 匹配，不能只等泛用的 `FX_BRIDGE_RESULT`。
+等待超时先查 `inspect` 与 pane 输出，确认当前轮是否已提交或完成，不自动重发。
 适配器将精简的 `FX_BRIDGE_RESULT` 印到 pane，不把模型正文复制到终端摘要；
 私有状态文件存 Fx 的 JSON 回执，`inspect` 读取最近一轮状态与 `final_output`。
 确认进程退出码、JSON `exit_code`、`final_output`、
 真实 `session_id` 与产物，再按任务验收，不能仅凭 Herdr 的 `idle`、`done` 或
-`agent prompt --wait` 认定完成。Herdr 的 `agent prompt` 从非 working 状态提交后需要
-在五秒内观察到 `working` 或 `blocked`；若超时或 `agent_prompt_stalled`，先读 pane
-和 `inspect`，不要自动重复提交。`agent wait` 不跟踪独立轮次，已有其他轮次在运行时
-尤其需要核对 `task_ref` 与回执。
+`pane wait-output` 认定完成。`agent wait` 不跟踪独立轮次，已有其他轮次在运行时尤其
+需要核对 `task_ref` 与回执。
 
 适配器只在 Herdr 确认环境变量齐全时自报，使用不与内建 adapter 冲突的稳定 `source`
 和递增 `seq`。真开始 Fx 请求时上报 `working`；成功回执落盘且适配器可接收下一行时
 才上报 `idle`。任一轮失败会保存回执、上报 `unknown` 并退出，随后释放 pane 的 Agent
-身份；此时 `agent prompt --wait` 可能以 Agent 消失结束，必须用 `inspect` 查原因，
-不可自动重发。不能可靠判定审批或提问时不虚报 `blocked`。Fx CLI 的非交互审批限制
+身份；此时等待状态可能以 Agent 消失结束，必须用 `inspect` 查原因，不可自动重发。
+不能可靠判定审批或提问时不虚报 `blocked`。Fx CLI 的非交互审批限制
 仍然存在；需要人决策的任务应选支持可观察审批的执行方式。Herdr 上报使用短超时，
 不应让本地状态服务故障阻塞 Fx。适配器在退出时调用 `release-agent`，不占用原有
 Herdr 内建 adapter 的 pane。

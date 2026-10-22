@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import base64
 import os
 from pathlib import Path
 import select
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -138,6 +140,37 @@ class FxBridgeTests(unittest.TestCase):
                               env=env, input=input_text, capture_output=True, text=True,
                               timeout=timeout, check=False)
 
+    def ready_process(self, *args: str, extra_env: dict[str, str] | None = None
+                      ) -> tuple[subprocess.Popen[str], str, str]:
+        proc = subprocess.Popen([sys.executable, "-B", str(SCRIPT), *args], cwd=self.root,
+                                env={**self.env, **(extra_env or {})}, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True, bufsize=1)
+        self.assertTrue(select.select([proc.stdout], [], [], 5)[0], "bridge did not publish ready")
+        ready = proc.stdout.readline()
+        self.assertTrue(ready.startswith("FX_BRIDGE_READY "), ready)
+        task_ref = json.loads(ready.removeprefix("FX_BRIDGE_READY "))["task_ref"]
+        return proc, task_ref, ready
+
+    def encoded(self, task_ref: str, turn: int, prompt: str) -> str:
+        result = self.command("encode", "--task-ref", task_ref, "--turn", str(turn),
+                              input_text=prompt)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout.rstrip("\n")
+
+    def run_turn(self, args: tuple[str, ...], prompt: str, *, turn: int = 1,
+                 extra_env: dict[str, str] | None = None, timeout: float = 15
+                 ) -> subprocess.CompletedProcess[str]:
+        proc, task_ref, ready = self.ready_process(*args, extra_env=extra_env)
+        try:
+            wire = self.encoded(task_ref, turn, prompt)
+            stdout, stderr = proc.communicate(wire + "\n/exit\n", timeout=timeout)
+            return subprocess.CompletedProcess(args, proc.returncode, ready + stdout, stderr)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait(timeout=5)
+
     def start_args(self, *, turn_timeout: str = "8") -> tuple[str, ...]:
         return ("start", "--project", "Meowland", "--description", "Synthetic bridge check",
                 "--provider", "magpie", "--model", "provider/example-model",
@@ -153,7 +186,7 @@ class FxBridgeTests(unittest.TestCase):
 
     def test_start_then_resume_uses_real_fx_session_and_monotonic_reports(self) -> None:
         private_prompt = "Canary_NonSecret_Prompt_Do_Not_Log"
-        first = self.command(*self.start_args(), input_text=private_prompt + "\n/exit\n")
+        first = self.run_turn(self.start_args(), private_prompt)
         self.assertEqual(first.returncode, 0, first.stderr)
         self.assertIn("FX_BRIDGE_READY", first.stdout)
         self.assertIn("FX_BRIDGE_RESULT", first.stdout)
@@ -173,7 +206,7 @@ class FxBridgeTests(unittest.TestCase):
         self.assertEqual(snapshot["session_id"], "fx-session-7")
         self.assertEqual(snapshot["last_result"]["final_output"], "OK-1")
 
-        second = self.command("resume", "--task-ref", task_ref, input_text="Continue simply\n/exit\n")
+        second = self.run_turn(("resume", "--task-ref", task_ref), "Continue simply", turn=2)
         self.assertEqual(second.returncode, 0, second.stderr)
         _, resumed_state = self.state()
         self.assertEqual(resumed_state["task_ref"], task_ref)
@@ -222,8 +255,8 @@ class FxBridgeTests(unittest.TestCase):
         self.assertEqual(log_events[-1]["runner_session_id"], "fx-session-7")
 
     def test_fx_failure_keeps_receipt_and_never_reports_success(self) -> None:
-        result = self.command(*self.start_args(), input_text="Fail synthetically\n/exit\n",
-                              extra_env={"FAKE_FX_MODE": "error"})
+        result = self.run_turn(self.start_args(), "Fail synthetically",
+                               extra_env={"FAKE_FX_MODE": "error"})
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn("Fx turn 1 failed", result.stderr)
         directory, state = self.state()
@@ -238,9 +271,8 @@ class FxBridgeTests(unittest.TestCase):
         self.assertNotIn("completed", statuses)
 
     def test_timeout_keeps_failed_receipt_and_stops_fx_child(self) -> None:
-        result = self.command(*self.start_args(turn_timeout="1"),
-                              input_text="Wait synthetically\n/exit\n",
-                              extra_env={"FAKE_FX_MODE": "sleep"}, timeout=10)
+        result = self.run_turn(self.start_args(turn_timeout="1"), "Wait synthetically",
+                               extra_env={"FAKE_FX_MODE": "sleep"}, timeout=10)
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn("Fx turn 1 failed", result.stderr)
         directory, state = self.state()
@@ -254,8 +286,8 @@ class FxBridgeTests(unittest.TestCase):
         self.assertEqual(statuses, ["started", "failed"])
 
     def test_missing_session_never_starts_a_second_conversation(self) -> None:
-        result = self.command(*self.start_args(), input_text="First\nSecond\n/exit\n",
-                              extra_env={"FAKE_FX_MODE": "missing"})
+        result = self.run_turn(self.start_args(), "First",
+                               extra_env={"FAKE_FX_MODE": "missing"})
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn("Fx turn 1 failed", result.stderr)
         directory, state = self.state()
@@ -296,7 +328,7 @@ class FxBridgeTests(unittest.TestCase):
         self.assertEqual(read_jsonl(self.herdr_log), [])
 
     def test_missing_bridge_entry_rejects_resume_before_fx_request(self) -> None:
-        first = self.command(*self.start_args(), input_text="First\n/exit\n")
+        first = self.run_turn(self.start_args(), "First")
         self.assertEqual(first.returncode, 0, first.stderr)
         _, state = self.state()
         self.entry.unlink()
@@ -307,7 +339,7 @@ class FxBridgeTests(unittest.TestCase):
         self.assertEqual(len(read_jsonl(self.fx_log)), 1)
 
     def test_changed_fx_settings_rejects_resume_before_fx_request(self) -> None:
-        first = self.command(*self.start_args(), input_text="First\n/exit\n")
+        first = self.run_turn(self.start_args(), "First")
         self.assertEqual(first.returncode, 0, first.stderr)
         _, state = self.state()
         self.settings.write_text('{"provider":"changed"}', encoding="utf-8")
@@ -317,23 +349,59 @@ class FxBridgeTests(unittest.TestCase):
         self.assertEqual(len(read_jsonl(self.fx_log)), 1)
 
     def test_changed_fx_settings_after_ready_rejects_first_prompt(self) -> None:
-        proc = subprocess.Popen([sys.executable, "-B", str(SCRIPT), *self.start_args()],
-                                cwd=self.root, env=self.env, stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                text=True, bufsize=1)
+        proc, task_ref, _ = self.ready_process(*self.start_args())
         try:
-            self.assertTrue(select.select([proc.stdout], [], [], 5)[0],
-                            "bridge did not publish ready status")
-            ready = proc.stdout.readline()
-            self.assertIn("FX_BRIDGE_READY", ready)
+            wire = self.encoded(task_ref, 1, "Must not send")
             self.settings.write_text('{"provider":"changed"}', encoding="utf-8")
-            stdout, stderr = proc.communicate("Must not send\n/exit\n", timeout=10)
+            stdout, stderr = proc.communicate(wire + "\n/exit\n", timeout=10)
             self.assertEqual(proc.returncode, 1, stderr + stdout)
             self.assertEqual(read_jsonl(self.fx_log), [])
         finally:
             if proc.poll() is None:
                 proc.kill()
                 proc.wait(timeout=5)
+
+    def test_encoded_task_is_shell_noop_if_bridge_has_exited(self) -> None:
+        proc, task_ref, _ = self.ready_process(*self.start_args())
+        wire = self.encoded(task_ref, 1, "$(touch should-not-exist); echo SECRET")
+        self.assertTrue(wire.startswith(": FXB1_"))
+        self.assertNotIn("SECRET", wire)
+        proc.communicate("/exit\n", timeout=5)
+        self.assertEqual(proc.returncode, 0)
+        for shell_path in ("/bin/sh", shutil.which("zsh")):
+            if not shell_path:
+                continue
+            shell = subprocess.run([shell_path, "-c", wire], cwd=self.root,
+                                   capture_output=True, text=True, check=False)
+            self.assertEqual(shell.returncode, 0, shell.stderr)
+            self.assertEqual(shell.stdout, "")
+        self.assertFalse((self.root / "should-not-exist").exists())
+        self.assertEqual(read_jsonl(self.fx_log), [])
+
+    def test_raw_and_mismatched_envelopes_do_not_call_fx(self) -> None:
+        proc, task_ref, _ = self.ready_process(*self.start_args())
+        wrong_ref = "00000000-0000-4000-8000-000000000000"
+        payloads = [
+            {"task_ref": wrong_ref, "expected_turn": 1, "prompt": "wrong task"},
+            {"task_ref": task_ref, "expected_turn": 2, "prompt": "wrong turn"},
+        ]
+        wrong_lines = [": FXB1_" + base64.urlsafe_b64encode(
+            json.dumps(payload, separators=(",", ":")).encode()).rstrip(b"=").decode()
+                       for payload in payloads]
+        stdout, stderr = proc.communicate("echo raw command\n" + "\n".join(wrong_lines)
+                                          + "\n/exit\n", timeout=10)
+        self.assertEqual(proc.returncode, 0, stderr)
+        self.assertEqual(stdout.count("FX_BRIDGE_INPUT_ERROR"), 3)
+        self.assertEqual(read_jsonl(self.fx_log), [])
+
+    def test_replayed_envelope_does_not_create_second_turn(self) -> None:
+        proc, task_ref, _ = self.ready_process(*self.start_args())
+        wire = self.encoded(task_ref, 1, "First")
+        stdout, stderr = proc.communicate(wire + "\n" + wire + "\n/exit\n", timeout=10)
+        self.assertEqual(proc.returncode, 0, stderr)
+        self.assertEqual(stdout.count("FX_BRIDGE_RESULT"), 1)
+        self.assertEqual(stdout.count("FX_BRIDGE_INPUT_ERROR"), 1)
+        self.assertEqual(len(read_jsonl(self.fx_log)), 1)
 
     def test_failed_herdr_registration_does_not_send_model_request(self) -> None:
         result = self.command(*self.start_args(), input_text="Do not deliver\n/exit\n",
