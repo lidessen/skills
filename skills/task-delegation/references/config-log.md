@@ -26,6 +26,8 @@ python3 "$SKILL_DIR/scripts/log.py" --project PROJECT --description '简短任�
 
 可选 `--runner-session-id ID` 只有在 runner 确认后传；未知时日志写 `null` 与
 `session_state: pending`，确认后用 `--task-ref UUID` 追加同一任务的事件，不回填或改写旧行。
+这里的 `pending` 仅表示 helper 未收到非空 ID；有意使用 `--no-save` 等不保存会话时，
+主 Agent 在简短状态或描述中注明不可恢复，读日志时据此不安排补查或恢复。
 `--log ABS_PATH` 只供隔离测试或明确覆盖日志目标。Herdr 的 pane 是终端位置，不能作为
 runner 可恢复会话；`agent get` 的 `agent_session` 只有在集成真实报告后才可用。
 helper 使用 POSIX `fcntl` 锁，适用于 macOS/Linux；未验证 Windows 支持。

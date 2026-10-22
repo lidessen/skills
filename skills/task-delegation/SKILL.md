@@ -60,7 +60,8 @@ runner 自己拥有会话和恢复方式。具体 route 是否能调用，仍要
 在 Herdr 管理的 pane 中才用其控制命令。读取
 [已核实的 CLI 接口与示例](references/interfaces.md)，核对现场 `--help`、runner 认证和执行参数；
 不修改 Magpie 的全局模型、group 或 fallback 配置来完成一次委托。Herdr 不支持的 runner
-不能假装为 Herdr kind；若另走其原生 CLI，使用它真实的执行与恢复接口。交给执行者的任务应包含：
+不能假装为 Herdr kind；若另走其原生 CLI，使用它真实的执行与恢复接口。选 Fx 时按
+[Fx 按需参考](references/fx.md)区分一次性调用和需自行接入的持久交互。交给执行者的任务应包含：
 
 > 目标与验收；范围和禁止事项；必要上下文及权威来源；可读写位置、工具与权限；
 > 期望产物与路径；应运行的检查；失败、阻塞和未知时返回什么。

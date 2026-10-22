@@ -89,7 +89,7 @@ Herdr 的[集成](https://herdr.dev/docs/integrations/)和
 | --- | --- | --- |
 | Claude Code | 已安装版本的 `--model <model>`、`--session-id <uuid>`、`--resume <id>`；见[官方 CLI](https://code.claude.com/docs/en/cli-reference)与[会话](https://code.claude.com/docs/en/sessions) | 预生成 UUID 只有成功建立且确认 session 后才能写为 confirmed；`--resume` 依真实 ID。Herdr `kind=claude` 可用，但不能仅凭 `agent start` 返回推断恢复 ID。 |
 | Pi | 官方 `--provider`、`--model`、`--session`；`--mode json` 首条事件含 `session.id`，见[CLI](https://pi.dev/docs/latest/cli)、[JSON](https://pi.dev/docs/latest/json)和[会话](https://pi.dev/docs/latest/sessions) | 本机未安装。JSON 事件中的 `agent_end` 仍可能有后续自动工作；确认 `agent_settled` 才作本轮无自动后续的观察。Herdr 有 `kind=pi`，只在 runner 实际存在且交互方式兼容时使用。 |
-| Fx | 官方 `fx ask --json` 可返回 `session_id`，`fx sessions`、`fx session`、`fx resume` 查询或恢复，见[ask](https://fx.sh/docs/using-fx/fx-ask)、[会话](https://fx.sh/docs/using-fx/sessions)、[CLI](https://fx.sh/docs/using-fx/cli) | 本机未安装，Herdr 没有 `kind=fx`，不能写 `herdr agent start --kind fx`。`--no-save` 得到空 session ID，不能当可恢复会话。若选 Fx，须走它实际支持的原生执行接口。 |
+| Fx | 官方 `fx ask --json` 可返回 `session_id`，`fx sessions`、`fx session`、`fx resume` 查询或恢复，见[ask](https://fx.sh/docs/using-fx/fx-ask)、[会话](https://fx.sh/docs/using-fx/sessions)、[CLI](https://fx.sh/docs/using-fx/cli) | 本机未安装，Herdr 没有 `kind=fx`，不能写 `herdr agent start --kind fx`。`--no-save` 得到空 session ID，不能当可恢复会话。单次走原生 CLI；持久交互才按[Fx 参考](fx.md)评估自行接入 Herdr。 |
 
 会话 hook 不默认安装。只有普通 runner/Herdr 回执不足，且目标 hook 能解决真实 session
 捕获或必要完成观察缺口时，才考虑接入；还须目标支持、项目允许、用户授权，并保留既有配置。
