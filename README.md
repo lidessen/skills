@@ -20,6 +20,7 @@
 | 组织职责、依赖与整体结构 | [architecture](skills/architecture/SKILL.md) |
 | 设计 Agent 指导或发展方法 | [agent-guidance](skills/agent-guidance/SKILL.md)、[skill-incubator](skills/skill-incubator/SKILL.md) |
 | 分治协作 | [divide-and-conquer](skills/divide-and-conquer/SKILL.md) |
+| 在 Herdr + Magpie 中委托任务并选择模型通道 | [task-delegation](skills/task-delegation/SKILL.md) |
 | 设计测试、选择投入或接续复测 | [risk-driven-testing](skills/risk-driven-testing/SKILL.md) |
 | 整理结构或评估依赖升级 | [defrag](skills/defrag/SKILL.md)、[dependency-upgrade](skills/dependency-upgrade/SKILL.md) |
 | 界面设计与改进 | [interface-design](skills/interface-design/SKILL.md)、[ui-improvement](skills/ui-improvement/SKILL.md) |
