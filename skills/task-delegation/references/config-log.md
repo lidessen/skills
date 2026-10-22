@@ -31,6 +31,10 @@ python3 "$SKILL_DIR/scripts/log.py" --project PROJECT --description '简短任�
 `--log ABS_PATH` 只供隔离测试或明确覆盖日志目标。Herdr 的 pane 是终端位置，不能作为
 runner 可恢复会话；`agent get` 的 `agent_session` 只有在集成真实报告后才可用。
 helper 使用 POSIX `fcntl` 锁，适用于 macOS/Linux；未验证 Windows 支持。
+使用 [Fx 薄适配器](fx.md)时，适配器用同一 `task_ref` 为每轮追加简短状态及确认的
+Fx session ID；主 Agent 不要再为同一轮重复写一条等价事件。Fx 的详细回执保存在
+私有状态目录，用 `task-delegation-fx-bridge inspect --task-ref UUID` 查看摘要，
+全局日志仍只记录定位和状态。
 
 状态事件描述已观察的进度，不能代替验收。失败、超时或 `blocked` 时保留原任务标识，
 先查现场与产物，不盲目重派；交付后日志只追加简短结果状态，验证依据留在原任务回执

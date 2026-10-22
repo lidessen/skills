@@ -1,7 +1,8 @@
 # Herdr 与 Magpie 的已核实接口
 
-此页记录 2026-10-22 的 Herdr 0.9.5、Magpie 0.1.1296、Claude Code 2.1.306
-与 Codex CLI 帮助快照，以及 Pi/Fx 官方文档。当前环境有 Claude Code，未安装 Pi 或 Fx。
+此页记录 2026-10-22 核对的 Herdr 0.9.5、Magpie 0.1.1321、Fx 0.0.14
+与 Claude Code 2.1.306 CLI 帮助快照，以及 Pi/Fx 官方文档。版本只标明命令证据，
+不代表别的主机已安装这些 runner。
 使用时复核现场版本、配置与产品条款；命令语法成立不代表当前账户已登录、
 套餐可由该 runner 调用，或调用不计费。以下检查本身不发起模型任务。
 
@@ -11,6 +12,7 @@
 herdr --version
 herdr agent start --help
 herdr agent prompt --help
+herdr pane report-agent --help
 magpie models codex
 magpie accounts codex --json
 magpie quota codex --json
@@ -18,6 +20,7 @@ codex --help
 command -v claude
 command -v pi
 command -v fx
+fx ask --help
 ```
 
 示例中的 `codex` 同时是该环境的 Agent 名和 provider ID；换环境时，`magpie models`
@@ -88,8 +91,8 @@ Herdr 的[集成](https://herdr.dev/docs/integrations/)和
 | runner | 当前可证实的单次选择与会话接口 | 边界 |
 | --- | --- | --- |
 | Claude Code | 已安装版本的 `--model <model>`、`--session-id <uuid>`、`--resume <id>`；见[官方 CLI](https://code.claude.com/docs/en/cli-reference)与[会话](https://code.claude.com/docs/en/sessions) | 预生成 UUID 只有成功建立且确认 session 后才能写为 confirmed；`--resume` 依真实 ID。Herdr `kind=claude` 可用，但不能仅凭 `agent start` 返回推断恢复 ID。 |
-| Pi | 官方 `--provider`、`--model`、`--session`；`--mode json` 首条事件含 `session.id`，见[CLI](https://pi.dev/docs/latest/cli)、[JSON](https://pi.dev/docs/latest/json)和[会话](https://pi.dev/docs/latest/sessions) | 本机未安装。JSON 事件中的 `agent_end` 仍可能有后续自动工作；确认 `agent_settled` 才作本轮无自动后续的观察。Herdr 有 `kind=pi`，只在 runner 实际存在且交互方式兼容时使用。 |
-| Fx | 官方 `fx ask --json` 可返回 `session_id`，`fx sessions`、`fx session`、`fx resume` 查询或恢复，见[ask](https://fx.sh/docs/using-fx/fx-ask)、[会话](https://fx.sh/docs/using-fx/sessions)、[CLI](https://fx.sh/docs/using-fx/cli) | 本机未安装，Herdr 没有 `kind=fx`，不能写 `herdr agent start --kind fx`。`--no-save` 得到空 session ID，不能当可恢复会话。单次走原生 CLI；持久交互才按[Fx 参考](fx.md)评估自行接入 Herdr。 |
+| Pi | 官方 `--provider`、`--model`、`--session`；`--mode json` 首条事件含 `session.id`，见[CLI](https://pi.dev/docs/latest/cli)、[JSON](https://pi.dev/docs/latest/json)和[会话](https://pi.dev/docs/latest/sessions) | 需在目标主机核对安装及版本。JSON 事件中的 `agent_end` 仍可能有后续自动工作；确认 `agent_settled` 才作本轮无自动后续的观察。Herdr 有 `kind=pi`，只在 runner 实际存在且交互方式兼容时使用。 |
+| Fx | `fx ask --json --model MODEL` 返回进程结果和 JSON `exit_code`、`final_output`、`session_id`；本机 0.0.14 的精确续接选项为 `fx ask --resume-id ID`，见[ask](https://fx.sh/docs/using-fx/fx-ask)、[会话](https://fx.sh/docs/using-fx/sessions)、[CLI](https://fx.sh/docs/using-fx/cli) | Herdr 没有 `kind=fx`，不能写 `herdr agent start --kind fx`。`--no-save` 没有可恢复 ID。单次走原生 CLI；需要 Herdr 管理多轮输入时使用[Fx 薄适配器](fx.md)，由真实回执和自报告提供状态、结果与恢复。 |
 
 会话 hook 不默认安装。只有普通 runner/Herdr 回执不足，且目标 hook 能解决真实 session
 捕获或必要完成观察缺口时，才考虑接入；还须目标支持、项目允许、用户授权，并保留既有配置。
