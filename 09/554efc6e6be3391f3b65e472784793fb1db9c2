@@ -1,0 +1,23 @@
+skills/risk-driven-testing/SKILL.md
+  s_add48ffbba3e42::t_21fc5cc6e4eed9 3,10-13,15-16,18,21-40,70,95-114
+skills/risk-driven-testing/references/localize.md
+  s_add48ffbba3e42::t_c37970c5e04faf 49-52
+skills/risk-driven-testing/references/test-continuity.md
+  s_add48ffbba3e42::t_1752aef7ef0140 49,54-55,57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "09554efc6e6be3391f3b65e472784793fb1db9c2",
+  "prompts": {},
+  "sessions": {
+    "s_add48ffbba3e42": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e365819a-9efc-42d1-85fc-9797d7687ed0",
+        "model": "deepseek_v4_flash_0731"
+      },
+      "human_author": "Lidessen <ztytotoro@outlook.com>"
+    }
+  }
+}
