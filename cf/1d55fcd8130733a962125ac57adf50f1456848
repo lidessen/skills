@@ -1,0 +1,59 @@
+skills/risk-driven-testing/references/examples/google-search/package.json
+  s_6dc2e7f6f0b2dc::t_92c47190b863fe 1-21
+  s_6dc2e7f6f0b2dc::t_4a7d1fc183587d 22
+skills/risk-driven-testing/references/examples/google-search/README.md
+  s_6dc2e7f6f0b2dc::t_90f6ec421d242e 19-21,24-25,29,31-37,42-46,49-50,52-56,59-66
+  s_6dc2e7f6f0b2dc::t_2d4d5b7b7e0890 17
+  s_6dc2e7f6f0b2dc::t_522a3947beb377 13
+  s_6dc2e7f6f0b2dc::t_26d6a859f846f3 1-12,14-16,18,22-23,26-28,30,38-41,47-48,51,57-58
+skills/risk-driven-testing/references/examples/google-search/tsconfig.json
+  s_6dc2e7f6f0b2dc::t_8688dd1277c5a3 1-14
+skills/risk-driven-testing/references/behavior-spec.md
+  s_bfb765233abd0d::t_55aa681f53f2c0 4-5,16-43,46-55,71,73-75,77-89,91-93,95-97
+skills/risk-driven-testing/references/examples/google-search/tests/e2e/actions/google-search.ts
+  s_003638be8945fa::t_97130ee055c7ee 1-114
+skills/risk-driven-testing/references/examples/google-search/tests/e2e/fixtures/google-search-seam.ts
+  s_9b719e1c201028::t_8a0efddbd3d37d 1-103
+skills/risk-driven-testing/references/examples/google-search/tests/e2e/google-search.spec.ts
+  s_9b719e1c201028::t_3feb7f938655e9 1-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "cf1d55fcd8130733a962125ac57adf50f1456848",
+  "prompts": {},
+  "sessions": {
+    "s_003638be8945fa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "27a16733-6b57-4ab9-89b0-673762fbf83d",
+        "model": "deepseek_v4_flash_0731"
+      },
+      "human_author": "Lidessen <ztytotoro@outlook.com>"
+    },
+    "s_6dc2e7f6f0b2dc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fdc80f58-16c6-4162-9fa5-e46c3d8150c0",
+        "model": "deepseek_v4_flash_0731"
+      },
+      "human_author": "Lidessen <ztytotoro@outlook.com>"
+    },
+    "s_9b719e1c201028": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5d3f3c5-536d-4f61-a039-74b504933a0f",
+        "model": "deepseek_v4_flash_0731"
+      },
+      "human_author": "Lidessen <ztytotoro@outlook.com>"
+    },
+    "s_bfb765233abd0d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "938f70f4-3b79-4f9a-bf55-c3b031d0addd",
+        "model": "deepseek_v4_flash_0731"
+      },
+      "human_author": "Lidessen <ztytotoro@outlook.com>"
+    }
+  }
+}
