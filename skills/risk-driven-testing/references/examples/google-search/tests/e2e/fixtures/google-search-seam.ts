@@ -15,6 +15,8 @@ export interface SeamOptions {
   unrelatedFirstResults?: boolean;
   /** A different site has a result with the same visible text as the locator docs. */
   duplicateLocatorText?: boolean;
+  /** Hidden official results precede a visible locator documentation result. */
+  hiddenDuplicateLocator?: boolean;
 }
 
 const HOME_HTML = `<!doctype html><html><head><title>Google</title></head><body>
@@ -51,9 +53,13 @@ function resultsHTML(query: string, opts: SeamOptions, searchCount: number): str
   const duplicateLink = opts.duplicateLocatorText && searchCount >= 2
     ? '<a href="https://example.org/other">Locators | Playwright</a>'
     : '';
+  const hiddenDuplicate = opts.hiddenDuplicateLocator && searchCount >= 2
+    ? '<a hidden href="https://playwright.dev/docs/api/class-locator">Locator API | Playwright</a>' +
+      '<a hidden href="https://playwright.dev/docs/locators">Locators | Playwright</a>'
+    : '';
   const list = opts.unrelatedFirstResults && searchCount === 1
     ? '<a href="https://playwright.dev/unrelated">Careers</a>'
-    : opts.emptySecondResults && searchCount >= 2 ? '' : duplicateLink + RESULTS_LIST;
+    : opts.emptySecondResults && searchCount >= 2 ? '' : duplicateLink + hiddenDuplicate + RESULTS_LIST;
   return `<!doctype html><html><head><title>${q} - Google Search</title></head><body>
 ${form}
 <main id="search">${searchCount >= 2 && !opts.emptySecondResults ? '' : list}</main>

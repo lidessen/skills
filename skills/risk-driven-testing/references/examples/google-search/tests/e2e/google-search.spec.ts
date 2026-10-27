@@ -25,6 +25,13 @@ test.describe('SEAM local replay', () => {
     await expect(page).toHaveURL('https://playwright.dev/docs/locators');
   });
 
+  test('opens a visible official result when earlier candidates are hidden', async ({ page }) => {
+    page.setDefaultTimeout(3_000);
+    await installStubRoutes(page, { hiddenDuplicateLocator: true });
+    await runStory(page, 1_000);
+    await expect(page).toHaveURL('https://playwright.dev/docs/locators');
+  });
+
   test('pushState and changed old links do not establish a new search', async ({ page }) => {
     const searches: string[] = [];
     page.on('request', request => {

@@ -100,11 +100,12 @@ export async function resultLinks(page: Page, timeout = DEFAULT_TIMEOUT): Promis
 }
 
 export async function openLocatorsDoc(page: Page): Promise<boolean> {
-  const target = (await resultLinks(page)).find(isLocatorsDocLink);
-  if (!target?.rawHref) return false;
-  // Select by the inspected href so another result with identical text cannot shadow it.
+  const targets = new Set((await resultLinks(page)).filter(isLocatorsDocLink).map(link => link.rawHref));
+  if (targets.size === 0) return false;
+  // Match an inspected href and ignore hidden results before clicking.
   for (const anchor of await page.locator('#search a[href]').elementHandles()) {
-    if (await anchor.getAttribute('href') !== target.rawHref) continue;
+    const href = await anchor.getAttribute('href');
+    if (!href || !targets.has(href) || !(await anchor.isVisible())) continue;
     await anchor.click();
     await page.waitForURL(url => isPlaywrightDevHost(url.toString()));
     await page.waitForLoadState('domcontentloaded');
