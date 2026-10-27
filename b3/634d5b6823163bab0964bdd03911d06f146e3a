@@ -1,0 +1,19 @@
+skills/risk-driven-testing/references/examples/google-search/README.md
+  s_f029dffc40e908::t_556ed75ab86d90 57,59-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "b3634d5b6823163bab0964bdd03911d06f146e3a",
+  "prompts": {},
+  "sessions": {
+    "s_f029dffc40e908": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c45f6746-a3c6-4044-9cf3-aa3f28978272",
+        "model": "deepseek_v4_flash_0731"
+      },
+      "human_author": "Lidessen <ztytotoro@outlook.com>"
+    }
+  }
+}
