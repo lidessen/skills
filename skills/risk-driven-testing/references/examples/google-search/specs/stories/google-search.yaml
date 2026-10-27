@@ -1,0 +1,22 @@
+id: google-search-documentation
+description: 在 Google 搜索并细化查询，打开 Playwright 官方定位器文档
+context:
+  - 使用桌面浏览器，从 https://www.google.com/ 首页开始，搜索输入框可用
+  - 不要求登录；必要的地区同意选择已由准备流程完成
+  - 当前环境可以访问 Google 搜索与 playwright.dev
+steps:
+  - action: 输入 Playwright documentation 并提交搜索
+    expect:
+      - 搜索结果页的查询框显示 Playwright documentation
+      - 网页搜索结果中有与 Playwright 浏览器自动化文档相关的页面
+  - action: 将查询框内容完整替换为 Playwright locators documentation 并再次提交
+    expect:
+      - 查询框显示 Playwright locators documentation
+      - 结果已更新，能找到 playwright.dev 上介绍 Playwright 定位器的文档结果
+  - action: 打开这条 Playwright 官方定位器文档搜索结果
+    expect:
+      - 加载后的目标页面域名为 playwright.dev
+      - 页面内容介绍 Playwright 元素定位器的用法
+lookup:
+  - 'Google 基础搜索与结果匹配说明：https://support.google.com/websearch/answer/134479'
+  - 'Playwright 定位器文档：https://playwright.dev/docs/locators'

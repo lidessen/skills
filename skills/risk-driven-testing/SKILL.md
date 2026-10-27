@@ -1,16 +1,20 @@
 ---
 name: risk-driven-testing
-description: 按风险选择单元、组件、集成与完整流程保障，覆盖确定代码、Agent 协作和人工等执行方式；维护行为 YAML、测试投影与复测接续，支持 localize 项目本地化。用于测试策略、补测取舍、测试价值审查，以及 Agent 参与的半自动化或智能自动化；运行诊断、Agent 评价和视觉验收按需接入专项方法。
+description: 按风险选择单元、组件、集成与完整流程保障，覆盖确定代码、Agent 协作和人工等执行方式；维护行为 YAML、测试投影与复测接续，支持 generate 生成或更新代码、localize 项目本地化。用于测试策略、补测取舍、测试价值审查，以及 Agent 参与的半自动化或智能自动化；运行诊断、Agent 评价和视觉验收按需接入专项方法。
 ---
 
 # 按风险选择测试保障
 
 ## 调用与职责
 
-直接使用 `/risk-driven-testing` 判断测试投入与用例设计。使用
-`/risk-driven-testing localize [target-project]` 时，转入[项目本地化](references/localize.md)，
-仅适配指导与发现入口；省略路径表示当前项目。这些是 Agent 调用表达，不是 shell 命令，
-宿主可用等价语法或自然语言调用。
+直接使用 `/risk-driven-testing` 判断测试投入与用例设计。另有两个明确操作：
+
+- `/risk-driven-testing generate <behavior-yaml> [output-directory]`：按行为 YAML 实走，记录有效步骤，
+  生成或更新原子动作与组装代码，并实际回放。读[执行投影](references/execution-projection.md)。
+- `/risk-driven-testing localize [target-project]`：转入[项目本地化](references/localize.md)，仅适配
+  指导与发现入口；省略路径表示当前项目。
+
+这些是 Agent 调用表达，不是 shell 命令，宿主可用等价语法或自然语言调用。
 
 本技能提供取舍、行为规格与执行投影方法，不另建执行系统或台账，复用宿主执行入口与记录。
 用户已授权实际补测、修复或复测时，作出判断后
@@ -31,7 +35,7 @@ description: 按风险选择单元、组件、集成与完整流程保障，覆�
 
 按本次任务读取所需部分，不预加载全部工具：
 
-- 维护可重复使用的 YAML 行为库、弱引用与查找线索：读[行为规格](references/behavior-spec.md)。
+- 维护 YAML 行为库、选择项目内位置、追溯关系与查找线索：读[行为规格](references/behavior-spec.md)。
 - 从真实操作生成或更新自动化：读[执行投影](references/execution-projection.md)；具体被测面与
   工具及环境准备再读[执行面与工具](references/execution-surfaces.md)。Web 默认 playwright-cli，
   桌面准备 Cua Driver，移动端沿实际设备能力选择，不用浏览器替代原生接合验证。
@@ -93,7 +97,8 @@ description: 按风险选择单元、组件、集成与完整流程保障，覆�
 registry 或用例与脚本一一对应。Agent 回放需要实际观察；读懂用例和复用知识都不等于通过。
 
 反复使用的行为可按[行为规格](references/behavior-spec.md)写成 YAML，作为比定位器、工具参数
-与代码更稳定的依据。`ref` 只关联阅读，不自动继承或执行；关联处已有的 `expect` 仍须核对。
+与代码更稳定的依据。`ref` 仅在另一份材料有实际阅读价值时关联，不为凑层级互链，不自动继承或
+执行，也不扩张本轮测试范围；选中行为的 `expect` 仍须核对。
 `lookup` 用多条概念、符号或行为线索帮助寻找当前实现，单条线索失效不直接说明行为失败。
 
 ## 从实际操作维护执行投影
